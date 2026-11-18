@@ -21,7 +21,8 @@ function siteUrl() {
 }
 
 interface Credentials {
-  name: string;
+  prenom: string;
+  nom: string;
   password: string;
   title: string;
 }
@@ -29,13 +30,18 @@ interface Credentials {
 function CredentialsModal({ creds, onClose }: { creds: Credentials | null; onClose: () => void }) {
   const toast = useToast();
   if (!creds) return <Modal open={false} onClose={onClose} title="" />;
-  const message = `🔴 Accès au Conclave Fuinjutsu\nNom RP : ${creds.name}\nMot de passe : ${creds.password}\nSite : ${siteUrl()}`;
+  const nom = creds.nom.trim() || '/';
+  const message = `🔴 Accès au Conclave Fuinjutsu\nPrénom RP : ${creds.prenom}\nNom RP : ${nom}\nMot de passe : ${creds.password}\nSite : ${siteUrl()}`;
   return (
     <Modal open onClose={onClose} title={creds.title} kicker="Identifiants à transmettre">
       <div className="creds">
         <div className="creds__row">
+          <span>Prénom RP</span>
+          <b>{creds.prenom}</b>
+        </div>
+        <div className="creds__row">
           <span>Nom RP</span>
-          <b>{creds.name}</b>
+          <b>{nom}</b>
         </div>
         <div className="creds__row">
           <span>Mot de passe</span>
@@ -86,7 +92,7 @@ function CreateMember({ onCreated }: { onCreated: (c: Credentials) => void }) {
     try {
       const r = await api.memberCreate(prenom, nom, rank, conclave, password.trim() || null);
       toast(`${r.member.display_name} a désormais accès aux archives du Conclave`);
-      onCreated({ name: r.member.display_name, password: r.password, title: `${r.member.display_name} est inscrit` });
+      onCreated({ prenom: r.member.prenom, nom: r.member.nom, password: r.password, title: `${r.member.display_name} est inscrit` });
       setPrenom('');
       setNom('');
       setPassword('');
@@ -283,7 +289,7 @@ export default function Members() {
     if (!ok) return;
     try {
       const r = await api.memberPassword(m.id, null);
-      setCreds({ name: m.display_name, password: r.password, title: m.active ? 'Nouveau mot de passe' : 'Compte activé' });
+      setCreds({ prenom: m.prenom, nom: m.nom, password: r.password, title: m.active ? 'Nouveau mot de passe' : 'Compte activé' });
       await load();
     } catch (e) {
       toast(e instanceof Error ? e.message : String(e), 'error');
