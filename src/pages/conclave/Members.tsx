@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { api, type AdminMember } from '../../lib/api';
+import { api, ApiError, type AdminMember } from '../../lib/api';
 import { useSession } from '../../lib/session';
 import { circleLabel, initials, normalize, RANKS, timeAgo } from '../../lib/format';
 import { copyToClipboard, Empty, ErrorState, Loader, Modal, RankPicker, Toggle, useConfirm, useToast } from '../../components/ui';
@@ -267,6 +267,16 @@ export default function Members() {
   if (error) return <ErrorState text={error} onRetry={load} />;
   if (!list) return <Loader label="Lecture du registre…" />;
 
+  // Compte supprimé entre-temps (autre onglet, SQL…) : on le dit et on rafraîchit la liste
+  const onActionError = async (e: unknown) => {
+    if (e instanceof ApiError && e.code === 'FU404') {
+      toast('Ce compte n’existe plus (déjà supprimé). Liste actualisée.', 'info');
+      await load();
+      return;
+    }
+    toast(e instanceof Error ? e.message : String(e), 'error');
+  };
+
   const quickRank = async (m: AdminMember, rank: number) => {
     try {
       await api.memberUpdate(m.id, m.prenom, m.nom, rank, m.is_conclave);
@@ -274,7 +284,7 @@ export default function Members() {
       await load();
       if (m.is_me) await refresh();
     } catch (e) {
-      toast(e instanceof Error ? e.message : String(e), 'error');
+      await onActionError(e);
     }
   };
 
@@ -292,7 +302,7 @@ export default function Members() {
       setCreds({ prenom: m.prenom, nom: m.nom, password: r.password, title: m.active ? 'Nouveau mot de passe' : 'Compte activé' });
       await load();
     } catch (e) {
-      toast(e instanceof Error ? e.message : String(e), 'error');
+      await onActionError(e);
     }
   };
 
@@ -309,7 +319,7 @@ export default function Members() {
       toast(`${m.display_name} a été retiré du registre`);
       await load();
     } catch (e) {
-      toast(e instanceof Error ? e.message : String(e), 'error');
+      await onActionError(e);
     }
   };
 
