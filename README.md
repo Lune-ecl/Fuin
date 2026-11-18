@@ -1,0 +1,149 @@
+# 封 Fuinjutsu · Archives de Zenkai
+
+Le grimoire des sceaux du Conclave de Zenkai : un site rouge et noir où chaque shinobi ne lit **que les
+sceaux de son cercle**, et où **le Conclave** gère les comptes, les cercles, les slots et le contenu.
+
+- **Connexion par nom RP** : prénom + nom RP + mot de passe remis par le Conclave.
+- **Accès par cercle** (du 1er au 5e) : un 1er cercle ne voit que les sceaux du 1er cercle, un 3e cercle
+  voit les cercles 1 à 3, etc. Le Conclave voit tout. Le contrôle est fait **dans la base de données** :
+  le contenu d'un sceau verrouillé n'est jamais envoyé au navigateur.
+- **Une page par sceau** (`/premier-cercle/dissimulation`, `/troisieme-cercle/silence`…), avec formule de
+  kanjis, icône, règles, statut de slot et sceaux liés.
+- **Recherche** instantanée (Ctrl K / ⌘ K) par nom, catégorie ou kanji, limitée à ton cercle.
+- **Console du Conclave** (`/conclave`) :
+  - **Membres** : inscrire un shinobi (prénom, nom RP, cercle, mot de passe généré ou choisi), changer son
+    cercle, le passer au Conclave, régénérer son mot de passe, le supprimer. Le mot de passe s'affiche
+    une seule fois avec un bouton « Copier le message complet » à envoyer au joueur.
+  - **Slots** : suivi des places par village (Ame, Konoha, Suna… modifiables), attribution / libération,
+    catalogue de tous les sceaux, configuration des quotas et notes internes.
+  - **Éditeur de sceaux** : création et modification des fiches (Markdown avec aperçu en direct, encadrés,
+    tableaux, icône SVG, badge MJ, brouillons invisibles des joueurs, cercle minimum par fiche).
+  - **Catégories & droits** : cercle requis par catégorie, catégories réservées au Conclave.
+  - **Journal** : historique de toutes les actions du Conclave.
+- Chaque joueur peut changer son mot de passe dans **Mon compte**.
+
+---
+
+## Architecture
+
+| Élément | Choix |
+| --- | --- |
+| Frontend | React 18 + TypeScript + Vite, CSS sur mesure (aucun framework CSS) |
+| Base de données | Supabase (PostgreSQL) |
+| Authentification | Comptes gérés par le Conclave, mots de passe hachés en **bcrypt** (pgcrypto), sessions par jeton aléatoire (haché en SHA-256 côté base, 30 jours glissants) |
+| Sécurité | Tables dans un schéma privé `fuin` **inaccessible** à l'API ; le site appelle uniquement les fonctions `public.fuin_*` qui vérifient la session et le cercle avant de renvoyer quoi que ce soit. Verrouillage 15 min après 8 mauvais mots de passe. |
+| Hébergement | Site statique : GitHub Pages (workflow fourni), Vercel ou Netlify |
+
+```
+supabase/schema.sql      → tout le schéma (tables, sécurité, fonctions) — à exécuter une fois
+src/lib/api.ts           → appels aux fonctions Supabase
+src/pages/               → pages joueurs (connexion, accueil, fiche, compte)
+src/pages/conclave/      → console du Conclave
+src/styles/              → design rouge & noir
+```
+
+> ⚠️ **Le dépôt est public.** Le contenu des sceaux et la liste des membres ne sont **pas** dans le dépôt
+> (sinon n'importe qui pourrait lire les sceaux du 5e cercle sur GitHub). Ils sont fournis à part dans
+> `fuin-import-prive.sql`. Ne commite jamais ce fichier (il est déjà ignoré par `.gitignore`, dossier `prive/`).
+
+---
+
+## Installation (≈ 15 minutes)
+
+### 1. Créer la base Supabase
+
+1. Crée un projet sur [supabase.com](https://supabase.com) (l'offre gratuite suffit).
+2. Ouvre **SQL Editor → New query**, colle tout le contenu de [`supabase/schema.sql`](supabase/schema.sql) et clique **Run**.
+3. (Recommandé) Nouvelle requête : colle le contenu de **`fuin-import-prive.sql`** (fourni à part) et **Run**.
+   Cela importe les 46 fiches du grimoire, les 3 villages, les 20 sceaux slottés, leurs porteurs et les
+   membres existants (sans mot de passe : le Conclave les active ensuite).
+4. Crée ton accès Conclave (remplace par ton nom RP et un mot de passe solide) :
+
+   ```sql
+   select fuin.bootstrap_conclave('Prénom', 'Nom', 'UnMotDePasseSolide');
+   ```
+
+   Si ton nom existe déjà (import), cette commande lui donne simplement le mot de passe et le rang Conclave.
+
+### 2. Récupérer les clés
+
+Dans Supabase : **Project Settings → API Keys** (ou **Data API**) :
+
+- **Project URL** → `VITE_SUPABASE_URL` (ex. `https://abcd1234.supabase.co`)
+- **Publishable key** (`sb_publishable_…`) ou clé **anon** (legacy) → `VITE_SUPABASE_ANON_KEY`
+
+> Ces deux valeurs sont publiques par nature (elles finissent dans le site). **N'utilise jamais** la clé
+> `service_role` / `sb_secret_…`.
+
+### 3. Mettre en ligne
+
+#### Option A — GitHub Pages (workflow inclus)
+
+1. Fusionne le travail sur la branche `main`.
+2. Dépôt GitHub → **Settings → Pages → Build and deployment → Source : GitHub Actions**.
+3. **Settings → Secrets and variables → Actions → Variables → New repository variable** :
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+   - (facultatif) `VITE_BASE` = `/` si tu branches un domaine personnalisé. Sans domaine, le site est servi
+     sur `https://<compte>.github.io/fuin/` et le chemin est réglé automatiquement.
+4. Onglet **Actions → Déploiement GitHub Pages → Run workflow** (ou pousse sur `main`).
+
+#### Option B — Vercel ou Netlify
+
+Importe le dépôt, puis : commande de build `npm run build`, dossier de sortie `dist`, et ajoute les deux
+variables d'environnement ci-dessus. Les redirections pour les URLs des sceaux sont déjà fournies
+(`vercel.json`, `public/_redirects`).
+
+### 4. Premier passage dans la console
+
+1. Connecte-toi avec ton nom RP → menu du compte → **Console du Conclave**.
+2. **Membres** : les membres importés sont marqués « Non activé ». Clique **Activer** pour générer leur
+   mot de passe, puis **Copier le message complet** et envoie-le au joueur.
+3. **Catégories** : vérifie le cercle requis de chaque catégorie (par défaut : Fondations et Archives
+   instables = 1er cercle, chaque cercle = son numéro, Sceaux de clan = Conclave uniquement).
+
+---
+
+## Rédiger une fiche
+
+Le contenu est en Markdown, avec quelques ajouts :
+
+````markdown
+| Cercle | Kanjis | Activation |
+| --- | --- | --- |
+| 3ème cercle | 黙 封 口 秘 | Contact |
+
+## Définition
+Texte avec du **gras** et de l'*italique*.
+
+:::danger[Déclenchement mortel]
+Encadré rouge. Types disponibles : note, tip, caution, danger.
+:::
+
+- Une règle
+- Une autre règle, avec un [lien vers une fiche](/systeme-de-slots)
+````
+
+La **formule de kanjis** (champ dédié) s'affiche en grand en haut de la fiche avec un bouton « Copier ».
+Une fiche en **brouillon** n'est visible que du Conclave.
+
+---
+
+## Développement local
+
+```bash
+cp .env.example .env        # puis renseigne l'URL et la clé Supabase
+npm install
+npm run dev                 # http://localhost:5173
+npm run build               # build de production dans dist/
+```
+
+## Réinitialiser un mot de passe à la main
+
+Depuis la console (Membres → **Nouveau mdp**), ou en SQL :
+
+```sql
+select fuin.bootstrap_conclave('Prénom', 'Nom', 'NouveauMotDePasse'); -- Conclave uniquement
+update fuin.members set password_hash = fuin.hash_password('NouveauMotDePasse')
+ where login_key = fuin.name_key('Prénom Nom');                     -- n'importe quel membre
+```
