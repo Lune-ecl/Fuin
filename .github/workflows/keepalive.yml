@@ -1,0 +1,50 @@
+name: Veille Supabase (anti-pause)
+
+# Supabase (offre gratuite) met la base en pause après 7 jours sans activité.
+# Ce workflow la contacte tous les jours, même si personne ne visite le site.
+on:
+  schedule:
+    - cron: '23 4 * * *' # tous les jours à 04:23 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Réveiller la base Supabase
+        run: |
+          set -a; . ./.env.production; set +a
+          URL="${VITE_SUPABASE_URL%/}"; URL="${URL%/rest/v1}"
+          KEY="$VITE_SUPABASE_ANON_KEY"
+          AUTH=()
+          case "$KEY" in sb_*) ;; *) AUTH=(-H "Authorization: Bearer $KEY") ;; esac
+          call() {
+            curl -sS -m 30 -o resp.json -w '%{http_code}' -X POST "$URL/rest/v1/rpc/$1" \
+              -H "apikey: $KEY" "${AUTH[@]}" -H 'Content-Type: application/json' -d "$2"
+          }
+
+          code=$(call fuin_ping '{}' || echo 000)
+          if [ "$code" = 200 ]; then echo "Base active : $(cat resp.json)"; exit 0; fi
+
+          # Repli (si la migration 002 n'est pas encore appliquée) : une vraie requête de session
+          echo "fuin_ping indisponible (HTTP $code) : $(cat resp.json 2>/dev/null) — repli"
+          code=$(call fuin_bootstrap "{\"p_token\":\"$(printf '0%.0s' $(seq 64))\"}" || echo 000)
+          if grep -q FU401 resp.json 2>/dev/null; then echo "Base active (repli)"; exit 0; fi
+
+          echo "::error::La base ne répond pas (HTTP $code) : $(cat resp.json 2>/dev/null). Si elle est déjà en pause, relance-la depuis le tableau de bord Supabase."
+          exit 1
+
+      - name: Garder ce workflow actif
+        # GitHub désactive les tâches planifiées après 60 jours sans activité sur le dépôt.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl -sS -X PUT -o /dev/null -w "réactivation : HTTP %{http_code}\n" \
+            -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/keepalive.yml/enable" || true

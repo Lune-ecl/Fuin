@@ -144,6 +144,13 @@ create table if not exists fuin.audit_log (
 );
 create index if not exists audit_log_created_idx on fuin.audit_log(created_at desc);
 
+-- Veille anti-pause : touchée chaque jour par le workflow GitHub "keepalive"
+create table if not exists fuin.keepalive (
+  id        smallint primary key default 1 check (id = 1),
+  pinged_at timestamptz not null default now(),
+  pings     bigint not null default 0
+);
+
 -- Défense en profondeur : RLS activé sans aucune policy = accès direct refusé.
 alter table fuin.members          enable row level security;
 alter table fuin.sessions         enable row level security;
@@ -154,6 +161,7 @@ alter table fuin.slot_seals       enable row level security;
 alter table fuin.slot_caps        enable row level security;
 alter table fuin.slot_assignments enable row level security;
 alter table fuin.audit_log        enable row level security;
+alter table fuin.keepalive        enable row level security;
 
 -- ---------------------------------------------------------------------
 --  Utilitaires internes
@@ -251,7 +259,10 @@ $$;
 create or replace function fuin.can_view_page(m fuin.members, c fuin.categories, p fuin.pages) returns boolean
 language sql stable set search_path = '' as $$
   select m.is_conclave
-      or (not p.hidden and not c.conclave_only and m.rank >= greatest(c.min_rank, coalesce(p.min_rank, 1)))
+      or (not p.hidden
+          and p.badge is distinct from 'mj'            -- un sceau MJ n'est jamais visible d'un joueur
+          and not c.conclave_only
+          and m.rank >= greatest(c.min_rank, coalesce(p.min_rank, 1)))
 $$;
 
 create or replace function fuin.is_slotted(p_page_id integer) returns boolean
@@ -424,7 +435,7 @@ begin
     perform fuin.fail('FU403', 'Archive scellée.', json_build_object(
       'category', c.name,
       'min_rank', greatest(c.min_rank, coalesce(p.min_rank, 1)),
-      'conclave_only', c.conclave_only
+      'conclave_only', c.conclave_only or p.badge is not distinct from 'mj'
     )::text);
   end if;
 
@@ -475,6 +486,18 @@ begin
    where member_id = m.id and token_hash <> encode(extensions.digest(p_token, 'sha256'), 'hex');
   perform fuin.log(m, 'member.self_password', m.display_name);
   return json_build_object('ok', true);
+end $$;
+
+-- Veille : appelée chaque jour par GitHub Actions pour éviter la mise en pause de Supabase
+create or replace function public.fuin_ping()
+returns json language plpgsql volatile security definer set search_path = '' as $$
+declare v fuin.keepalive;
+begin
+  insert into fuin.keepalive(id, pinged_at, pings) values (1, now(), 1)
+  on conflict (id) do update set pinged_at = now(), pings = fuin.keepalive.pings + 1
+  returning * into v;
+  delete from fuin.sessions where expires_at < now();
+  return json_build_object('ok', true, 'at', v.pinged_at, 'pings', v.pings);
 end $$;
 
 -- =====================================================================
@@ -1042,8 +1065,9 @@ insert into fuin.categories(slug, name, glyph, tagline, min_rank, conclave_only,
   ('troisieme-cercle',   'Troisième cercle',   '三', 'Contrôle, restriction et pactes.',        3, false, true,  4),
   ('quatrieme-cercle',   'Quatrième cercle',   '四', 'Le domaine des Maîtres Fuin.',            4, false, true,  5),
   ('cinquieme-cercle',   'Cinquième cercle',   '五', 'Arts interdits des Grands Maîtres.',      5, false, true,  6),
-  ('sceaux-de-clan',     'Sceaux de clan',     '氏', 'Secrets transmis par le sang.',           5, true,  true,  7),
-  ('archives-instables', 'Archives instables', '呪', 'Propositions de sceaux en cours d’examen.', 1, false, false, 8)
+  ('sceaux-mj',          'Sceaux MJ',          '禁', 'Sceaux réservés aux Maîtres de Jeu.',     5, true,  false, 7),
+  ('sceaux-de-clan',     'Sceaux de clan',     '氏', 'Secrets transmis par le sang.',           5, true,  true,  8),
+  ('archives-instables', 'Archives instables', '呪', 'Propositions de sceaux en cours d’examen.', 1, false, false, 9)
 on conflict (slug) do nothing;
 
 insert into fuin.villages(name, position) values ('Ame', 1), ('Konoha', 2), ('Suna', 3)

@@ -377,7 +377,7 @@ export function PageEditor() {
               <span>Badge</span>
               <select value={page.badge ?? ''} onChange={(e) => set('badge', (e.target.value || null) as EditablePage['badge'])}>
                 <option value="">Aucun</option>
-                <option value="mj">MJ (réservé aux MJ)</option>
+                <option value="mj">MJ · invisible des joueurs</option>
               </select>
             </label>
             <label className="field">
@@ -392,6 +392,9 @@ export function PageEditor() {
               </select>
             </label>
           </div>
+          {page.badge === 'mj' && (
+            <p className="muted small">Sceau MJ : seul le Conclave peut le voir, quelle que soit sa catégorie.</p>
+          )}
           <label className="field">
             <span>Ordre dans le sommaire</span>
             <input type="number" value={page.position ?? ''} onChange={(e) => set('position', e.target.value === '' ? null : Number(e.target.value))} placeholder="auto" />

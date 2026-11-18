@@ -96,7 +96,23 @@ Importe le dépôt, puis : commande de build `npm run build`, dossier de sortie 
 variables d'environnement ci-dessus. Les redirections pour les URLs des sceaux sont déjà fournies
 (`vercel.json`, `public/_redirects`).
 
-### 4. Premier passage dans la console
+### 4. Mises à jour de la base
+
+Quand une mise à jour du site demande un changement dans la base, un fichier apparaît dans
+[`supabase/migrations/`](supabase/migrations). Colle-le dans **SQL Editor** et clique **Run** (une seule
+fois, mais le relancer ne casse rien).
+
+- `002_sceaux_mj_et_veille.sql` : catégorie **Sceaux MJ** (réservée au Conclave, tous les sceaux MJ y
+  sont rangés ; un sceau MJ n'est jamais visible d'un joueur) et fonction de veille `fuin_ping`.
+
+### 5. Base toujours éveillée
+
+L'offre gratuite de Supabase met la base en pause après 7 jours sans activité. Le workflow
+[`keepalive.yml`](.github/workflows/keepalive.yml) la contacte **tous les jours** automatiquement
+(onglet **Actions → Veille Supabase**), même si personne ne visite le site. Il se maintient lui-même
+actif. Si la base est déjà en pause, relance-la une fois depuis le tableau de bord Supabase.
+
+### 6. Premier passage dans la console
 
 1. Connecte-toi avec ton nom RP → menu du compte → **Console du Conclave**.
 2. **Membres** : les membres importés sont marqués « Non activé ». Clique **Activer** pour générer leur
