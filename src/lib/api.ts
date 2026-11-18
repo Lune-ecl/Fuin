@@ -1,4 +1,5 @@
-const url = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/+$/, '');
+// tolère une URL collée avec /rest/v1 à la fin
+const url = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim().replace(/\/+$/, '').replace(/\/rest\/v1$/, '');
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
 export const isConfigured = Boolean(url && key);
