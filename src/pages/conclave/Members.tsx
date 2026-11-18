@@ -29,7 +29,7 @@ interface Credentials {
 function CredentialsModal({ creds, onClose }: { creds: Credentials | null; onClose: () => void }) {
   const toast = useToast();
   if (!creds) return <Modal open={false} onClose={onClose} title="" />;
-  const message = `🔴 Accès au grimoire Fuinjutsu\nNom RP : ${creds.name}\nMot de passe : ${creds.password}\nSite : ${siteUrl()}`;
+  const message = `🔴 Accès au Conclave Fuinjutsu\nNom RP : ${creds.name}\nMot de passe : ${creds.password}\nSite : ${siteUrl()}`;
   return (
     <Modal open onClose={onClose} title={creds.title} kicker="Identifiants à transmettre">
       <div className="creds">
@@ -85,7 +85,7 @@ function CreateMember({ onCreated }: { onCreated: (c: Credentials) => void }) {
     setError(null);
     try {
       const r = await api.memberCreate(prenom, nom, rank, conclave, password.trim() || null);
-      toast(`${r.member.display_name} rejoint le grimoire`);
+      toast(`${r.member.display_name} a désormais accès aux archives du Conclave`);
       onCreated({ name: r.member.display_name, password: r.password, title: `${r.member.display_name} est inscrit` });
       setPrenom('');
       setNom('');

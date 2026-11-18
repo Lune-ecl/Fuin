@@ -54,7 +54,7 @@ export function EditorList() {
         <div>
           <p className="kicker">Console du Conclave</p>
           <h1>Éditeur de sceaux</h1>
-          <p className="muted">Kanjis, définitions, règles : chaque fiche est une page du grimoire.</p>
+          <p className="muted">Kanjis, définitions, règles : chaque fiche est une page du Conclave.</p>
         </div>
         <Link to="/conclave/sceaux/nouveau" className="btn btn--red">
           + Nouvelle fiche

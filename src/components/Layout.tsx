@@ -7,7 +7,7 @@ import Brand from './Brand';
 import { SealBadge } from './ui';
 
 // ---------------------------------------------------------------------------
-// Sommaire du grimoire
+// Sommaire du Conclave
 // ---------------------------------------------------------------------------
 function lockReason(c: NavCategory) {
   return c.conclave_only ? 'Réservé au Conclave' : `${circleLabel(c.min_rank)} requis`;
@@ -23,7 +23,7 @@ function GrimoireNav() {
   const { categories, member } = useSession();
   if (!member) return null;
   return (
-    <nav className="nav" aria-label="Sommaire du grimoire">
+    <nav className="nav" aria-label="Sommaire du Conclave">
       <div className="nav__path">
         <p className="kicker">Ta voie</p>
         <div className="path" aria-label={`Maîtrise : ${circleLabel(member.rank)}`}>
@@ -105,7 +105,7 @@ function ConclaveNav() {
         ))}
       </ul>
       <Link to="/" className="nav__back">
-        ← Retour au grimoire
+        ← Retour aux archives du Conclave
       </Link>
     </nav>
   );

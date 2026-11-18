@@ -46,7 +46,7 @@ export default function Login() {
       <form key={shake} className={`login__card${shake ? ' is-shaking' : ''}`} onSubmit={submit}>
         <Hanko size="lg" />
         <p className="kicker">Conclave de Zenkai</p>
-        <h1>Accès au grimoire</h1>
+        <h1>Accès au Conclave</h1>
         <p className="login__lede">Identifie-toi avec ton nom RP pour consulter les archives de ton cercle.</p>
 
         <div className="field-row">

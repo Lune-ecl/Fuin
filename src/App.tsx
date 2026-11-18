@@ -42,7 +42,7 @@ function NotConfigured() {
       <div className="setup">
         <Hanko size="lg" />
         <p className="kicker">Installation</p>
-        <h1>Le grimoire n’est pas encore relié à Supabase.</h1>
+        <h1>Le site du Conclave n’est pas encore relié à Supabase.</h1>
         <p className="muted">
           Renseigne <code>VITE_SUPABASE_URL</code> et <code>VITE_SUPABASE_ANON_KEY</code> (fichier <code>.env</code> en local, ou
           secrets du dépôt pour le déploiement), puis reconstruis le site. Toutes les étapes sont dans le <code>README.md</code>.

@@ -31,7 +31,7 @@ export default function Dashboard() {
       <header className="page-head">
         <p className="kicker">Console du Conclave</p>
         <h1>Tableau de bord</h1>
-        <p className="muted">Vue d’ensemble des shinobi, du grimoire et des slots.</p>
+        <p className="muted">Vue d’ensemble des shinobi, des sceaux du Conclave et des slots.</p>
       </header>
 
       <div className="stats">
@@ -53,7 +53,7 @@ export default function Dashboard() {
         </div>
         <div className="stat">
           <b>{data.pages}</b>
-          <span>Sceaux au grimoire</span>
+          <span>Sceaux du Conclave</span>
         </div>
         <div className="stat">
           <b>

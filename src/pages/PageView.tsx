@@ -116,7 +116,7 @@ function Locked({ detail }: { detail: string }) {
         Poursuis ton entraînement en RP ou rapproche-toi d’un Maître Fuin.
       </p>
       <Link to="/" className="btn btn--ghost">
-        ← Retour au grimoire
+        ← Retour au Conclave
       </Link>
     </div>
   );
@@ -132,7 +132,7 @@ function NotFound() {
       <h1>Ce parchemin n’existe pas.</h1>
       <p className="muted">Il a peut-être été déplacé, renommé ou consumé.</p>
       <Link to="/" className="btn btn--ghost">
-        ← Retour au grimoire
+        ← Retour au Conclave
       </Link>
     </div>
   );
