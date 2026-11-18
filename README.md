@@ -104,6 +104,8 @@ fois, mais le relancer ne casse rien).
 
 - `002_sceaux_mj_et_veille.sql` : catégorie **Sceaux MJ** (réservée au Conclave, tous les sceaux MJ y
   sont rangés ; un sceau MJ n'est jamais visible d'un joueur) et fonction de veille `fuin_ping`.
+- `003_conclave_invisible.sql` : les catégories réservées au Conclave (Sceaux MJ, Sceaux de clan)
+  n'existent plus du tout pour les joueurs, et les pages des cercles ne leur citent plus les sceaux MJ.
 
 ### 5. Base toujours éveillée
 
@@ -118,7 +120,8 @@ actif. Si la base est déjà en pause, relance-la une fois depuis le tableau de 
 2. **Membres** : les membres importés sont marqués « Non activé ». Clique **Activer** pour générer leur
    mot de passe, puis **Copier le message complet** et envoie-le au joueur.
 3. **Catégories** : vérifie le cercle requis de chaque catégorie (par défaut : Fondations et Archives
-   instables = 1er cercle, chaque cercle = son numéro, Sceaux de clan = Conclave uniquement).
+   instables = 1er cercle, chaque cercle = son numéro, Sceaux MJ et Sceaux de clan = Conclave
+   uniquement, invisibles des joueurs).
 
 ---
 

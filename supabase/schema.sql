@@ -331,6 +331,68 @@ begin
   return 'Conclave prêt : ' || v_member.display_name || ' peut se connecter.';
 end $$;
 
+-- Retire d'un texte, pour un joueur, toute mention des fiches secrètes (sceaux MJ, catégories
+-- du Conclave, brouillons) : lignes contenant un lien vers elles, lignes de tableau qui les citent,
+-- puis tableaux et sections devenus vides. Le Conclave reçoit le texte intact.
+create or replace function fuin.strip_secret(m fuin.members, p_md text) returns text
+language plpgsql stable security definer set search_path = '' as $$
+declare
+  v    text;
+  src  text[];
+  tmp  text[] := '{}';
+  res  text[] := '{}';
+  n    integer;
+  i    integer;
+  line text;
+  nxt  text;
+begin
+  if m.is_conclave or p_md is null or p_md = '' then
+    return p_md;
+  end if;
+
+  select string_agg(t.line, E'\n' order by t.n) into v
+    from regexp_split_to_table(p_md, E'\n') with ordinality as t(line, n)
+   where not exists (
+     select 1
+       from fuin.pages q join fuin.categories qc on qc.id = q.category_id
+      where (qc.conclave_only or q.hidden or q.badge is not distinct from 'mj')
+        and not fuin.can_view_page(m, qc, q)
+        and (strpos(t.line, '](/' || q.slug || ')') > 0
+             or (ltrim(t.line) like '|%'
+                 and ((q.kanji is not null and length(q.kanji) >= 3 and strpos(t.line, '| ' || q.kanji || ' |') > 0)
+                      or strpos(t.line, '| ' || q.title || ' |') > 0))));
+
+  src := string_to_array(coalesce(v, ''), E'\n');
+  n := coalesce(array_length(src, 1), 0);
+
+  -- tableaux réduits à leur en-tête
+  i := 1;
+  while i <= n loop
+    if src[i] ~ '^\s*\|' and i < n and src[i + 1] ~ '^\s*\|[\s:|-]+\|\s*$'
+       and (i + 2 > n or src[i + 2] !~ '^\s*\|') then
+      i := i + 2;
+      continue;
+    end if;
+    tmp := tmp || src[i];
+    i := i + 1;
+  end loop;
+
+  -- titres de section devenus vides (parcours de la fin vers le début)
+  n := coalesce(array_length(tmp, 1), 0);
+  nxt := null;
+  for i in reverse n..1 loop
+    line := tmp[i];
+    if line ~ '^#{1,6} ' and (nxt is null or (nxt ~ '^#{1,6} '
+         and length(substring(nxt from '^(#+)')) <= length(substring(line from '^(#+)')))) then
+      continue;
+    end if;
+    res := array_prepend(line, res);
+    if btrim(line) <> '' then nxt := line; end if;
+  end loop;
+
+  return regexp_replace(array_to_string(res, E'\n'), E'\n{3,}', E'\n\n', 'g');
+end $$;
+
 -- =====================================================================
 --  API PUBLIQUE (appelée par le site via supabase.rpc)
 -- =====================================================================
@@ -397,7 +459,8 @@ begin
         'id', c.id, 'slug', c.slug, 'name', c.name, 'glyph', c.glyph, 'tagline', c.tagline,
         'min_rank', c.min_rank, 'conclave_only', c.conclave_only, 'show_on_home', c.show_on_home,
         'accessible', fuin.can_view_category(m, c),
-        'seal_count', (select count(*) from fuin.pages p where p.category_id = c.id and p.kind = 'seal' and not p.hidden),
+        'seal_count', (select count(*) from fuin.pages p where p.category_id = c.id and p.kind = 'seal'
+                         and not p.hidden and p.badge is distinct from 'mj'),
         'pages', case when fuin.can_view_category(m, c) then coalesce((
             select json_agg(json_build_object(
               'slug', p.slug, 'title', p.title, 'nav_title', coalesce(nullif(p.nav_title, ''), p.title),
@@ -409,6 +472,7 @@ begin
           ), '[]'::json) else '[]'::json end
       ) order by c.position, c.name)
       from fuin.categories c
+      where m.is_conclave or not c.conclave_only   -- les catégories du Conclave n'existent pas pour les joueurs
     ), '[]'::json)
   );
 end $$;
@@ -429,7 +493,8 @@ begin
   select * into c from fuin.categories where id = p.category_id;
 
   if not fuin.can_view_page(m, c, p) then
-    if p.hidden then
+    -- brouillons, sceaux MJ et catégories du Conclave : leur existence n'est jamais révélée
+    if p.hidden or c.conclave_only or p.badge is not distinct from 'mj' then
       perform fuin.fail('FU404', 'Archive introuvable.');
     end if;
     perform fuin.fail('FU403', 'Archive scellée.', json_build_object(
@@ -443,7 +508,7 @@ begin
     'page', json_build_object(
       'id', p.id, 'slug', p.slug, 'title', p.title, 'nav_title', coalesce(nullif(p.nav_title, ''), p.title),
       'kind', p.kind, 'badge', p.badge, 'kanji', p.kanji, 'icon_svg', p.icon_svg,
-      'description', p.description, 'content_md', p.content_md, 'hidden', p.hidden,
+      'description', p.description, 'content_md', fuin.strip_secret(m, p.content_md), 'hidden', p.hidden,
       'min_rank', greatest(c.min_rank, coalesce(p.min_rank, 1)), 'updated_at', p.updated_at,
       'category', json_build_object('slug', c.slug, 'name', c.name, 'glyph', c.glyph,
         'index_slug', (select q.slug from fuin.pages q where q.category_id = c.id and q.kind = 'index' order by q.position limit 1))
