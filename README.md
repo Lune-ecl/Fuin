@@ -44,7 +44,7 @@ src/styles/              → design rouge & noir
 
 > ⚠️ **Le dépôt est public.** Le contenu des sceaux et la liste des membres ne sont **pas** dans le dépôt
 > (sinon n'importe qui pourrait lire les sceaux du 5e cercle sur GitHub). Ils sont fournis à part dans
-> `fuin-import-prive.sql`. Ne commite jamais ce fichier (il est déjà ignoré par `.gitignore`, dossier `prive/`).
+> `fuin-installation-complete.sql`. Ne commite jamais ce fichier (il est déjà ignoré par `.gitignore`, dossier `prive/`).
 
 ---
 
