@@ -53,11 +53,13 @@ src/styles/              → design rouge & noir
 ### 1. Créer la base Supabase
 
 1. Crée un projet sur [supabase.com](https://supabase.com) (l'offre gratuite suffit).
-2. Ouvre **SQL Editor → New query**, colle tout le contenu de [`supabase/schema.sql`](supabase/schema.sql) et clique **Run**.
-3. (Recommandé) Nouvelle requête : colle le contenu de **`fuin-import-prive.sql`** (fourni à part) et **Run**.
-   Cela importe les 46 fiches du grimoire, les 3 villages, les 20 sceaux slottés, leurs porteurs et les
-   membres existants (sans mot de passe : le Conclave les active ensuite).
-4. Crée ton accès Conclave (remplace par ton nom RP et un mot de passe solide) :
+2. Ouvre **SQL Editor → New query**, colle **tout** le fichier **`fuin-installation-complete.sql`**
+   (fourni à part) et clique **Run**. Il contient le schéma *et* le grimoire (46 fiches, 3 villages,
+   20 sceaux slottés), sans aucun compte.
+
+   Sans ce fichier : colle [`supabase/schema.sql`](supabase/schema.sql) et clique **Run** — le site
+   fonctionne alors avec un grimoire vide, à remplir depuis l'éditeur du Conclave.
+3. Crée ton accès Conclave (remplace par ton nom RP et un mot de passe solide) :
 
    ```sql
    select fuin.bootstrap_conclave('Prénom', 'Nom', 'UnMotDePasseSolide');
