@@ -2,7 +2,8 @@ name: Déploiement GitHub Pages
 
 on:
   push:
-    branches: [main]
+    # branche par défaut actuelle du dépôt (+ main si elle est créée plus tard)
+    branches: [main, claude/fuinjutsu-site-rebuild-l791mm]
   workflow_dispatch:
 
 permissions:
@@ -27,9 +28,7 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          # Settings → Secrets and variables → Actions → onglet "Variables" (ou "Secrets")
-          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
+          # L'URL et la clé publique Supabase sont dans .env.production
           # "/" si tu utilises un domaine personnalisé, sinon "/<nom-du-dépôt>/"
           VITE_BASE: ${{ vars.VITE_BASE || format('/{0}/', github.event.repository.name) }}
       - uses: actions/upload-pages-artifact@v4
