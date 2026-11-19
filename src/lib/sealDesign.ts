@@ -2,6 +2,10 @@
 // kanji central, couleur) devient un SVG. La description est rangée dans l'attribut
 // data-fuin-design du SVG pour pouvoir rouvrir le sceau dans le créateur.
 
+import { SYMBOLS } from './sealSymbols';
+
+export { SYMBOLS, SYMBOL_CATEGORIES, type SymbolCategory } from './sealSymbols';
+
 export interface SealDesign {
   v: 1;
   frame: string;
@@ -191,107 +195,6 @@ export const ORNAMENTS: { key: string; label: string; draw: (sw: number, color: 
     label: 'Pétales',
     draw: () =>
       Array.from({ length: 8 }, (_, i) => `<path d="M${C} ${C} Q${C + 14} ${C - 34} ${C} ${C - 66} Q${C - 14} ${C - 34} ${C} ${C} Z" transform="rotate(${i * 45} ${C} ${C})"/>`).join(''),
-  },
-];
-
-// ---------------------------------------------------------------------------
-// Symboles centraux (dessinés dans une boîte 100 × 100)
-// ---------------------------------------------------------------------------
-function spiral(): string {
-  const p: string[] = [];
-  for (let i = 0; i <= 120; i++) {
-    const t = (i / 120) * Math.PI * 6;
-    const r = 2 + t * 2.1;
-    p.push(`${n(50 + r * Math.cos(t))},${n(50 + r * Math.sin(t))}`);
-  }
-  return `<polyline points="${p.join(' ')}"/>`;
-}
-
-export const SYMBOLS: { key: string; label: string; svg: (color: string) => string }[] = [
-  {
-    key: 'eye',
-    label: 'Œil',
-    svg: (c) => `<path d="M8 50 Q50 14 92 50 Q50 86 8 50 Z"/><circle cx="50" cy="50" r="14"/><circle cx="50" cy="50" r="5" fill="${c}" stroke="none"/>`,
-  },
-  {
-    key: 'flame',
-    label: 'Flamme',
-    svg: () =>
-      `<path d="M50 8 C62 28 80 40 76 64 C73 82 58 92 50 92 C42 92 27 82 24 64 C21 48 34 40 40 26 C44 38 50 42 50 8 Z"/><path d="M50 52 C56 60 62 66 60 76 C58 84 42 84 40 76 C38 68 46 62 50 52 Z"/>`,
-  },
-  {
-    key: 'drop',
-    label: 'Goutte',
-    svg: () => `<path d="M50 8 C64 34 78 48 78 64 A28 28 0 0 1 22 64 C22 48 36 34 50 8 Z"/><path d="M36 66 A14 14 0 0 0 48 80"/>`,
-  },
-  {
-    key: 'chain',
-    label: 'Chaîne',
-    svg: () =>
-      `<rect x="6" y="38" width="40" height="24" rx="12" transform="rotate(-20 26 50)"/><rect x="30" y="38" width="40" height="24" rx="12" transform="rotate(20 50 50)"/><rect x="54" y="38" width="40" height="24" rx="12" transform="rotate(-20 74 50)"/>`,
-  },
-  {
-    key: 'wave',
-    label: 'Vagues',
-    svg: () =>
-      [34, 50, 66].map((y) => `<path d="M6 ${y} Q17 ${y - 10} 28 ${y} T50 ${y} T72 ${y} T94 ${y}"/>`).join(''),
-  },
-  { key: 'spiral', label: 'Spirale', svg: () => spiral() },
-  { key: 'lightning', label: 'Éclair', svg: () => `<path d="M58 6 L24 56 H48 L40 94 L78 40 H54 Z"/>` },
-  {
-    key: 'key',
-    label: 'Clé',
-    svg: () => `<circle cx="28" cy="50" r="15"/><circle cx="28" cy="50" r="5"/><path d="M43 50 H92 M78 50 V62 M88 50 V60"/>`,
-  },
-  {
-    key: 'skull',
-    label: 'Crâne',
-    svg: (c) =>
-      `<path d="M26 54 A24 24 0 1 1 74 54 V66 H64 V78 H36 V66 H26 Z"/><circle cx="40" cy="50" r="7" fill="${c}" stroke="none"/><circle cx="60" cy="50" r="7" fill="${c}" stroke="none"/><path d="M47 64 L50 58 L53 64 Z M44 70 V78 M50 70 V78 M56 70 V78"/>`,
-  },
-  {
-    key: 'hand',
-    label: 'Main',
-    svg: () =>
-      `<path d="M30 58 V40 M40 54 V24 M50 52 V18 M60 54 V24 M70 58 V36"/><path d="M28 56 C26 78 36 92 52 92 C66 92 74 80 72 56"/><path d="M28 56 Q22 48 16 52 Q24 64 30 70"/>`,
-  },
-  {
-    key: 'lotus',
-    label: 'Lotus',
-    svg: () =>
-      `<path d="M50 82 C40 64 40 42 50 22 C60 42 60 64 50 82 Z"/><path d="M50 82 C34 76 22 60 22 42 C36 48 46 62 50 82 Z"/><path d="M50 82 C66 76 78 60 78 42 C64 48 54 62 50 82 Z"/><path d="M18 84 H82"/>`,
-  },
-  {
-    key: 'snake',
-    label: 'Serpent',
-    svg: (c) =>
-      `<path d="M24 86 C70 86 74 62 50 56 C26 50 28 24 64 22"/><path d="M64 22 C72 18 82 20 84 28 C80 34 70 32 64 22 Z"/><circle cx="76" cy="25" r="1.8" fill="${c}" stroke="none"/>`,
-  },
-  { key: 'moon', label: 'Croissant', svg: () => `<path d="M64 12 A38 38 0 1 0 64 88 A30 30 0 1 1 64 12 Z"/>` },
-  {
-    key: 'sun',
-    label: 'Soleil',
-    svg: () =>
-      `<circle cx="50" cy="50" r="18"/>` +
-      Array.from({ length: 8 }, (_, i) => {
-        const a = ((i * 45 - 90) * Math.PI) / 180;
-        return `<line x1="${n(50 + 26 * Math.cos(a))}" y1="${n(50 + 26 * Math.sin(a))}" x2="${n(50 + 40 * Math.cos(a))}" y2="${n(50 + 40 * Math.sin(a))}"/>`;
-      }).join(''),
-  },
-  { key: 'shield', label: 'Bouclier', svg: () => `<path d="M50 8 L84 22 V48 C84 70 68 86 50 94 C32 86 16 70 16 48 V22 Z"/><path d="M50 22 V80 M30 44 H70"/>` },
-  {
-    key: 'cage',
-    label: 'Cage',
-    svg: () => `<rect x="18" y="16" width="64" height="70" rx="4"/><path d="M34 16 V86 M50 16 V86 M66 16 V86 M18 32 H82"/><path d="M42 8 H58 V16"/>`,
-  },
-  { key: 'kunai', label: 'Kunai', svg: () => `<path d="M50 4 L60 46 L50 58 L40 46 Z"/><path d="M50 58 V84"/><circle cx="50" cy="91" r="6"/><path d="M45 64 H55 M45 72 H55"/>` },
-  {
-    key: 'tomoe',
-    label: 'Tourbillon',
-    svg: () =>
-      [0, 120, 240]
-        .map((r) => `<path d="M50 50 C50 34 64 26 74 32 C68 30 58 36 58 46 A8 8 0 1 1 50 50 Z" transform="rotate(${r} 50 50)"/>`)
-        .join('') + `<circle cx="50" cy="50" r="40"/>`,
   },
 ];
 

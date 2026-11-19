@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import {
   buildSealSvg,
   COLORS,
@@ -7,8 +7,10 @@ import {
   ORNAMENTS,
   parseDesign,
   randomDesign,
+  SYMBOL_CATEGORIES,
   SYMBOLS,
   type SealDesign,
+  type SymbolCategory,
 } from '../lib/sealDesign';
 import { sanitizeSvg } from '../lib/markdown';
 import SealEmblem from './SealEmblem';
@@ -32,6 +34,21 @@ function Tile({ on, label, svg, onClick }: { on: boolean; label: string; svg?: s
       {svg !== undefined && <span className="tile__art" dangerouslySetInnerHTML={{ __html: svg }} />}
       <small>{label}</small>
     </button>
+  );
+}
+
+function Range({ min, max, step, value, onChange }: { min: number; max: number; step: number; value: number; onChange: (v: number) => void }) {
+  const fill = `${((Math.min(max, Math.max(min, value)) - min) / (max - min)) * 100}%`;
+  return (
+    <input
+      type="range"
+      min={min}
+      max={max}
+      step={step}
+      value={value}
+      style={{ '--fill': fill } as CSSProperties}
+      onChange={(e) => onChange(Number(e.target.value))}
+    />
   );
 }
 
@@ -70,6 +87,7 @@ export default function SealCreator({
   const [d, setD] = useState<SealDesign>(() => defaultDesign(kanji));
   const [replay, setReplay] = useState(0);
   const [exporting, setExporting] = useState(false);
+  const [symCat, setSymCat] = useState<SymbolCategory | 'all'>('all');
 
   useEffect(() => {
     if (open) setD(parseDesign(initialSvg) ?? defaultDesign(kanji));
@@ -174,17 +192,27 @@ export default function SealCreator({
             </div>
           </Group>
 
-          <Group title="Symbole central">
+          <Group title="Symbole central" hint={`${SYMBOLS.length} symboles`}>
+            <div className="chips chips--symbols" role="group" aria-label="Familles de symboles">
+              <button type="button" className={`chip${symCat === 'all' ? ' is-on' : ''}`} onClick={() => setSymCat('all')}>
+                Tous
+              </button>
+              {SYMBOL_CATEGORIES.map((c) => (
+                <button key={c.key} type="button" className={`chip${symCat === c.key ? ' is-on' : ''}`} onClick={() => setSymCat(c.key)}>
+                  {c.label}
+                </button>
+              ))}
+            </div>
             <div className="tiles">
               <Tile on={!d.symbol} label="Aucun" svg="" onClick={() => set('symbol', null)} />
-              {SYMBOLS.map((s) => (
+              {SYMBOLS.filter((s) => symCat === 'all' || s.cat === symCat).map((s) => (
                 <Tile key={s.key} on={d.symbol === s.key} label={s.label} svg={previews.symbols[s.key]} onClick={() => set('symbol', s.key)} />
               ))}
             </div>
             {d.symbol && (
               <label className="range">
                 <span>Taille du symbole</span>
-                <input type="range" min={0.4} max={1.6} step={0.05} value={d.symbolScale} onChange={(e) => set('symbolScale', Number(e.target.value))} />
+                <Range min={0.4} max={1.6} step={0.05} value={d.symbolScale} onChange={(v) => set('symbolScale', v)} />
               </label>
             )}
           </Group>
@@ -212,7 +240,7 @@ export default function SealCreator({
             {d.glyph && (
               <label className="range">
                 <span>Taille du kanji</span>
-                <input type="range" min={0.3} max={1.8} step={0.05} value={d.glyphScale} onChange={(e) => set('glyphScale', Number(e.target.value))} />
+                <Range min={0.3} max={1.8} step={0.05} value={d.glyphScale} onChange={(v) => set('glyphScale', v)} />
               </label>
             )}
           </Group>
@@ -241,11 +269,11 @@ export default function SealCreator({
             </div>
             <label className="range">
               <span>Épaisseur du trait</span>
-              <input type="range" min={0.8} max={4} step={0.1} value={d.stroke} onChange={(e) => set('stroke', Number(e.target.value))} />
+              <Range min={0.8} max={4} step={0.1} value={d.stroke} onChange={(v) => set('stroke', v)} />
             </label>
             <label className="range">
               <span>Rotation · {Math.round(d.rotation)}°</span>
-              <input type="range" min={0} max={360} step={7.5} value={d.rotation} onChange={(e) => set('rotation', Number(e.target.value))} />
+              <Range min={0} max={360} step={7.5} value={d.rotation} onChange={(v) => set('rotation', v)} />
             </label>
           </Group>
         </div>

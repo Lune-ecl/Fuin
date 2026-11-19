@@ -554,8 +554,72 @@
 }
 
 .range input {
-  accent-color: var(--red);
+  --fill: 50%;
   width: 100%;
+  height: 22px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.range input:focus-visible {
+  outline: none;
+}
+
+.range input::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--red) var(--fill), rgba(255, 255, 255, 0.12) var(--fill));
+}
+
+.range input::-moz-range-track {
+  height: 4px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.range input::-moz-range-progress {
+  height: 4px;
+  border-radius: 99px;
+  background: var(--red);
+}
+
+.range input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: var(--red);
+  box-shadow: 0 0 0 3px rgba(216, 30, 48, 0.25), 0 0 12px rgba(255, 52, 69, 0.6);
+  transition: transform 0.15s;
+}
+
+.range input::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: var(--red);
+  box-shadow: 0 0 0 3px rgba(216, 30, 48, 0.25), 0 0 12px rgba(255, 52, 69, 0.6);
+}
+
+.range input:hover::-webkit-slider-thumb,
+.range input:focus-visible::-webkit-slider-thumb {
+  transform: scale(1.15);
+}
+
+.chips--symbols {
+  margin-bottom: 10px;
+}
+
+.chips--symbols .chip {
+  padding: 5px 10px;
+  font-size: 12px;
 }
 
 @media (max-width: 820px) {
