@@ -7,6 +7,7 @@ import './styles/codex.css';
 import './styles/conclave.css';
 import './styles/effects.css';
 import './styles/tools.css';
+import './styles/memorial.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

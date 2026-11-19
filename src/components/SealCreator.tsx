@@ -28,6 +28,9 @@ const RING_OPTIONS: { key: SealDesign['ring']; label: string }[] = [
 
 const QUICK_GLYPHS = ['封', '印', '禁', '呪', '結', '界', '解', '縛', '血', '魂', '火', '雷'];
 
+// un nouveau sceau démarre sans kanji central : on le choisit soi-même
+const startDesign = (kanji: string | null | undefined): SealDesign => ({ ...defaultDesign(kanji), glyph: '' });
+
 function Tile({ on, label, svg, onClick }: { on: boolean; label: string; svg?: string; onClick: () => void }) {
   return (
     <button type="button" className={`tile${on ? ' is-on' : ''}`} onClick={onClick} aria-pressed={on} title={label}>
@@ -84,13 +87,13 @@ export default function SealCreator({
   kicker?: string;
 }) {
   const toast = useToast();
-  const [d, setD] = useState<SealDesign>(() => defaultDesign(kanji));
+  const [d, setD] = useState<SealDesign>(() => startDesign(kanji));
   const [replay, setReplay] = useState(0);
   const [exporting, setExporting] = useState(false);
   const [symCat, setSymCat] = useState<SymbolCategory | 'all'>('all');
 
   useEffect(() => {
-    if (open) setD(parseDesign(initialSvg) ?? defaultDesign(kanji));
+    if (open) setD(parseDesign(initialSvg) ?? startDesign(kanji));
   }, [open, initialSvg, kanji]);
 
   const set = <K extends keyof SealDesign>(k: K, v: SealDesign[K]) => setD((x) => ({ ...x, [k]: v }));
@@ -144,7 +147,7 @@ export default function SealCreator({
             <button type="button" className="btn btn--ghost btn--sm" onClick={() => setD(randomDesign(kanji))}>
               Au hasard
             </button>
-            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setD(defaultDesign(kanji))}>
+            <button type="button" className="btn btn--ghost btn--sm" onClick={() => setD(startDesign(kanji))}>
               Réinitialiser
             </button>
           </div>

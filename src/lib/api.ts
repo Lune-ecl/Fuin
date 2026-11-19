@@ -26,11 +26,30 @@ export interface Member {
   is_conclave: boolean;
 }
 
+export type PageKind = 'seal' | 'index' | 'doc' | 'memorial';
+
+export type MemorialRank = 'grand_maitre' | 'maitre';
+export type MemorialStatus = '' | 'actif' | 'retire' | 'mort' | 'disparu' | 'traitre';
+
+export interface MemorialEntry {
+  id: number | null;
+  name: string;
+  rank: MemorialRank;
+  epithet: string;
+  status: MemorialStatus;
+  origin: string;
+  era: string;
+  specialty: string;
+  story_md: string;
+  image: string | null;
+  position?: number;
+}
+
 export interface NavPage {
   slug: string;
   title: string;
   nav_title: string;
-  kind: 'seal' | 'index' | 'doc';
+  kind: PageKind;
   badge: 'mj' | null;
   kanji: string | null;
   hidden: boolean;
@@ -212,7 +231,7 @@ export interface RollTable {
 export interface CodexPage {
   slug: string;
   title: string;
-  kind: 'seal' | 'index' | 'doc';
+  kind: PageKind;
   kanji: string | null;
   badge: 'mj' | null;
   category: string;
@@ -240,7 +259,7 @@ export interface PageData {
     slug: string;
     title: string;
     nav_title: string;
-    kind: 'seal' | 'index' | 'doc';
+    kind: PageKind;
     badge: 'mj' | null;
     kanji: string | null;
     icon_svg: string | null;
@@ -328,7 +347,7 @@ export interface AdminPageRow {
   id: number;
   slug: string;
   title: string;
-  kind: 'seal' | 'index' | 'doc';
+  kind: PageKind;
   badge: 'mj' | null;
   kanji: string | null;
   hidden: boolean;
@@ -346,7 +365,7 @@ export interface EditablePage {
   id: number | null;
   category_id: number;
   slug: string;
-  kind: 'seal' | 'index' | 'doc';
+  kind: PageKind;
   title: string;
   nav_title: string | null;
   description: string;
@@ -452,6 +471,10 @@ export const api = {
   logout: () => rpc<{ ok: boolean }>('fuin_logout'),
   bootstrap: () => rpc<Bootstrap>('fuin_bootstrap'),
   page: (slug: string) => rpc<PageData>('fuin_page', { p_slug: slug }),
+  memorial: () => rpc<MemorialEntry[]>('fuin_memorial'),
+  memorialSave: (entry: MemorialEntry) => rpc<{ id: number }>('fuin_admin_memorial_save', { p_entry: entry }),
+  memorialDelete: (id: number) => rpc<{ ok: boolean }>('fuin_admin_memorial_delete', { p_id: id }),
+  memorialMove: (id: number, dir: -1 | 1) => rpc<{ ok: boolean }>('fuin_admin_memorial_move', { p_id: id, p_dir: dir }),
   changePassword: (oldPw: string, newPw: string) =>
     rpc<{ ok: boolean; error?: string }>('fuin_change_password', { p_old: oldPw, p_new: newPw }),
 

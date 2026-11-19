@@ -13,6 +13,7 @@ const KIND_LABEL: Record<EditablePage['kind'], string> = {
   seal: 'Sceau',
   index: 'Vue d’ensemble du cercle',
   doc: 'Dossier / règles',
+  memorial: 'Mémorial des maîtres',
 };
 
 // ---------------------------------------------------------------------------
@@ -76,14 +77,14 @@ export function EditorList() {
                 <li key={r.id}>
                   <Link to={`/conclave/sceaux/${r.id}`} className={`editor-row${r.hidden ? ' is-hidden' : ''}`}>
                     <span className="editor-row__kanji" lang="ja">
-                      {r.kanji?.split(' ').slice(0, 2).join('') || (r.kind === 'index' ? '総' : r.kind === 'doc' ? '典' : '封')}
+                      {r.kanji?.split(' ').slice(0, 2).join('') || (r.kind === 'index' ? '総' : r.kind === 'doc' ? '典' : r.kind === 'memorial' ? '記' : '封')}
                     </span>
                     <span className="editor-row__main">
                       <b>{r.title}</b>
                       <small>/{r.slug}</small>
                     </span>
                     <span className="editor-row__tags">
-                      {r.kind !== 'seal' && <span className="tag tag--ghost">{r.kind === 'index' ? 'index' : 'dossier'}</span>}
+                      {r.kind !== 'seal' && <span className="tag tag--ghost">{r.kind === 'index' ? 'index' : r.kind === 'memorial' ? 'mémorial' : 'dossier'}</span>}
                       {r.hidden && <span className="badge badge--draft">brouillon</span>}
                       {r.min_rank && <span className="tag tag--ghost">{circleLabel(r.min_rank)}+</span>}
                       <SealBadge badge={r.badge} slotted={r.slotted} />
@@ -350,6 +351,12 @@ export function PageEditor() {
               </select>
             </label>
           </div>
+          {page.kind === 'memorial' && (
+            <p className="muted small">
+              Le texte ci-dessous sert d’introduction. Les maîtres, leurs portraits et leurs histoires s’ajoutent directement sur la page du
+              mémorial.
+            </p>
+          )}
           <label className="field">
             <span>Adresse de la page</span>
             <div className="field__prefix">

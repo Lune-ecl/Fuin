@@ -1,0 +1,666 @@
+/* =====================================================================
+   Mémorial des Grands Maîtres et des Maîtres
+   ===================================================================== */
+.memorial {
+  max-width: 1120px;
+  margin: 56px auto 0;
+  display: flex;
+  flex-direction: column;
+  gap: 64px;
+}
+
+.memorial-section__head {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 26px;
+}
+
+.memorial-section__glyph {
+  flex: none;
+  display: grid;
+  place-items: center;
+  min-width: 64px;
+  height: 64px;
+  padding: 0 10px;
+  border-radius: 16px;
+  border: 1px solid var(--line-red);
+  background: radial-gradient(circle at 50% 30%, rgba(216, 30, 48, 0.28), rgba(216, 30, 48, 0.04) 70%);
+  font: 400 30px/1 var(--brush);
+  color: var(--red-hot);
+  text-shadow: 0 0 18px var(--red-glow);
+}
+
+.memorial-section--maitre .memorial-section__glyph {
+  min-width: 52px;
+  height: 52px;
+  font-size: 26px;
+}
+
+.memorial-section__head h2 {
+  margin: 2px 0 0;
+  font: 600 clamp(26px, 3.2vw, 36px) / 1.1 var(--display);
+  letter-spacing: -0.01em;
+}
+
+.memorial-section__line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--line-red), transparent);
+}
+
+.memorial-section__count {
+  font: 600 13px var(--mono);
+  color: var(--mut);
+  letter-spacing: 0.1em;
+}
+
+.memorial-grid {
+  display: grid;
+  gap: 22px;
+}
+
+.memorial-grid--grand_maitre {
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+}
+
+.memorial-grid--maitre {
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 18px;
+}
+
+.memorial-empty {
+  margin: 0;
+}
+
+/* ---------- carte ---------- */
+.memorial-card {
+  position: relative;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, var(--surface-2), var(--surface));
+  overflow: hidden;
+  animation: rise 0.6s var(--ease) both;
+  transition: transform 0.35s var(--ease), border-color 0.3s, box-shadow 0.35s;
+}
+
+.memorial-card:hover,
+.memorial-card:focus-within {
+  transform: translateY(-4px);
+  border-color: var(--line-red);
+  box-shadow: 0 18px 50px -20px rgba(216, 30, 48, 0.55);
+}
+
+.memorial-card--grand_maitre {
+  border-color: rgba(242, 179, 61, 0.22);
+}
+
+.memorial-card--grand_maitre::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgba(242, 179, 61, 0.12), inset 0 1px 0 rgba(242, 179, 61, 0.35);
+}
+
+.memorial-card__open {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  text-align: left;
+  color: inherit;
+}
+
+.memorial-card__portrait {
+  position: relative;
+  display: block;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 35%, #2a0d12, var(--bg-2) 72%);
+}
+
+.memorial-card--maitre .memorial-card__portrait {
+  aspect-ratio: 4 / 5;
+}
+
+.memorial-card__portrait img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 22%;
+  transition: transform 0.8s var(--ease), filter 0.5s;
+}
+
+.memorial-card:hover .memorial-card__portrait img {
+  transform: scale(1.05);
+}
+
+.memorial-card__portrait::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent 55%, rgba(12, 10, 14, 0.85));
+}
+
+.memorial-void {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.memorial-void i {
+  position: absolute;
+  font: 400 clamp(90px, 12vw, 150px) / 1 var(--brush);
+  font-style: normal;
+  color: rgba(216, 30, 48, 0.13);
+  white-space: nowrap;
+}
+
+.memorial-card--maitre .memorial-void i {
+  font-size: 120px;
+}
+
+.memorial-void b {
+  position: relative;
+  font: 600 38px var(--display);
+  letter-spacing: 0.06em;
+  color: rgba(241, 235, 230, 0.7);
+}
+
+.memorial-card__rank {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1;
+  padding: 5px 9px;
+  border-radius: 9px;
+  background: rgba(7, 6, 9, 0.72);
+  border: 1px solid var(--line-red);
+  font: 400 15px/1 var(--brush);
+  color: var(--red-hot);
+  backdrop-filter: blur(4px);
+}
+
+.memorial-card--grand_maitre .memorial-card__rank {
+  color: #f2b33d;
+  border-color: rgba(242, 179, 61, 0.45);
+}
+
+.memorial-status {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 5px 6px;
+  border-radius: 99px;
+  background: rgba(7, 6, 9, 0.78);
+  border: 1px solid var(--line-2);
+  font: 700 11px var(--sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  backdrop-filter: blur(4px);
+}
+
+.memorial-status i {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--surface-3);
+  font: 400 12px/1 var(--brush);
+  font-style: normal;
+}
+
+.memorial-status--actif {
+  color: #6fe3a5;
+  border-color: rgba(47, 212, 122, 0.4);
+}
+
+.memorial-status--mort {
+  color: #e9d7b2;
+  border-color: rgba(242, 179, 61, 0.35);
+}
+
+.memorial-status--traitre {
+  color: #fff;
+  border-color: var(--red-hot);
+  background: rgba(124, 12, 23, 0.85);
+}
+
+.memorial-status--traitre i {
+  background: var(--red);
+}
+
+.memorial-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 16px 18px 18px;
+}
+
+.memorial-card__name {
+  font: 600 22px/1.15 var(--display);
+  color: var(--ink);
+}
+
+.memorial-card--maitre .memorial-card__name {
+  font-size: 18px;
+}
+
+.memorial-card__epithet {
+  font: italic 500 14px var(--display);
+  color: var(--red-soft);
+}
+
+.memorial-card__meta {
+  font-size: 12.5px;
+  color: var(--mut);
+}
+
+.memorial-card__excerpt {
+  margin-top: 4px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+.memorial-card__more {
+  margin-top: 8px;
+  font: 700 11.5px var(--sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--red-hot);
+}
+
+.memorial-card__more i {
+  display: inline-block;
+  font-style: normal;
+  transition: transform 0.25s;
+}
+
+.memorial-card:hover .memorial-card__more i {
+  transform: translateX(4px);
+}
+
+.memorial-card__tools {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 3;
+  display: flex;
+  gap: 5px;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.memorial-card:hover .memorial-card__tools,
+.memorial-card:focus-within .memorial-card__tools {
+  opacity: 1;
+  transform: none;
+}
+
+.memorial-card__tools .icon-btn {
+  width: 30px;
+  height: 30px;
+  font-size: 13px;
+  background: rgba(7, 6, 9, 0.82);
+  backdrop-filter: blur(4px);
+}
+
+.memorial-card__tools .icon-btn:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.icon-btn--danger:hover {
+  border-color: var(--red-hot);
+  color: var(--red-hot);
+}
+
+@media (hover: none) {
+  .memorial-card__tools {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- statuts ---------- */
+.memorial-card.is-mort .memorial-card__portrait img,
+.memorial-detail.is-mort .memorial-card__portrait img {
+  filter: grayscale(0.85) sepia(0.15) brightness(0.9);
+}
+
+.memorial-card.is-disparu .memorial-card__portrait img {
+  filter: grayscale(0.5) blur(0.4px) brightness(0.8);
+}
+
+.memorial-card.is-traitre {
+  border-color: rgba(255, 52, 69, 0.4);
+  border-style: dashed;
+  background: linear-gradient(180deg, #1a0a0e, var(--surface));
+}
+
+.memorial-card.is-traitre::before {
+  box-shadow: none;
+}
+
+.memorial-card.is-traitre .memorial-card__portrait img,
+.memorial-detail.is-traitre .memorial-card__portrait img {
+  filter: grayscale(1) contrast(1.2) brightness(0.65);
+}
+
+.memorial-card.is-traitre .memorial-card__portrait::before,
+.memorial-detail.is-traitre .memorial-card__portrait::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(216, 30, 48, 0.12), rgba(124, 12, 23, 0.45)),
+    repeating-linear-gradient(-45deg, transparent 0 14px, rgba(216, 30, 48, 0.07) 14px 16px);
+  mix-blend-mode: multiply;
+}
+
+.memorial-card.is-traitre .memorial-card__name {
+  color: var(--red-soft);
+  text-decoration: line-through;
+  text-decoration-color: rgba(255, 52, 69, 0.7);
+  text-decoration-thickness: 2px;
+}
+
+.memorial-card.is-traitre .memorial-card__rank {
+  color: var(--mut);
+  border-color: var(--line-2);
+}
+
+.memorial-stamp {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 92px;
+  height: 92px;
+  border: 4px double rgba(255, 52, 69, 0.9);
+  border-radius: 12px;
+  font: 400 58px/1 var(--brush);
+  color: rgba(255, 52, 69, 0.92);
+  transform: translate(-50%, -58%) rotate(-14deg);
+  text-shadow: 0 0 16px rgba(216, 30, 48, 0.6);
+  box-shadow: 0 0 22px rgba(216, 30, 48, 0.35), inset 0 0 18px rgba(216, 30, 48, 0.3);
+  mix-blend-mode: screen;
+}
+
+.memorial-card--maitre .memorial-stamp {
+  width: 70px;
+  height: 70px;
+  font-size: 44px;
+}
+
+/* ---------- ajouter ---------- */
+.memorial-add {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 260px;
+  border-radius: 18px;
+  border: 1px dashed var(--line-red);
+  background: rgba(216, 30, 48, 0.03);
+  font: 700 12px var(--sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mut);
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+
+.memorial-add i {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid var(--line-red);
+  font-size: 22px;
+  font-style: normal;
+  color: var(--red-hot);
+}
+
+.memorial-add:hover {
+  border-color: var(--red);
+  color: var(--ink);
+  background: var(--red-wash);
+}
+
+.memorial-add--grand_maitre {
+  min-height: 380px;
+}
+
+/* ---------- fiche détaillée ---------- */
+.memorial-detail {
+  display: grid;
+  grid-template-columns: minmax(200px, 300px) minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.memorial-detail__portrait .memorial-card__portrait {
+  border-radius: 14px;
+  border: 1px solid var(--line-2);
+}
+
+.memorial-detail__epithet {
+  margin: 0 0 14px;
+  font: italic 500 19px var(--display);
+  color: var(--red-soft);
+}
+
+.memorial-detail__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  margin: 0 0 22px;
+}
+
+.memorial-detail__facts div {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+}
+
+.memorial-detail__facts dt {
+  font: 700 10.5px var(--sans);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mut);
+}
+
+.memorial-detail__facts dd {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.memorial-detail__story {
+  max-height: 52vh;
+  overflow: auto;
+  padding-right: 6px;
+}
+
+/* ---------- formulaire ---------- */
+.memorial-form__grid {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 24px;
+}
+
+.memorial-drop {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px dashed var(--line-2);
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.memorial-drop.is-over {
+  border-color: var(--red-hot);
+  background: var(--red-wash);
+}
+
+.memorial-drop .memorial-card__portrait {
+  border-radius: 12px;
+}
+
+.memorial-drop__busy {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  background: rgba(7, 6, 9, 0.7);
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.memorial-drop__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.memorial-form__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.memorial-form__row {
+  display: flex;
+  gap: 14px;
+}
+
+.memorial-form__delete {
+  margin-right: auto;
+}
+
+.segmented {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+}
+
+.segmented button {
+  flex: 1;
+  padding: 9px 12px;
+  border-radius: 9px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--mut);
+  transition: background 0.2s, color 0.2s;
+}
+
+.segmented button i {
+  font: 400 14px var(--brush);
+  font-style: normal;
+  margin-right: 4px;
+}
+
+.segmented button.is-on {
+  background: var(--red);
+  color: #fff;
+  box-shadow: 0 6px 18px -8px var(--red-glow);
+}
+
+@media (max-width: 760px) {
+  .memorial {
+    margin-top: 36px;
+    gap: 44px;
+  }
+
+  .memorial-grid--grand_maitre {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .memorial-card__body {
+    padding: 12px;
+  }
+
+  .memorial-card__name,
+  .memorial-card--maitre .memorial-card__name {
+    font-size: 17px;
+  }
+
+  .memorial-card__excerpt {
+    display: none;
+  }
+
+  .memorial-void i,
+  .memorial-card--maitre .memorial-void i {
+    font-size: 72px;
+  }
+
+  .memorial-void b {
+    font-size: 28px;
+  }
+
+  .memorial-stamp,
+  .memorial-card--maitre .memorial-stamp {
+    width: 64px;
+    height: 64px;
+    font-size: 40px;
+  }
+
+  .memorial-grid--maitre {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .memorial-section__glyph {
+    min-width: 50px;
+    height: 50px;
+    font-size: 22px;
+  }
+
+  .memorial-detail,
+  .memorial-form__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .memorial-detail__portrait {
+    max-width: 260px;
+  }
+
+  .memorial-drop {
+    max-width: 320px;
+  }
+
+  .memorial-form__row {
+    flex-direction: column;
+  }
+
+  .memorial-add,
+  .memorial-add--grand_maitre {
+    min-height: 160px;
+  }
+}

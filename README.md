@@ -123,6 +123,7 @@ fois, mais le relancer ne casse rien).
 - `004_demandes_et_trames.sql` : demandes de création de sceau et outils de trame (tables de roll).
 - `005_trames.sql` : trames (énigmes, désenclavement, récit) ouvertes aux joueurs le temps d'un événement.
 - `006_sceau_des_trames.sql` : sceau dessiné dans le créateur pour les étapes de désenclavement ; il rougeoie plus fort à chaque roll raté, se fissure à chaque verrou brisé et vole en éclats quand il cède.
+- `007_memorial.sql` : page **Mémorial des maîtres** dans Fondations (Grands Maîtres et Maîtres avec portrait, titre, statut et histoire), gérée par le Conclave directement sur la page.
 
 ### 5. Base toujours éveillée
 

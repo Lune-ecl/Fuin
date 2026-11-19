@@ -6,6 +6,7 @@ import { circleLabel, formatDate } from '../lib/format';
 import { sanitizeSvg } from '../lib/markdown';
 import Markdown from '../components/Markdown';
 import SealEmblem from '../components/SealEmblem';
+import Memorial from '../components/Memorial';
 import { displaySealSvg, sealGlyphs } from '../lib/sealDesign';
 import { useBrushFont } from '../lib/useBrushFont';
 import { copyToClipboard, ErrorState, Loader, SealBadge, useToast } from '../components/ui';
@@ -193,7 +194,13 @@ export default function PageView() {
           <span>{page.category.glyph}</span> {page.category.name}
         </Link>
         <p className="archive__index">
-          {page.kind === 'seal' ? 'Archive de scellement' : page.kind === 'index' ? 'Vue d’ensemble du cercle' : 'Dossier source'}
+          {page.kind === 'seal'
+            ? 'Archive de scellement'
+            : page.kind === 'index'
+              ? 'Vue d’ensemble du cercle'
+              : page.kind === 'memorial'
+                ? 'Mémorial du Conclave'
+                : 'Dossier source'}
           {page.hidden && <span className="badge badge--draft">brouillon · invisible des joueurs</span>}
         </p>
         <div className="archive__title-row">
@@ -273,6 +280,8 @@ export default function PageView() {
       </div>
 
       {page.kind === 'seal' && <SlotStatus slot={slot} badge={page.badge} />}
+
+      {page.kind === 'memorial' && <Memorial />}
 
       {related.length > 0 && (
         <footer className="related">
