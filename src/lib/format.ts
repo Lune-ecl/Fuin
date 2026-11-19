@@ -80,6 +80,11 @@ export const AUDIT_LABELS: Record<string, string> = {
   'request.refuse': 'a refusé la demande',
   'rolltable.save': 'a modifié la table de roll',
   'rolltable.delete': 'a supprimé la table de roll',
+  'trame.save': 'a modifié la trame',
+  'trame.start': 'a ouvert la trame',
+  'trame.end': 'a terminé la trame',
+  'trame.reset': 'a remis à zéro la trame',
+  'trame.delete': 'a supprimé la trame',
 };
 
 export function canRequest(m: { rank: number; is_conclave: boolean } | null): boolean {

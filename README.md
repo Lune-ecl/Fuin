@@ -28,9 +28,13 @@ sceaux de son cercle**, et où **le Conclave** gère les comptes, les cercles, l
 - **Demande de création de sceau** (`/demandes`, à partir du 4e cercle) : le shinobi décrit son sceau
   (nom, cercle visé, formule, effet et règles) et compose son visuel dans le créateur. La demande part en
   attente ; le Conclave la valide ou la refuse avec une explication, et peut en faire une fiche brouillon.
-- **Outils de trame** (Conclave) : déchiffreur de kanjis (sens tiré des fiches, sceaux correspondants,
-  simulation de rolls), désenclavement selon les règles (rolls réussis = cercle du sceau, essais = cercle
-  du désenclaveur) et tables de roll modifiables (paliers d'échec critique à réussite critique).
+- **Trames** (Conclave → Trames) : le Conclave crée des trames faites d'étapes (énigme à déchiffrer avec
+  essais limités, désenclavement, récit). « Ouvrir la trame » fait apparaître une page temporaire dans le
+  menu des joueurs ; « Terminer la trame » la retire. Une bonne traduction ouvre l'étape suivante ; le
+  désenclavement est réservé aux cercles requis (3e par défaut), avec des rolls tirés par la base
+  (réussites nécessaires = cercle du sceau, essais = cercle du joueur) lus dans les tables de roll.
+  Suivi en direct des réponses, des rolls et des résolutions. Aides : tables de roll modifiables et
+  déchiffreur de kanjis.
 
 ---
 
@@ -117,6 +121,7 @@ fois, mais le relancer ne casse rien).
 - `003_conclave_invisible.sql` : les catégories réservées au Conclave (Sceaux MJ, Sceaux de clan)
   n'existent plus du tout pour les joueurs, et les pages des cercles ne leur citent plus les sceaux MJ.
 - `004_demandes_et_trames.sql` : demandes de création de sceau et outils de trame (tables de roll).
+- `005_trames.sql` : trames (énigmes, désenclavement, récit) ouvertes aux joueurs le temps d'un événement.
 
 ### 5. Base toujours éveillée
 

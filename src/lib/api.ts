@@ -55,7 +55,108 @@ export interface NavCategory {
 export interface Bootstrap {
   member: Member;
   requests_pending: number | null;
+  active_trames: { id: number; title: string }[];
   categories: NavCategory[];
+}
+
+export type TrameStatus = 'draft' | 'active' | 'ended';
+export type TrameStepKind = 'cipher' | 'unseal' | 'text';
+
+export interface TrameStepDef {
+  kind: TrameStepKind;
+  title: string;
+  prompt_md: string;
+  cipher_text?: string;
+  answers?: string[];
+  max_attempts?: number;
+  seal_circle?: number;
+  min_rank?: number;
+  roll_table?: string;
+  success_md?: string;
+}
+
+export interface TrameDef {
+  id: number | null;
+  title: string;
+  intro_md: string;
+  status?: TrameStatus;
+  shared: boolean;
+  min_rank: number;
+  steps: TrameStepDef[];
+  started_at?: string | null;
+  ended_at?: string | null;
+  updated_at?: string;
+}
+
+export interface TrameRow {
+  id: number;
+  title: string;
+  status: TrameStatus;
+  shared: boolean;
+  min_rank: number;
+  steps: number;
+  started_at: string | null;
+  ended_at: string | null;
+  updated_at: string;
+  participants: number;
+  solves: number;
+}
+
+export interface TrameAdmin {
+  trame: TrameDef;
+  progress: { index: number; attempts: number; participants: number; solvers: { name: string; at: string }[] }[];
+  log: {
+    id: number;
+    step_index: number;
+    kind: 'cipher' | 'unseal';
+    answer: string | null;
+    roll: number | null;
+    label: string | null;
+    tone: string | null;
+    success: boolean;
+    created_at: string;
+    member: string;
+    rank: number;
+  }[];
+}
+
+export interface TramePlayerStep {
+  index: number;
+  kind: TrameStepKind;
+  title: string;
+  prompt_md: string;
+  state: 'solved' | 'current';
+  cipher_text?: string;
+  attempts_used?: number;
+  max_attempts?: number;
+  seal_circle?: number;
+  required_rank?: number;
+  allowed?: number;
+  successes?: number;
+  eligible?: boolean;
+  rolls?: { roll: number; label: string; tone: string; effect: string }[];
+  success_md?: string;
+  solved_by?: string | null;
+}
+
+export interface TrameView {
+  trame: { id: number; title: string; intro_md: string; status: TrameStatus; shared: boolean; started_at: string | null };
+  steps: TramePlayerStep[];
+  total: number;
+  remaining: number;
+  complete: boolean;
+}
+
+export interface UnsealResult {
+  roll: number;
+  label: string;
+  tone: string;
+  effect: string;
+  successes: number;
+  needed: number;
+  attempts_used: number;
+  allowed: number;
+  broken: boolean;
 }
 
 export type RequestStatus = 'pending' | 'approved' | 'refused';
@@ -414,4 +515,16 @@ export const api = {
   rollTables: () => rpc<RollTable[]>('fuin_admin_roll_tables'),
   rollTableSave: (t: RollTable) => rpc<{ id: number }>('fuin_admin_roll_table_save', { p_table: t }),
   rollTableDelete: (id: number) => rpc<{ ok: boolean }>('fuin_admin_roll_table_delete', { p_id: id }),
+
+  // Trames
+  trameView: (id: number) => rpc<TrameView>('fuin_trame_view', { p_id: id }),
+  trameAnswer: (id: number, step: number, answer: string) =>
+    rpc<{ correct: boolean; attempts_left: number }>('fuin_trame_answer', { p_id: id, p_step: step, p_answer: answer }),
+  trameUnseal: (id: number, step: number) => rpc<UnsealResult>('fuin_trame_unseal', { p_id: id, p_step: step }),
+  adminTrames: () => rpc<TrameRow[]>('fuin_admin_trames'),
+  adminTrame: (id: number) => rpc<TrameAdmin>('fuin_admin_trame', { p_id: id }),
+  trameSave: (t: TrameDef) => rpc<{ id: number }>('fuin_admin_trame_save', { p_trame: t }),
+  trameStatus: (id: number, action: 'start' | 'end' | 'reset') =>
+    rpc<{ ok: boolean }>('fuin_admin_trame_status', { p_id: id, p_action: action }),
+  trameDelete: (id: number) => rpc<{ ok: boolean }>('fuin_admin_trame_delete', { p_id: id }),
 };

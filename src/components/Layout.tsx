@@ -19,11 +19,30 @@ export function categoryHref(c: NavCategory): string | null {
   return '/' + (idx ?? c.pages[0]).slug;
 }
 
+function ActiveTrames() {
+  const { activeTrames } = useSession();
+  if (!activeTrames.length) return null;
+  return (
+    <div className="live-trames">
+      {activeTrames.map((t) => (
+        <NavLink key={t.id} to={`/trame/${t.id}`} className={({ isActive }) => `live-trame${isActive ? ' is-active' : ''}`}>
+          <i aria-hidden="true" />
+          <span>
+            <small>Trame en cours</small>
+            <b>{t.title}</b>
+          </span>
+        </NavLink>
+      ))}
+    </div>
+  );
+}
+
 function GrimoireNav() {
   const { categories, member } = useSession();
   if (!member) return null;
   return (
     <nav className="nav" aria-label="Sommaire du Conclave">
+      <ActiveTrames />
       <div className="nav__path">
         <p className="kicker">Ta voie</p>
         <div className="path" aria-label={`Maîtrise : ${circleLabel(member.rank)}`}>
@@ -91,13 +110,13 @@ const CONCLAVE_LINKS = [
   { to: '/conclave/slots', glyph: '枠', label: 'Slots', hint: 'Places par village' },
   { to: '/conclave/sceaux', glyph: '巻', label: 'Éditeur de sceaux', hint: 'Fiches & kanjis' },
   { to: '/conclave/demandes', glyph: '願', label: 'Demandes', hint: 'Sceaux proposés' },
-  { to: '/conclave/trames', glyph: '謎', label: 'Outils de trame', hint: 'Déchiffrement, désenclavement' },
+  { to: '/conclave/trames', glyph: '謎', label: 'Trames', hint: 'Énigmes et défis' },
   { to: '/conclave/categories', glyph: '門', label: 'Catégories', hint: 'Cercles & droits' },
   { to: '/conclave/journal', glyph: '録', label: 'Journal', hint: 'Historique des actions' },
 ];
 
 function ConclaveNav() {
-  const { requestsPending } = useSession();
+  const { requestsPending, activeTrames } = useSession();
   return (
     <nav className="nav nav--conclave" aria-label="Console du Conclave">
       <div className="nav__path">
@@ -114,6 +133,7 @@ function ConclaveNav() {
                 <small>{l.hint}</small>
               </span>
               {l.to === '/conclave/demandes' && requestsPending > 0 && <span className="count-badge">{requestsPending}</span>}
+              {l.to === '/conclave/trames' && activeTrames.length > 0 && <span className="count-badge count-badge--live">{activeTrames.length}</span>}
             </NavLink>
           </li>
         ))}
@@ -323,6 +343,13 @@ export default function Layout() {
   const [navOpen, setNavOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const inConclave = location.pathname.startsWith('/conclave');
+
+  const { refresh } = useSession();
+  // les trames ouvertes ou terminées apparaissent et disparaissent sans recharger la page
+  useEffect(() => {
+    const t = window.setInterval(() => void refresh(), 60000);
+    return () => window.clearInterval(t);
+  }, [refresh]);
 
   useEffect(() => {
     setNavOpen(false);

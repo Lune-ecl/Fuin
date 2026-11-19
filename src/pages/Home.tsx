@@ -6,7 +6,7 @@ import Embers from '../components/Embers';
 import { categoryHref } from '../components/Layout';
 
 export default function Home() {
-  const { member, categories } = useSession();
+  const { member, categories, activeTrames } = useSession();
   if (!member) return null;
 
   const cards = categories.filter((c) => c.show_on_home);
@@ -62,6 +62,17 @@ export default function Home() {
           <SealRing label="Fūin" />
         </div>
       </section>
+
+      {activeTrames.map((t) => (
+        <Link key={t.id} to={`/trame/${t.id}`} className="trame-banner reveal">
+          <i aria-hidden="true" />
+          <span>
+            <small>Une trame est en cours</small>
+            <b>{t.title}</b>
+          </span>
+          <em>Rejoindre →</em>
+        </Link>
+      ))}
 
       <p className="hero-note reveal">
         Les kanjis ne s’écrivent jamais seuls.

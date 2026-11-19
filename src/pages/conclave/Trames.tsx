@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { api, type CodexPage, type RollTable, type RollTier } from '../../lib/api';
-import { circleLabel, slugify } from '../../lib/format';
+import { api, type CodexPage, type RollTable, type RollTier, type TrameRow, type TrameStatus } from '../../lib/api';
+import { useSession } from '../../lib/session';
+import { circleLabel, formatDate, slugify } from '../../lib/format';
 import { coverage, d100, effectiveRoll, isSuccess, ranges, tierFor, TONES } from '../../lib/rolls';
-import { copyToClipboard, Empty, ErrorState, Loader, RankPicker, useConfirm, useToast } from '../../components/ui';
+import { copyToClipboard, Empty, ErrorState, Loader, useConfirm, useToast } from '../../components/ui';
 
-type Tab = 'dechiffrement' | 'desenclavement' | 'tables';
+type Tab = 'liste' | 'tables' | 'dechiffreur';
 const CJK = /[㐀-鿿豈-﫿]/g;
 
-function useRollTables() {
+export function useRollTables() {
   const [tables, setTables] = useState<RollTable[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const load = useCallback(async () => {
@@ -286,178 +287,6 @@ function Decipher({ tables }: { tables: RollTable[] }) {
 }
 
 // ---------------------------------------------------------------------------
-// Désenclavement
-// ---------------------------------------------------------------------------
-function Unseal({ tables }: { tables: RollTable[] }) {
-  const [sealCircle, setSealCircle] = useState(3);
-  const [unsealer, setUnsealer] = useState(3);
-  const [tableSlug, setTableSlug] = useState(tables.find((t) => t.slug === 'desenclavement')?.slug ?? tables[0]?.slug ?? '');
-  const [modifier, setModifier] = useState(0);
-  const [rolls, setRolls] = useState<number[]>([]);
-  const [manual, setManual] = useState('');
-  const table = tables.find((t) => t.slug === tableSlug);
-
-  const results = rolls.map((n) => ({ natural: n, tier: tierFor(table, n, modifier) }));
-  const successes = results.filter((r) => isSuccess(r.tier?.tone)).length;
-  const impossible = unsealer < sealCircle;
-  const broken = successes >= sealCircle;
-  const exhausted = !broken && rolls.length >= unsealer;
-  const done = broken || exhausted;
-
-  const add = (n: number) => {
-    if (impossible || done) return;
-    setRolls((r) => [...r, n]);
-  };
-  const rollAll = () => {
-    if (impossible) return;
-    const out = [...rolls];
-    let ok = out.filter((n) => isSuccess(tierFor(table, n, modifier)?.tone)).length;
-    while (ok < sealCircle && out.length < unsealer) {
-      const n = d100();
-      out.push(n);
-      if (isSuccess(tierFor(table, n, modifier)?.tone)) ok++;
-    }
-    setRolls(out);
-  };
-  const reset = () => setRolls([]);
-
-  const summary =
-    `Désenclavement · sceau du ${circleLabel(sealCircle)}, désenclaveur du ${circleLabel(unsealer)}` +
-    (modifier ? ` (modificateur ${modifier > 0 ? '+' : ''}${modifier})` : '') +
-    '\n' +
-    results.map((r, i) => `Essai ${i + 1} : ${r.natural} · ${r.tier?.label ?? '?'}${r.tier?.effect ? ` : ${r.tier.effect}` : ''}`).join('\n') +
-    `\nRésultat : ${broken ? `sceau brisé en ${rolls.length} essai(s)` : exhausted ? `le sceau tient (${successes}/${sealCircle} verrous)` : `en cours (${successes}/${sealCircle} verrous)`}`;
-
-  return (
-    <>
-      <section className="panel">
-        <h2 className="panel__title">Préparer le désenclavement</h2>
-        <p className="muted small">
-          D’après les règles : il faut autant de rolls réussis que le cercle du sceau, en autant d’essais que le cercle du désenclaveur,
-          et le désenclaveur doit être au moins du cercle du sceau.
-        </p>
-        <div className="unseal-setup">
-          <div className="field">
-            <span>Cercle du sceau</span>
-            <RankPicker value={sealCircle} onChange={(r) => { setSealCircle(r); reset(); }} name="unseal-seal" />
-          </div>
-          <div className="field">
-            <span>Cercle du désenclaveur</span>
-            <RankPicker value={unsealer} onChange={(r) => { setUnsealer(r); reset(); }} name="unseal-user" />
-          </div>
-          <label className="field">
-            <span>Table</span>
-            <TableSelect tables={tables} value={tableSlug} onChange={(s) => { setTableSlug(s); reset(); }} />
-          </label>
-          <label className="field field--narrow">
-            <span>Modificateur</span>
-            <input type="number" value={modifier} onChange={(e) => setModifier(Number(e.target.value) || 0)} />
-          </label>
-        </div>
-      </section>
-
-      {impossible ? (
-        <div className="callout callout--danger">
-          <span className="callout__title">Désenclavement impossible</span>
-          <div className="callout__body">
-            Un désenclaveur du {circleLabel(unsealer)} n’a pas la capacité de désenclaver un sceau du {circleLabel(sealCircle)}.
-          </div>
-        </div>
-      ) : (
-        <section className="panel">
-          <div className="unseal-progress">
-            <div>
-              <p className="kicker">Verrous brisés</p>
-              <b>
-                {successes}
-                <small>/{sealCircle}</small>
-              </b>
-              <span className="gauge gauge--lg">
-                <i style={{ width: `${(Math.min(successes, sealCircle) / sealCircle) * 100}%` }} />
-              </span>
-            </div>
-            <div>
-              <p className="kicker">Essais utilisés</p>
-              <b>
-                {rolls.length}
-                <small>/{unsealer}</small>
-              </b>
-              <span className="gauge gauge--lg gauge--muted">
-                <i style={{ width: `${(rolls.length / unsealer) * 100}%` }} />
-              </span>
-            </div>
-          </div>
-
-          {!done && (
-            <div className="tool-row">
-              <button type="button" className="btn btn--red" onClick={() => add(d100())}>
-                Lancer un roll
-              </button>
-              <button type="button" className="btn btn--ghost" onClick={rollAll}>
-                Tout lancer
-              </button>
-              <form
-                className="inline-form"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const n = Number(manual);
-                  if (n >= 1 && n <= 100) {
-                    add(Math.round(n));
-                    setManual('');
-                  }
-                }}
-              >
-                <input type="number" min={1} max={100} value={manual} onChange={(e) => setManual(e.target.value)} placeholder="Roll fait en jeu" aria-label="Roll obtenu" />
-                <button type="submit" className="btn btn--ghost btn--sm">
-                  Ajouter
-                </button>
-              </form>
-            </div>
-          )}
-
-          {done && (
-            <div className={`unseal-verdict${broken ? ' is-broken' : ''}`}>
-              <span aria-hidden="true">{broken ? '解' : '封'}</span>
-              <div>
-                <b>{broken ? 'Le sceau est brisé.' : 'Le sceau tient.'}</b>
-                <p>
-                  {broken
-                    ? `${sealCircle} verrou(x) brisé(s) en ${rolls.length} essai(s).`
-                    : `${successes} verrou(x) sur ${sealCircle} après ${rolls.length} essai(s).`}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {results.length > 0 && (
-            <ul className="roll-list">
-              {results.map((r, i) => (
-                <li key={i} className={`roll roll--${r.tier?.tone ?? 'neutral'}`}>
-                  <span className="roll__index">Essai {i + 1}</span>
-                  <span className="roll__value">
-                    {r.natural}
-                    {modifier !== 0 && r.natural > 1 && r.natural < 100 && <small> → {effectiveRoll(r.natural, modifier)}</small>}
-                  </span>
-                  <ToneChip tier={r.tier} />
-                  <span className="roll__text">{r.tier?.effect}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <div className="form-actions">
-            {results.length > 0 && <CopyButton text={summary} />}
-            <button type="button" className="btn btn--ghost btn--sm" onClick={reset} disabled={!results.length}>
-              Recommencer
-            </button>
-          </div>
-        </section>
-      )}
-    </>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Tables de roll
 // ---------------------------------------------------------------------------
 function FreeRoll({ tables }: { tables: RollTable[] }) {
@@ -663,34 +492,133 @@ function Tables({ tables, reload }: { tables: RollTable[]; reload: () => void })
   );
 }
 
+// ---------------------------------------------------------------------------
+// Liste des trames
+// ---------------------------------------------------------------------------
+export const TRAME_STATUS: Record<TrameStatus, string> = { draft: 'Brouillon', active: 'En cours', ended: 'Terminée' };
+
+function TrameList() {
+  const toast = useToast();
+  const confirm = useConfirm();
+  const { refresh } = useSession();
+  const [rows, setRows] = useState<TrameRow[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      setRows(await api.adminTrames());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, []);
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const setStatus = async (r: TrameRow, action: 'start' | 'end') => {
+    if (
+      action === 'end' &&
+      !(await confirm({
+        title: `Terminer « ${r.title} » ?`,
+        text: 'La page de la trame disparaît pour les joueurs. La progression reste visible dans le suivi.',
+        confirm: 'Terminer la trame',
+      }))
+    )
+      return;
+    try {
+      await api.trameStatus(r.id, action);
+      toast(action === 'start' ? `« ${r.title} » est ouverte aux joueurs` : `« ${r.title} » est terminée`);
+      await load();
+      await refresh();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e), 'error');
+    }
+  };
+
+  if (error) return <ErrorState text={error} onRetry={load} />;
+  if (!rows) return <Loader />;
+
+  return (
+    <>
+      <div className="panel__row">
+        <p className="muted">Chaque trame est une suite d’étapes : énigme à déchiffrer, désenclavement, récit. Ouverte, elle apparaît dans le menu des joueurs.</p>
+        <Link to="/conclave/trames/nouvelle" className="btn btn--red">
+          + Nouvelle trame
+        </Link>
+      </div>
+      {rows.length === 0 ? (
+        <Empty glyph="謎">Aucune trame pour l’instant. Crée la première avec « Nouvelle trame ».</Empty>
+      ) : (
+        <div className="trame-list">
+          {rows.map((r) => (
+            <article key={r.id} className={`trame-card trame-card--${r.status}`}>
+              <div className="trame-card__top">
+                <span className={`status status--trame-${r.status}`}>{TRAME_STATUS[r.status]}</span>
+                <small className="muted">
+                  {r.steps} étape{r.steps > 1 ? 's' : ''} · {r.shared ? 'progression commune' : 'progression personnelle'} · dès le {circleLabel(r.min_rank)}
+                </small>
+              </div>
+              <h3>
+                <Link to={`/conclave/trames/${r.id}`}>{r.title}</Link>
+              </h3>
+              <p className="muted small">
+                {r.participants} participant{r.participants > 1 ? 's' : ''} · {r.solves} étape{r.solves > 1 ? 's' : ''} résolue{r.solves > 1 ? 's' : ''}
+                {r.started_at && ` · ouverte le ${formatDate(r.started_at, true)}`}
+              </p>
+              <div className="request__actions">
+                {r.status === 'active' ? (
+                  <button type="button" className="btn btn--ghost btn--sm btn--danger-text" onClick={() => setStatus(r, 'end')}>
+                    Terminer la trame
+                  </button>
+                ) : (
+                  <button type="button" className="btn btn--red btn--sm" onClick={() => setStatus(r, 'start')} disabled={r.steps === 0}>
+                    {r.status === 'ended' ? 'Rouvrir la trame' : 'Ouvrir la trame'}
+                  </button>
+                )}
+                <Link to={`/conclave/trames/${r.id}`} className="btn btn--ghost btn--sm">
+                  Modifier et suivre
+                </Link>
+                <Link to={`/trame/${r.id}`} className="btn btn--ghost btn--sm">
+                  Voir comme un joueur
+                </Link>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function Trames({ tab }: { tab: Tab }) {
   const { tables, error, load } = useRollTables();
   return (
     <div className="console">
       <header className="page-head">
         <p className="kicker">Console du Conclave</p>
-        <h1>Outils de trame</h1>
-        <p className="muted">Pour mener les scènes : déchiffrer une inscription, résoudre un désenclavement, lire une table de roll.</p>
+        <h1>Trames</h1>
+        <p className="muted">Énigmes et défis à ouvrir aux joueurs le temps d’un événement.</p>
       </header>
       <nav className="tabs">
         <NavLink to="/conclave/trames" end className={({ isActive }) => `tab${isActive ? ' is-on' : ''}`}>
-          Déchiffrement
-        </NavLink>
-        <NavLink to="/conclave/trames/desenclavement" className={({ isActive }) => `tab${isActive ? ' is-on' : ''}`}>
-          Désenclavement
+          Trames
         </NavLink>
         <NavLink to="/conclave/trames/tables" className={({ isActive }) => `tab${isActive ? ' is-on' : ''}`}>
           Tables de roll
         </NavLink>
+        <NavLink to="/conclave/trames/dechiffreur" className={({ isActive }) => `tab${isActive ? ' is-on' : ''}`}>
+          Déchiffreur
+        </NavLink>
       </nav>
-      {error ? (
+      {tab === 'liste' ? (
+        <TrameList />
+      ) : error ? (
         <ErrorState text={error} onRetry={load} />
       ) : !tables ? (
         <Loader />
-      ) : tab === 'dechiffrement' ? (
+      ) : tab === 'dechiffreur' ? (
         <Decipher tables={tables} />
-      ) : tab === 'desenclavement' ? (
-        <Unseal tables={tables} />
       ) : (
         <Tables tables={tables} reload={load} />
       )}

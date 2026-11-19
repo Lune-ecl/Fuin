@@ -18,6 +18,8 @@ import Journal from './pages/conclave/Journal';
 import Requests from './pages/Requests';
 import ConclaveRequests from './pages/conclave/Requests';
 import Trames from './pages/conclave/Trames';
+import TrameEditor from './pages/conclave/TrameEditor';
+import Trame from './pages/Trame';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { status, error, refresh } = useSession();
@@ -74,6 +76,7 @@ export default function App() {
                 <Route index element={<Home />} />
                 <Route path="mon-compte" element={<Account />} />
                 <Route path="demandes" element={<Requests />} />
+                <Route path="trame/:id" element={<Trame />} />
                 <Route
                   path="conclave"
                   element={
@@ -93,9 +96,11 @@ export default function App() {
                   <Route path="categories" element={<Categories />} />
                   <Route path="journal" element={<Journal />} />
                   <Route path="demandes" element={<ConclaveRequests />} />
-                  <Route path="trames" element={<Trames tab="dechiffrement" />} />
-                  <Route path="trames/desenclavement" element={<Trames tab="desenclavement" />} />
+                  <Route path="trames" element={<Trames tab="liste" />} />
                   <Route path="trames/tables" element={<Trames tab="tables" />} />
+                  <Route path="trames/dechiffreur" element={<Trames tab="dechiffreur" />} />
+                  <Route path="trames/nouvelle" element={<TrameEditor />} />
+                  <Route path="trames/:id" element={<TrameEditor />} />
                   <Route path="*" element={<Navigate to="/conclave" replace />} />
                 </Route>
                 <Route path="*" element={<PageView />} />
