@@ -552,6 +552,29 @@ export const SYMBOLS: SealSymbol[] = [
     svg: (c) => `<circle cx="50" cy="50" r="40"/><circle cx="50" cy="50" r="27"/><circle cx="50" cy="50" r="14"/>${dot(50, 50, 4, c)}`,
   },
   { key: 'hexagon', label: 'Hexagone', cat: 'mystique', svg: () => poly(6, 42, -90) + poly(6, 24, -60) },
+  {
+    key: 'cube',
+    label: 'Cube',
+    cat: 'mystique',
+    svg: (c) =>
+      `<path d="M50 10 L84.64 30 L50 50 L15.36 30 Z" fill="${c}" fill-opacity="0.22"/><path d="M50 10 L84.64 30 V70 L50 90 L15.36 70 V30 Z"/><path d="M15.36 30 L50 50 L84.64 30 M50 50 V90"/>`,
+  },
+  {
+    key: 'cube-wire',
+    label: 'Cube filaire',
+    cat: 'mystique',
+    svg: () =>
+      `<rect x="14" y="34" width="50" height="50"/><rect x="36" y="16" width="50" height="50"/><path d="M14 34 L36 16 M64 34 L86 16 M64 84 L86 66 M14 84 L36 66"/>`,
+  },
+  {
+    key: 'cube-sealed',
+    label: 'Cube scellé',
+    cat: 'mystique',
+    svg: (c) =>
+      `<path d="M50 10 L84.64 30 V70 L50 90 L15.36 70 V30 Z"/><path d="M15.36 30 L50 50 L84.64 30 M50 50 V90"/>` +
+      `<path d="M50 20 L72 32.7 L50 45.4 L28 32.7 Z" fill="${c}" fill-opacity="0.3"/>` +
+      `<path d="M24 46 L44 57.5 M24 56 L44 67.5 M24 66 L44 77.5 M76 46 L56 57.5 M76 56 L56 67.5 M76 66 L56 77.5"/>`,
+  },
   { key: 'diamond', label: 'Losange', cat: 'mystique', svg: () => `<path d="M50 6 L88 50 L50 94 L12 50 Z M50 26 L70 50 L50 74 L30 50 Z"/>` },
   {
     key: 'labyrinth',
