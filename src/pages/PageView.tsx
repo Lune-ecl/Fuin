@@ -5,6 +5,8 @@ import { useSession } from '../lib/session';
 import { circleLabel, formatDate } from '../lib/format';
 import { sanitizeSvg } from '../lib/markdown';
 import Markdown from '../components/Markdown';
+import SealEmblem from '../components/SealEmblem';
+import { buildSealSvg, defaultDesign } from '../lib/sealDesign';
 import { copyToClipboard, ErrorState, Loader, SealBadge, useToast } from '../components/ui';
 
 function KanjiBanner({ kanji }: { kanji: string }) {
@@ -172,11 +174,14 @@ export default function PageView() {
 
   const { page, slot, children, related } = data;
   const icon = sanitizeSvg(page.icon_svg);
+  // chaque sceau a un visuel : celui du créateur, l'icône importée, ou un sceau dessiné avec sa formule
+  const emblem = page.kind === 'seal' ? page.icon_svg || buildSealSvg(defaultDesign(page.kanji), { embed: false }) : null;
   const crumbHref = page.category.index_slug && page.category.index_slug !== page.slug ? '/' + page.category.index_slug : '/';
 
   return (
     <article className={`archive archive--${page.kind}`} key={page.slug}>
       <header className="archive__head">
+        {emblem && <SealEmblem svg={emblem} className="emblem--page" />}
         <Link className="crumb" to={crumbHref}>
           <span>{page.category.glyph}</span> {page.category.name}
         </Link>
@@ -185,7 +190,7 @@ export default function PageView() {
           {page.hidden && <span className="badge badge--draft">brouillon · invisible des joueurs</span>}
         </p>
         <div className="archive__title-row">
-          {icon && <div className="seal-icon" dangerouslySetInnerHTML={{ __html: icon }} />}
+          {icon && !emblem && <div className="seal-icon" dangerouslySetInnerHTML={{ __html: icon }} />}
           <h1>{page.title}</h1>
         </div>
         {page.description && <p className="archive__desc">{page.description}</p>}
@@ -227,20 +232,31 @@ export default function PageView() {
           {children && children.length > 0 && (
             <section className="children">
               <p className="kicker">Les sceaux du cercle</p>
-              <div className="children__grid">
-                {children.map((c) => (
-                  <Link key={c.slug} to={'/' + c.slug} className={`seal-card${c.hidden ? ' is-hidden' : ''}`}>
-                    <span className="seal-card__icon" dangerouslySetInnerHTML={{ __html: sanitizeSvg(c.icon_svg) || '<span>封</span>' }} />
-                    <span className="seal-card__body">
-                      <strong>{c.title}</strong>
-                      {c.kanji && (
-                        <span className="seal-card__kanji" lang="ja">
-                          {c.kanji}
-                        </span>
-                      )}
-                      {c.description && <small>{c.description}</small>}
+              <div className="talismans">
+                {children.map((c, i) => (
+                  <Link
+                    key={c.slug}
+                    to={'/' + c.slug}
+                    className={`talisman${c.hidden ? ' is-hidden' : ''}`}
+                    style={{ animationDelay: `${i * 70}ms` }}
+                    title={c.description || c.title}
+                  >
+                    <span className="talisman__cord" aria-hidden="true" />
+                    <span className="talisman__badge">
+                      <SealBadge badge={c.badge} slotted={c.slotted} />
                     </span>
-                    <SealBadge badge={c.badge} slotted={c.slotted} />
+                    <span
+                      className="talisman__seal seal-icon"
+                      dangerouslySetInnerHTML={{
+                        __html: sanitizeSvg(c.icon_svg) || sanitizeSvg(buildSealSvg(defaultDesign(c.kanji), { embed: false })),
+                      }}
+                    />
+                    {c.kanji && (
+                      <span className="talisman__kanji" lang="ja">
+                        {c.kanji.replace(/\s+/g, '')}
+                      </span>
+                    )}
+                    <strong className="talisman__title">{c.title}</strong>
                   </Link>
                 ))}
               </div>

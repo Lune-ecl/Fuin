@@ -553,19 +553,19 @@ a.archive-list__item:hover {
   animation: spin 40s linear infinite;
 }
 
-.seal-icon svg {
+.seal-icon svg:not(.fuin-seal) {
   width: 62%;
   height: 62%;
   stroke: currentColor;
   filter: drop-shadow(0 0 8px rgba(255, 52, 69, 0.45));
 }
 
-.seal-icon svg [stroke] {
+.seal-icon svg:not(.fuin-seal) [stroke] {
   stroke: currentColor;
 }
 
-.seal-icon svg [fill]:not([fill='none']),
-.seal-card__icon svg [fill]:not([fill='none']) {
+.seal-icon svg:not(.fuin-seal) [fill]:not([fill='none']),
+.seal-card__icon svg:not(.fuin-seal) [fill]:not([fill='none']) {
   fill: currentColor;
   fill-opacity: 0.55;
 }

@@ -5,6 +5,7 @@ import './styles/base.css';
 import './styles/layout.css';
 import './styles/codex.css';
 import './styles/conclave.css';
+import './styles/effects.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

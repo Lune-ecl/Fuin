@@ -1,0 +1,638 @@
+/* =====================================================================
+   Effets : grand sceau tracé à l'encre, pinceau, braises, talismans,
+   créateur de sceau
+   ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   Grand sceau
+   --------------------------------------------------------------------- */
+.emblem {
+  --size: 200px;
+  position: relative;
+  width: var(--size);
+  height: var(--size);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.emblem::before {
+  content: '';
+  position: absolute;
+  inset: -12%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(216, 30, 48, 0.3), rgba(216, 30, 48, 0.06) 55%, transparent 72%);
+  animation: emblem-breathe 6s ease-in-out infinite;
+}
+
+.emblem::after {
+  content: '';
+  position: absolute;
+  inset: -4%;
+  border-radius: 50%;
+  border: 1px dashed var(--line-red);
+  animation: spin 70s linear infinite;
+}
+
+.emblem__art {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+}
+
+.emblem__art svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 0 10px rgba(255, 52, 69, 0.45));
+}
+
+/* icônes importées (non dessinées dans le créateur) : recolorées en rouge, plus petites */
+.emblem:not(.emblem--designed) .emblem__art svg {
+  width: 62%;
+  height: 62%;
+  stroke: var(--red-hot);
+}
+
+.emblem:not(.emblem--designed) .emblem__art svg [stroke]:not([stroke='none']) {
+  stroke: var(--red-hot);
+}
+
+.emblem:not(.emblem--designed) .emblem__art svg [fill]:not([fill='none']) {
+  fill: var(--red-hot);
+  fill-opacity: 0.55;
+}
+
+.emblem:not(.emblem--designed)::after {
+  inset: 6%;
+  border-style: solid;
+  border-color: rgba(216, 30, 48, 0.45);
+  animation: none;
+}
+
+/* tracé à l'encre */
+.emblem__art :is(path, circle, rect, line, polyline, polygon, ellipse) {
+  transition: stroke-dashoffset 1.5s cubic-bezier(0.55, 0.05, 0.25, 1);
+}
+
+.emblem__art.is-drawing :is(path, circle, rect, line, polyline, polygon, ellipse) {
+  stroke-dashoffset: 0 !important;
+}
+
+.emblem__art text {
+  opacity: 0;
+  filter: blur(6px);
+  transition: opacity 1s 0.9s, filter 1.2s 0.9s;
+}
+
+.emblem__art.is-drawing text {
+  opacity: 1;
+  filter: none;
+}
+
+.emblem__art [fill]:not([fill='none']):not(text) {
+  fill-opacity: 0;
+  transition: fill-opacity 0.8s 1.2s;
+}
+
+.emblem__art.is-drawing [fill]:not([fill='none']):not(text) {
+  fill-opacity: 1;
+}
+
+.emblem:not(.emblem--designed) .emblem__art.is-drawing svg [fill]:not([fill='none']) {
+  fill-opacity: 0.55;
+}
+
+/* l'anneau extérieur tourne une fois le sceau tracé */
+.emblem__art.is-drawn .fs-outer {
+  transform-box: view-box;
+  transform-origin: 100px 100px;
+  animation: spin 140s linear infinite;
+}
+
+.emblem__art.is-drawn .fs-inner {
+  transform-box: view-box;
+  transform-origin: 100px 100px;
+  animation: spin 220s linear infinite reverse;
+}
+
+.emblem--page {
+  --size: clamp(150px, 22vw, 210px);
+  margin: 0 auto 26px;
+}
+
+.emblem--creator {
+  --size: min(300px, 70vw);
+}
+
+@keyframes emblem-breathe {
+  50% {
+    transform: scale(1.06);
+    opacity: 0.75;
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Coup de pinceau entre les pages
+   --------------------------------------------------------------------- */
+.brush-wipe {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.brush-wipe svg {
+  width: 170vw;
+  height: 52vh;
+  opacity: 0.92;
+  transform: translateX(-130%) rotate(-7deg);
+  animation: brush-wipe 0.78s cubic-bezier(0.7, 0, 0.25, 1) forwards;
+  filter: drop-shadow(0 0 40px rgba(216, 30, 48, 0.5));
+}
+
+@keyframes brush-wipe {
+  60% {
+    opacity: 0.92;
+  }
+  to {
+    transform: translateX(130%) rotate(-7deg);
+    opacity: 0;
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Braises
+   --------------------------------------------------------------------- */
+.embers {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.embers i {
+  position: absolute;
+  bottom: -12px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ffd8b8 0%, var(--red-hot) 55%, rgba(255, 52, 69, 0) 72%);
+  box-shadow: 0 0 10px 2px rgba(255, 52, 69, 0.55);
+  opacity: 0;
+  animation-name: ember;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes ember {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.95;
+  }
+  50% {
+    transform: translate(calc(var(--drift) * 0.5), -50vh) scale(0.9);
+  }
+  80% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translate(var(--drift), -100vh) scale(0.4);
+    opacity: 0;
+  }
+}
+
+.hero {
+  position: relative;
+  isolation: isolate;
+}
+
+.hero > :not(.embers) {
+  position: relative;
+  z-index: 1;
+}
+
+.embers--hero {
+  inset: -60px -40px 0;
+  opacity: 0.7;
+  mask-image: linear-gradient(to top, #000 40%, transparent);
+  -webkit-mask-image: linear-gradient(to top, #000 40%, transparent);
+}
+
+/* ---------------------------------------------------------------------
+   Talismans (sceaux d'un cercle)
+   --------------------------------------------------------------------- */
+.talismans {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 34px 16px;
+  padding-top: 18px;
+}
+
+.talisman {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  min-height: 330px;
+  padding: 30px 12px 16px;
+  border-radius: 3px;
+  background:
+    radial-gradient(160px 120px at 50% 28%, rgba(216, 30, 48, 0.16), transparent 70%),
+    linear-gradient(180deg, #1b0b10, #100a0d 70%, #0c090b);
+  border: 1px solid var(--line-red);
+  box-shadow: 0 18px 30px -22px rgba(0, 0, 0, 0.9);
+  transform-origin: 50% -22px;
+  animation: talisman-in 0.9s var(--ease) both;
+  transition: transform 0.7s var(--ease), border-color 0.3s, box-shadow 0.4s;
+}
+
+.talisman::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border: 1px solid rgba(216, 30, 48, 0.22);
+  pointer-events: none;
+}
+
+.talisman::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 10px;
+  background: repeating-linear-gradient(90deg, rgba(216, 30, 48, 0.55) 0 6px, transparent 6px 12px);
+  opacity: 0.45;
+}
+
+.talisman__cord {
+  position: absolute;
+  top: -22px;
+  left: 50%;
+  width: 1px;
+  height: 22px;
+  background: linear-gradient(180deg, transparent, var(--red));
+}
+
+.talisman__cord::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: -4px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid var(--red);
+  background: var(--bg);
+}
+
+.talisman:hover {
+  transform: rotate(-2.4deg);
+  border-color: var(--red);
+  box-shadow: 0 24px 40px -22px var(--red-glow);
+}
+
+.talisman:nth-child(even):hover {
+  transform: rotate(2.4deg);
+}
+
+.talisman.is-hidden {
+  opacity: 0.6;
+  border-style: dashed;
+}
+
+.talisman__badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+}
+
+.talisman__seal.seal-icon {
+  --size: 92px;
+}
+
+.talisman__kanji {
+  flex: 1;
+  writing-mode: vertical-rl;
+  font: 400 22px/1.15 var(--brush);
+  letter-spacing: 0.18em;
+  color: var(--red-hot);
+  text-shadow: 0 0 14px rgba(255, 52, 69, 0.4);
+  max-height: 170px;
+}
+
+.talisman__title {
+  width: 100%;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-red);
+  text-align: center;
+  font: 700 14.5px/1.3 var(--display);
+  color: var(--ink);
+}
+
+@keyframes talisman-in {
+  from {
+    opacity: 0;
+    transform: translateY(-16px) rotate(-3deg);
+  }
+  60% {
+    transform: rotate(1.5deg);
+  }
+}
+
+/* ---------------------------------------------------------------------
+   Icônes générées dans les petits formats
+   --------------------------------------------------------------------- */
+.seal-icon svg.fuin-seal {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 0 6px rgba(255, 52, 69, 0.35));
+}
+
+.seal-icon:has(svg.fuin-seal)::before {
+  display: none;
+}
+
+.seal-icon--md {
+  --size: 96px;
+}
+
+.icon-field__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.icon-field__svg {
+  width: 100%;
+  margin-top: 8px;
+  background: var(--bg-2);
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius-sm);
+  padding: 10px;
+  font-size: 11.5px;
+  color: var(--ink);
+}
+
+/* ---------------------------------------------------------------------
+   Créateur de sceau
+   --------------------------------------------------------------------- */
+.modal--wide {
+  width: min(1120px, calc(100vw - 20px));
+}
+
+.creator {
+  display: grid;
+  grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.creator__preview {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  padding: 34px 16px 20px;
+  border-radius: 16px;
+  background: radial-gradient(circle at 50% 40%, rgba(216, 30, 48, 0.12), transparent 65%), var(--bg-2);
+  border: 1px solid var(--line);
+}
+
+.creator__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.creator__controls {
+  max-height: min(64vh, 640px);
+  overflow-y: auto;
+  padding-right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-3) transparent;
+}
+
+.creator__group h4 {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+  font: 800 11px var(--sans);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--red-soft);
+}
+
+.creator__group h4 small {
+  font: 500 11.5px var(--sans);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--mut);
+}
+
+.creator__field {
+  margin-top: 10px;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap: 8px;
+}
+
+.tiles--small {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px 6px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  transition: border-color 0.15s, background-color 0.15s, transform 0.2s var(--ease);
+}
+
+.tile:hover {
+  border-color: var(--line-red);
+  transform: translateY(-1px);
+}
+
+.tile.is-on {
+  border-color: var(--red);
+  background: linear-gradient(180deg, rgba(216, 30, 48, 0.2), rgba(216, 30, 48, 0.05));
+  box-shadow: 0 0 0 1px var(--red) inset;
+}
+
+.tile__art {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+}
+
+.tile__art svg {
+  width: 100%;
+  height: 100%;
+}
+
+.tile small {
+  font-size: 11px;
+  color: var(--ink-2);
+  text-align: center;
+  line-height: 1.2;
+}
+
+.glyph-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.glyph-pick {
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  font: 400 21px var(--brush);
+  color: var(--ink-2);
+  transition: all 0.15s;
+}
+
+.glyph-pick:hover {
+  border-color: var(--line-red);
+  color: var(--red-hot);
+}
+
+.glyph-pick.is-on {
+  border-color: var(--red);
+  background: var(--red-deep);
+  color: #fff;
+}
+
+.creator .glyph-input {
+  width: 56px;
+  flex: 0 0 56px;
+  height: 40px;
+  border-radius: 9px;
+  border: 1px dashed var(--line-2);
+  background: var(--bg-2);
+  text-align: center;
+  font: 400 21px var(--brush);
+  color: var(--red-hot);
+}
+
+.glyph-input:focus {
+  outline: none;
+  border-color: var(--red);
+}
+
+.swatches {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.swatch {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid var(--bg);
+  box-shadow: 0 0 0 1px var(--line-2);
+  transition: transform 0.2s var(--ease), box-shadow 0.2s;
+}
+
+.swatch:hover {
+  transform: scale(1.08);
+}
+
+.swatch.is-on {
+  box-shadow: 0 0 0 2px var(--ink), 0 0 16px rgba(255, 52, 69, 0.5);
+}
+
+.range {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.range input {
+  accent-color: var(--red);
+  width: 100%;
+}
+
+@media (max-width: 820px) {
+  .creator {
+    grid-template-columns: 1fr;
+  }
+
+  .creator__preview {
+    position: static;
+    padding: 24px 12px 16px;
+  }
+
+  .emblem--creator {
+    --size: min(220px, 60vw);
+  }
+
+  .creator__controls {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .range {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
+
+@media (max-width: 640px) {
+  .talismans {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 30px 12px;
+  }
+
+  .talisman {
+    min-height: 290px;
+  }
+
+  .talisman__seal.seal-icon {
+    --size: 76px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brush-wipe,
+  .embers {
+    display: none;
+  }
+}

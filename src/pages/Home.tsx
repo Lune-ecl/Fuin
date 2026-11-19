@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useSession } from '../lib/session';
 import { circleLabel, rankTitle } from '../lib/format';
 import SealRing from '../components/SealRing';
+import Embers from '../components/Embers';
 import { categoryHref } from '../components/Layout';
 
 export default function Home() {
@@ -17,6 +18,7 @@ export default function Home() {
   return (
     <div className="home">
       <section className="hero">
+        <Embers count={18} className="embers--hero" />
         <div className="hero__copy reveal">
           <p className="kicker">Archives scellées · Conclave de Zenkai</p>
           <h1 className="hero__title">

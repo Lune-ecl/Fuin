@@ -18,6 +18,10 @@ sceaux de son cercle**, et où **le Conclave** gère les comptes, les cercles, l
     catalogue de tous les sceaux, configuration des quotas et notes internes.
   - **Éditeur de sceaux** : création et modification des fiches (Markdown avec aperçu en direct, encadrés,
     tableaux, icône SVG, badge MJ, brouillons invisibles des joueurs, cercle minimum par fiche).
+  - **Créateur de sceau** (dans l'éditeur) : le visuel d'un sceau se compose en cliquant sur une bibliothèque
+    de pièces (contours, anneau de kanjis, ornements, symboles, kanji central, encre, rotation). Sur la fiche,
+    le sceau se trace à l'encre puis son anneau tourne lentement. Un sceau sans visuel est dessiné
+    automatiquement à partir de sa formule de kanjis.
   - **Catégories & droits** : cercle requis par catégorie, catégories réservées au Conclave.
   - **Journal** : historique de toutes les actions du Conclave.
 - Chaque joueur peut changer son mot de passe dans **Mon compte**.

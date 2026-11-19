@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useSession } from '../lib/session';
 import SealRing from '../components/SealRing';
+import Embers from '../components/Embers';
 import { Hanko } from '../components/Brand';
 
 export default function Login() {
@@ -39,6 +40,7 @@ export default function Login() {
     <div className="login">
       <div className="login__backdrop" aria-hidden="true">
         <SealRing className="login__ring" />
+        <Embers count={30} />
         <span className="login__kanji login__kanji--a">封</span>
         <span className="login__kanji login__kanji--b">印</span>
       </div>

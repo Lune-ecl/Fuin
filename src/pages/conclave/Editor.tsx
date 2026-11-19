@@ -5,6 +5,8 @@ import { useSession } from '../../lib/session';
 import { circleLabel, formatDate, normalize, RANKS, slugify, timeAgo } from '../../lib/format';
 import { sanitizeSvg } from '../../lib/markdown';
 import Markdown from '../../components/Markdown';
+import SealCreator from '../../components/SealCreator';
+import { buildSealSvg, defaultDesign, parseDesign } from '../../lib/sealDesign';
 import { Empty, ErrorState, Loader, SealBadge, Toggle, useConfirm, useToast } from '../../components/ui';
 
 const KIND_LABEL: Record<EditablePage['kind'], string> = {
@@ -177,6 +179,7 @@ export function PageEditor() {
   const [slugTouched, setSlugTouched] = useState(!isNew);
   const [view, setView] = useState<'edit' | 'preview'>('edit');
   const [dirty, setDirty] = useState(false);
+  const [creatorOpen, setCreatorOpen] = useState(false);
   const textarea = useRef<HTMLTextAreaElement>(null);
 
   const load = useCallback(async () => {
@@ -406,16 +409,35 @@ export function PageEditor() {
             hint="Invisible des joueurs, visible du Conclave"
           />
           <div className="field">
-            <span>Icône (SVG)</span>
+            <span>Visuel du sceau</span>
             <div className="icon-field">
-              <div className="seal-icon seal-icon--sm" dangerouslySetInnerHTML={{ __html: icon || '<span>封</span>' }} />
-              <textarea rows={4} className="mono" value={page.icon_svg ?? ''} onChange={(e) => set('icon_svg', e.target.value)} placeholder="<svg …>…</svg>" />
+              <div
+                className="seal-icon seal-icon--md"
+                dangerouslySetInnerHTML={{
+                  __html: icon || sanitizeSvg(buildSealSvg(defaultDesign(page.kanji), { embed: false })),
+                }}
+              />
+              <div className="icon-field__actions">
+                <button type="button" className="btn btn--red btn--sm" onClick={() => setCreatorOpen(true)}>
+                  {parseDesign(page.icon_svg) ? 'Modifier le visuel' : 'Créer le visuel'}
+                </button>
+                {!page.icon_svg && <small className="muted">Sans visuel, un sceau est dessiné automatiquement avec la formule.</small>}
+                {page.icon_svg && (
+                  <button type="button" className="btn btn--ghost btn--sm" onClick={() => set('icon_svg', '')}>
+                    Retirer le visuel
+                  </button>
+                )}
+              </div>
             </div>
-            {!page.icon_svg && (
-              <button type="button" className="btn btn--ghost btn--sm" onClick={() => set('icon_svg', ICON_PRESET)}>
-                Utiliser une icône de base
-              </button>
-            )}
+            <details className="md-help">
+              <summary>SVG avancé</summary>
+              <textarea rows={4} className="mono icon-field__svg" value={page.icon_svg ?? ''} onChange={(e) => set('icon_svg', e.target.value)} placeholder="<svg …>…</svg>" />
+              {!page.icon_svg && (
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => set('icon_svg', ICON_PRESET)}>
+                  Utiliser une icône simple
+                </button>
+              )}
+            </details>
           </div>
           {!isNew && (
             <button type="button" className="btn btn--ghost btn--danger-text btn--block" onClick={remove}>
@@ -486,6 +508,13 @@ export function PageEditor() {
           </details>
         </section>
       </div>
+      <SealCreator
+        open={creatorOpen}
+        initialSvg={page.icon_svg}
+        kanji={page.kanji}
+        onClose={() => setCreatorOpen(false)}
+        onUse={(svg) => set('icon_svg', svg)}
+      />
     </form>
   );
 }
