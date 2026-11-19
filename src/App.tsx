@@ -15,6 +15,9 @@ import Slots from './pages/conclave/Slots';
 import { EditorList, PageEditor } from './pages/conclave/Editor';
 import Categories from './pages/conclave/Categories';
 import Journal from './pages/conclave/Journal';
+import Requests from './pages/Requests';
+import ConclaveRequests from './pages/conclave/Requests';
+import Trames from './pages/conclave/Trames';
 
 function RequireAuth({ children }: { children: ReactNode }) {
   const { status, error, refresh } = useSession();
@@ -70,6 +73,7 @@ export default function App() {
               >
                 <Route index element={<Home />} />
                 <Route path="mon-compte" element={<Account />} />
+                <Route path="demandes" element={<Requests />} />
                 <Route
                   path="conclave"
                   element={
@@ -88,6 +92,10 @@ export default function App() {
                   <Route path="sceaux/:id" element={<PageEditor />} />
                   <Route path="categories" element={<Categories />} />
                   <Route path="journal" element={<Journal />} />
+                  <Route path="demandes" element={<ConclaveRequests />} />
+                  <Route path="trames" element={<Trames tab="dechiffrement" />} />
+                  <Route path="trames/desenclavement" element={<Trames tab="desenclavement" />} />
+                  <Route path="trames/tables" element={<Trames tab="tables" />} />
                   <Route path="*" element={<Navigate to="/conclave" replace />} />
                 </Route>
                 <Route path="*" element={<PageView />} />

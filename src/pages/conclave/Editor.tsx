@@ -6,7 +6,7 @@ import { circleLabel, formatDate, normalize, RANKS, slugify, timeAgo } from '../
 import { sanitizeSvg } from '../../lib/markdown';
 import Markdown from '../../components/Markdown';
 import SealCreator from '../../components/SealCreator';
-import { buildSealSvg, defaultDesign, parseDesign } from '../../lib/sealDesign';
+import { displaySealSvg, parseDesign } from '../../lib/sealDesign';
 import { Empty, ErrorState, Loader, SealBadge, Toggle, useConfirm, useToast } from '../../components/ui';
 
 const KIND_LABEL: Record<EditablePage['kind'], string> = {
@@ -290,8 +290,6 @@ export function PageEditor() {
     }
   };
 
-  const icon = sanitizeSvg(page.icon_svg);
-
   return (
     <form className="console editor" onSubmit={save} onKeyDown={(e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
@@ -414,7 +412,7 @@ export function PageEditor() {
               <div
                 className="seal-icon seal-icon--md"
                 dangerouslySetInnerHTML={{
-                  __html: icon || sanitizeSvg(buildSealSvg(defaultDesign(page.kanji), { embed: false })),
+                  __html: sanitizeSvg(displaySealSvg(page.icon_svg, page.kanji)),
                 }}
               />
               <div className="icon-field__actions">
@@ -514,6 +512,7 @@ export function PageEditor() {
         kanji={page.kanji}
         onClose={() => setCreatorOpen(false)}
         onUse={(svg) => set('icon_svg', svg)}
+        fileName={page.title || 'sceau'}
       />
     </form>
   );

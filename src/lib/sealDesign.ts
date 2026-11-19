@@ -22,9 +22,54 @@ export const COLORS = [
   { value: '#d81e30', label: 'Écarlate' },
   { value: '#a3121f', label: 'Carmin' },
   { value: '#7c0c17', label: 'Sang séché' },
+  { value: '#ff7a1a', label: 'Braise' },
+  { value: '#f2b33d', label: 'Or' },
+  { value: '#2fd47a', label: 'Vert jade' },
+  { value: '#14a35c', label: 'Vert forêt' },
+  { value: '#22d3ee', label: 'Cyan' },
+  { value: '#3b82f6', label: 'Bleu' },
+  { value: '#4f46e5', label: 'Indigo' },
+  { value: '#a855f7', label: 'Violet' },
+  { value: '#f472b6', label: 'Rose' },
   { value: '#f1ebe6', label: 'Os' },
   { value: '#8a827c', label: 'Cendre' },
 ];
+
+export const BRUSH_FONT = 'Yuji Syuku';
+
+// Centre optiquement un kanji : on mesure son encre réelle (canvas) au lieu de se fier
+// aux métriques de la police, qui décalent le caractère vers le bas ou sur le côté.
+let measureCtx: CanvasRenderingContext2D | null = null;
+function glyphOffset(text: string, size: number): { dx: number; dy: number } {
+  const fallback = { dx: 0, dy: size * 0.36 };
+  if (typeof document === 'undefined') return fallback;
+  try {
+    measureCtx ??= document.createElement('canvas').getContext('2d');
+    if (!measureCtx) return fallback;
+    measureCtx.font = `${size}px "${BRUSH_FONT}", "Shippori Mincho B1", serif`;
+    measureCtx.textAlign = 'center';
+    measureCtx.textBaseline = 'alphabetic';
+    const m = measureCtx.measureText(text);
+    const a = m.actualBoundingBoxAscent;
+    const d = m.actualBoundingBoxDescent;
+    if (!Number.isFinite(a) || (a === 0 && d === 0)) return fallback;
+    return {
+      dx: -(m.actualBoundingBoxRight - m.actualBoundingBoxLeft) / 2,
+      dy: (a - d) / 2,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+/** Charge la police pinceau pour ces caractères (les fichiers Google Fonts sont découpés par caractères). */
+export function loadBrushFont(text: string): Promise<void> {
+  if (typeof document === 'undefined' || !document.fonts || !text.trim()) return Promise.resolve();
+  return document.fonts
+    .load(`66px "${BRUSH_FONT}"`, text)
+    .then(() => undefined)
+    .catch(() => undefined);
+}
 
 const C = 100;
 const n = (x: number) => Math.round(x * 100) / 100;
@@ -319,9 +364,12 @@ export function buildSealSvg(d: SealDesign, { embed = true }: { embed?: boolean 
     symbol = `<g transform="translate(${n(C - 50 * s)} ${n(C - 50 * s)}) scale(${n(s)})" stroke-width="${n(sw / s)}">${sym.svg(color)}</g>`;
   }
 
-  const glyph = d.glyph.trim()
-    ? `<text x="${C}" y="${C + 2}" text-anchor="middle" dominant-baseline="central" font-family="${FONT}" font-size="${n(66 * Math.max(0.3, Math.min(1.8, d.glyphScale || 1)))}" fill="${color}" stroke="none">${esc(d.glyph.trim())}</text>`
-    : '';
+  let glyph = '';
+  if (d.glyph.trim()) {
+    const size = 66 * Math.max(0.3, Math.min(1.8, d.glyphScale || 1));
+    const off = glyphOffset(d.glyph.trim(), size);
+    glyph = `<text x="${n(C + off.dx)}" y="${n(C + off.dy)}" text-anchor="middle" font-family="${FONT}" font-size="${n(size)}" fill="${color}" stroke="none">${esc(d.glyph.trim())}</text>`;
+  }
 
   const rot = d.rotation ? ` transform="rotate(${n(d.rotation)} ${C} ${C})"` : '';
   // le carré reste droit : tourné, ses coins sortiraient du sceau
@@ -336,6 +384,24 @@ export function buildSealSvg(d: SealDesign, { embed = true }: { embed?: boolean 
     `<g class="fs-inner"${rot}>${orn}${symbol}</g>` +
     `</g>${glyph}</svg>`
   );
+}
+
+/**
+ * SVG à afficher pour une fiche : un sceau du créateur est redessiné depuis sa description
+ * (il profite ainsi des corrections, comme le centrage du kanji) ; une icône importée est
+ * gardée telle quelle ; sans visuel, un sceau est dessiné avec la formule.
+ */
+export function displaySealSvg(svg: string | null | undefined, kanji?: string | null, autoDraw = true): string {
+  const design = parseDesign(svg);
+  if (design) return buildSealSvg(design);
+  if (svg && svg.trim()) return svg;
+  return autoDraw ? buildSealSvg(defaultDesign(kanji), { embed: false }) : '';
+}
+
+/** Caractères à charger dans la police pinceau pour dessiner ce sceau. */
+export function sealGlyphs(svg: string | null | undefined, kanji?: string | null): string {
+  const d = parseDesign(svg) ?? (svg ? null : defaultDesign(kanji));
+  return d ? `${d.glyph}${d.ringText}` : '';
 }
 
 export function parseDesign(svg: string | null | undefined): SealDesign | null {

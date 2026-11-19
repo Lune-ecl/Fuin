@@ -25,6 +25,12 @@ sceaux de son cercle**, et où **le Conclave** gère les comptes, les cercles, l
   - **Catégories & droits** : cercle requis par catégorie, catégories réservées au Conclave.
   - **Journal** : historique de toutes les actions du Conclave.
 - Chaque joueur peut changer son mot de passe dans **Mon compte**.
+- **Demande de création de sceau** (`/demandes`, à partir du 4e cercle) : le shinobi décrit son sceau
+  (nom, cercle visé, formule, effet et règles) et compose son visuel dans le créateur. La demande part en
+  attente ; le Conclave la valide ou la refuse avec une explication, et peut en faire une fiche brouillon.
+- **Outils de trame** (Conclave) : déchiffreur de kanjis (sens tiré des fiches, sceaux correspondants,
+  simulation de rolls), désenclavement selon les règles (rolls réussis = cercle du sceau, essais = cercle
+  du désenclaveur) et tables de roll modifiables (paliers d'échec critique à réussite critique).
 
 ---
 
@@ -110,6 +116,7 @@ fois, mais le relancer ne casse rien).
   sont rangés ; un sceau MJ n'est jamais visible d'un joueur) et fonction de veille `fuin_ping`.
 - `003_conclave_invisible.sql` : les catégories réservées au Conclave (Sceaux MJ, Sceaux de clan)
   n'existent plus du tout pour les joueurs, et les pages des cercles ne leur citent plus les sceaux MJ.
+- `004_demandes_et_trames.sql` : demandes de création de sceau et outils de trame (tables de roll).
 
 ### 5. Base toujours éveillée
 

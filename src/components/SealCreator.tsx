@@ -12,7 +12,10 @@ import {
 } from '../lib/sealDesign';
 import { sanitizeSvg } from '../lib/markdown';
 import SealEmblem from './SealEmblem';
-import { Modal } from './ui';
+import { Modal, useToast } from './ui';
+import { useBrushFont } from '../lib/useBrushFont';
+import { downloadSealPng } from '../lib/sealExport';
+import { slugify } from '../lib/format';
 
 const RING_OPTIONS: { key: SealDesign['ring']; label: string }[] = [
   { key: 'none', label: 'Aucun' },
@@ -50,22 +53,43 @@ export default function SealCreator({
   kanji,
   onClose,
   onUse,
+  fileName = 'sceau',
+  useLabel = 'Utiliser ce visuel',
+  kicker = 'Visuel de la fiche',
 }: {
   open: boolean;
   initialSvg: string | null;
   kanji: string | null;
   onClose: () => void;
   onUse: (svg: string) => void;
+  fileName?: string;
+  useLabel?: string;
+  kicker?: string;
 }) {
+  const toast = useToast();
   const [d, setD] = useState<SealDesign>(() => defaultDesign(kanji));
   const [replay, setReplay] = useState(0);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     if (open) setD(parseDesign(initialSvg) ?? defaultDesign(kanji));
   }, [open, initialSvg, kanji]);
 
   const set = <K extends keyof SealDesign>(k: K, v: SealDesign[K]) => setD((x) => ({ ...x, [k]: v }));
-  const svg = useMemo(() => buildSealSvg(d), [d]);
+  // le kanji est mesuré avec la police pinceau une fois chargée, pour être bien centré
+  const font = useBrushFont(open ? `${d.glyph}${d.ringText}` : '');
+  const svg = useMemo(() => buildSealSvg(d), [d, font.version]);
+
+  const exportPng = async () => {
+    setExporting(true);
+    try {
+      await downloadSealPng(svg, slugify(fileName) || 'sceau');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Export impossible', 'error');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // aperçus des tuiles (même couleur et même trait que le sceau en cours)
   const base: SealDesign = useMemo(
@@ -85,7 +109,7 @@ export default function SealCreator({
   const kanjiChars = [...new Set([...(kanji || '').replace(/\s/g, ''), ...QUICK_GLYPHS])].slice(0, 16);
 
   return (
-    <Modal open={open} onClose={onClose} title="Créateur de sceau" kicker="Visuel de la fiche" wide>
+    <Modal open={open} onClose={onClose} title="Créateur de sceau" kicker={kicker} wide>
       <div
         className="creator"
         onKeyDown={(e) => {
@@ -94,7 +118,7 @@ export default function SealCreator({
         }}
       >
         <div className="creator__preview">
-          <SealEmblem svg={svg} replay={replay} className="emblem--creator" />
+          <SealEmblem svg={svg} replay={replay} animateOnChange={false} className="emblem--creator" />
           <div className="creator__actions">
             <button type="button" className="btn btn--ghost btn--sm" onClick={() => setReplay((r) => r + 1)}>
               Rejouer le tracé
@@ -106,6 +130,9 @@ export default function SealCreator({
               Réinitialiser
             </button>
           </div>
+          <button type="button" className="btn btn--ghost btn--sm creator__png" onClick={exportPng} disabled={exporting}>
+            {exporting ? 'Préparation…' : 'Télécharger en PNG (fond transparent)'}
+          </button>
         </div>
 
         <div className="creator__controls">
@@ -203,6 +230,14 @@ export default function SealCreator({
                   aria-label={c.label}
                 />
               ))}
+              <label
+                className={`swatch swatch--custom${COLORS.some((c) => c.value === d.color) ? '' : ' is-on'}`}
+                title="Autre couleur"
+                style={COLORS.some((c) => c.value === d.color) ? undefined : { background: d.color }}
+              >
+                <input type="color" value={d.color} onChange={(e) => set('color', e.target.value)} aria-label="Autre couleur" />
+                <span aria-hidden="true">+</span>
+              </label>
             </div>
             <label className="range">
               <span>Épaisseur du trait</span>
@@ -227,7 +262,7 @@ export default function SealCreator({
             onClose();
           }}
         >
-          Utiliser ce visuel
+          {useLabel}
         </button>
       </div>
     </Modal>

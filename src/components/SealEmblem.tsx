@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, type CSSProperties } from 'react';
+import { parseDesign } from '../lib/sealDesign';
 import { sanitizeSvg } from '../lib/markdown';
 
 const SHAPES = 'path, circle, rect, line, polyline, polygon, ellipse';
@@ -7,16 +8,30 @@ const SHAPES = 'path, circle, rect, line, polyline, polygon, ellipse';
  * Grand sceau : chaque trait se trace comme de l'encre, puis le kanji apparaît
  * et l'anneau extérieur tourne lentement.
  */
-export default function SealEmblem({ svg, className = '', replay = 0 }: { svg: string; className?: string; replay?: number }) {
+export default function SealEmblem({
+  svg,
+  className = '',
+  replay = 0,
+  animateOnChange = true,
+}: {
+  svg: string;
+  className?: string;
+  replay?: number;
+  /** false : le tracé ne se rejoue qu'à l'ouverture et via « replay », pas à chaque retouche */
+  animateOnChange?: boolean;
+}) {
   const ref = useRef<HTMLDivElement>(null);
+  const lastReplay = useRef<number | null>(null);
   const html = useMemo(() => sanitizeSvg(svg), [svg]);
   const designed = html.includes('fuin-seal');
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    const replayed = lastReplay.current !== replay;
+    lastReplay.current = replay;
     el.classList.remove('is-drawing', 'is-drawn');
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || (!animateOnChange && !replayed)) {
       el.classList.add('is-drawing', 'is-drawn');
       return;
     }
@@ -48,10 +63,16 @@ export default function SealEmblem({ svg, className = '', replay = 0 }: { svg: s
       cancelAnimationFrame(raf);
       window.clearTimeout(done);
     };
-  }, [html, replay]);
+  }, [html, replay, animateOnChange]);
+
+  const glow = parseDesign(svg)?.color;
 
   return (
-    <div className={`emblem${designed ? ' emblem--designed' : ''} ${className}`} aria-hidden="true">
+    <div
+      className={`emblem${designed ? ' emblem--designed' : ''} ${className}`}
+      style={glow ? ({ '--glow': glow } as CSSProperties) : undefined}
+      aria-hidden="true"
+    >
       <div ref={ref} className="emblem__art" dangerouslySetInnerHTML={{ __html: html }} />
     </div>
   );

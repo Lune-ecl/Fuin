@@ -74,4 +74,14 @@ export const AUDIT_LABELS: Record<string, string> = {
   'slot.caps': 'a fixé les places de',
   'slot.assign': 'a attribué un slot de',
   'slot.unassign': 'a libéré un slot de',
+  'request.create': 'a proposé le sceau',
+  'request.withdraw': 'a retiré sa demande',
+  'request.approve': 'a validé la demande',
+  'request.refuse': 'a refusé la demande',
+  'rolltable.save': 'a modifié la table de roll',
+  'rolltable.delete': 'a supprimé la table de roll',
 };
+
+export function canRequest(m: { rank: number; is_conclave: boolean } | null): boolean {
+  return !!m && (m.is_conclave || m.rank >= 4);
+}

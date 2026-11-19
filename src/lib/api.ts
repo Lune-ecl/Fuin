@@ -54,7 +54,65 @@ export interface NavCategory {
 
 export interface Bootstrap {
   member: Member;
+  requests_pending: number | null;
   categories: NavCategory[];
+}
+
+export type RequestStatus = 'pending' | 'approved' | 'refused';
+
+export interface SealRequest {
+  id: number;
+  title: string;
+  circle: number | null;
+  kanji: string;
+  description: string;
+  content_md: string;
+  icon_svg: string | null;
+  status: RequestStatus;
+  review_note: string;
+  created_at: string;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+  member: { id: string; name: string; rank: number; is_conclave: boolean } | null;
+}
+
+export interface SealRequestInput {
+  title: string;
+  circle: number | null;
+  kanji: string;
+  description: string;
+  content_md: string;
+  icon_svg: string | null;
+}
+
+export type RollTone = 'crit-fail' | 'fail' | 'neutral' | 'success' | 'crit-success';
+
+export interface RollTier {
+  min: number;
+  max: number;
+  label: string;
+  tone: RollTone;
+  effect: string;
+}
+
+export interface RollTable {
+  id: number | null;
+  slug: string;
+  name: string;
+  description: string;
+  tiers: RollTier[];
+  position?: number;
+  updated_at?: string;
+}
+
+export interface CodexPage {
+  slug: string;
+  title: string;
+  kind: 'seal' | 'index' | 'doc';
+  kanji: string | null;
+  badge: 'mj' | null;
+  category: string;
+  content_md: string;
 }
 
 export interface SlotVillage {
@@ -122,6 +180,7 @@ export interface AuditEntry {
 }
 
 export interface Overview {
+  requests_pending: number;
   members: number;
   conclave: number;
   players: number;
@@ -341,4 +400,18 @@ export const api = {
   categoryDelete: (id: number) => rpc<{ ok: boolean }>('fuin_admin_category_delete', { p_id: id }),
 
   audit: (limit = 200) => rpc<AuditEntry[]>('fuin_admin_audit', { p_limit: limit }),
+
+  // Demandes de création de sceau
+  myRequests: () => rpc<SealRequest[]>('fuin_requests_mine'),
+  requestSubmit: (req: SealRequestInput) => rpc<{ id: number }>('fuin_request_submit', { p_req: req }),
+  requestWithdraw: (id: number) => rpc<{ ok: boolean }>('fuin_request_withdraw', { p_id: id }),
+  adminRequests: () => rpc<SealRequest[]>('fuin_admin_requests'),
+  requestReview: (id: number, decision: 'approved' | 'refused', note: string) =>
+    rpc<{ ok: boolean }>('fuin_admin_request_review', { p_id: id, p_decision: decision, p_note: note }),
+
+  // Outils de trame
+  codex: () => rpc<CodexPage[]>('fuin_admin_codex'),
+  rollTables: () => rpc<RollTable[]>('fuin_admin_roll_tables'),
+  rollTableSave: (t: RollTable) => rpc<{ id: number }>('fuin_admin_roll_table_save', { p_table: t }),
+  rollTableDelete: (id: number) => rpc<{ ok: boolean }>('fuin_admin_roll_table_delete', { p_id: id }),
 };

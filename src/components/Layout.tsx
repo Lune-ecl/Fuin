@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useSession } from '../lib/session';
-import { circleLabel, initials, normalize, rankTitle, RANK_KANJI } from '../lib/format';
+import { canRequest, circleLabel, initials, normalize, rankTitle, RANK_KANJI } from '../lib/format';
 import type { NavCategory, NavPage } from '../lib/api';
 import Brand from './Brand';
 import { SealBadge } from './ui';
@@ -37,6 +37,16 @@ function GrimoireNav() {
           {member.is_conclave ? 'Conclave · accès total' : rankTitle(member.rank)}
         </p>
       </div>
+
+      {canRequest(member) && (
+        <NavLink to="/demandes" className={({ isActive }) => `atelier-link${isActive ? ' is-active' : ''}`}>
+          <span className="atelier-link__glyph">願</span>
+          <span>
+            <b>Demande de création de sceau</b>
+            <small>Proposer un sceau au Conclave</small>
+          </span>
+        </NavLink>
+      )}
 
       {categories.map((c) => (
         <section key={c.id} className={`nav-group${c.accessible ? '' : ' is-locked'}`}>
@@ -80,11 +90,14 @@ const CONCLAVE_LINKS = [
   { to: '/conclave/membres', glyph: '人', label: 'Membres', hint: 'Comptes, cercles, accès' },
   { to: '/conclave/slots', glyph: '枠', label: 'Slots', hint: 'Places par village' },
   { to: '/conclave/sceaux', glyph: '巻', label: 'Éditeur de sceaux', hint: 'Fiches & kanjis' },
+  { to: '/conclave/demandes', glyph: '願', label: 'Demandes', hint: 'Sceaux proposés' },
+  { to: '/conclave/trames', glyph: '謎', label: 'Outils de trame', hint: 'Déchiffrement, désenclavement' },
   { to: '/conclave/categories', glyph: '門', label: 'Catégories', hint: 'Cercles & droits' },
   { to: '/conclave/journal', glyph: '録', label: 'Journal', hint: 'Historique des actions' },
 ];
 
 function ConclaveNav() {
+  const { requestsPending } = useSession();
   return (
     <nav className="nav nav--conclave" aria-label="Console du Conclave">
       <div className="nav__path">
@@ -100,6 +113,7 @@ function ConclaveNav() {
                 <b>{l.label}</b>
                 <small>{l.hint}</small>
               </span>
+              {l.to === '/conclave/demandes' && requestsPending > 0 && <span className="count-badge">{requestsPending}</span>}
             </NavLink>
           </li>
         ))}
@@ -115,7 +129,7 @@ function ConclaveNav() {
 // Compte
 // ---------------------------------------------------------------------------
 function AccountMenu() {
-  const { member, logout } = useSession();
+  const { member, logout, requestsPending } = useSession();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -156,6 +170,12 @@ function AccountMenu() {
           {member.is_conclave && (
             <Link role="menuitem" to="/conclave" onClick={() => setOpen(false)}>
               <span>議</span> Console du Conclave
+              {requestsPending > 0 && <em className="count-badge">{requestsPending}</em>}
+            </Link>
+          )}
+          {canRequest(member) && (
+            <Link role="menuitem" to="/demandes" onClick={() => setOpen(false)}>
+              <span>願</span> Demande de création de sceau
             </Link>
           )}
           <Link role="menuitem" to="/mon-compte" onClick={() => setOpen(false)}>

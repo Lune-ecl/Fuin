@@ -47,6 +47,10 @@ export default function Dashboard() {
           <b>{data.active_week}</b>
           <span>Connectés cette semaine</span>
         </div>
+        <Link to="/conclave/demandes" className={`stat stat--link${data.requests_pending ? ' stat--alert' : ''}`}>
+          <b>{data.requests_pending}</b>
+          <span>Demandes de sceau en attente</span>
+        </Link>
         <div className={`stat${data.inactive ? ' stat--alert' : ''}`}>
           <b>{data.inactive}</b>
           <span>Comptes à activer</span>

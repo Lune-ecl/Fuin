@@ -6,7 +6,8 @@ import { circleLabel, formatDate } from '../lib/format';
 import { sanitizeSvg } from '../lib/markdown';
 import Markdown from '../components/Markdown';
 import SealEmblem from '../components/SealEmblem';
-import { buildSealSvg, defaultDesign } from '../lib/sealDesign';
+import { displaySealSvg, sealGlyphs } from '../lib/sealDesign';
+import { useBrushFont } from '../lib/useBrushFont';
 import { copyToClipboard, ErrorState, Loader, SealBadge, useToast } from '../components/ui';
 
 function KanjiBanner({ kanji }: { kanji: string }) {
@@ -145,6 +146,12 @@ export default function PageView() {
   const slug = decodeURIComponent(location.pathname).replace(/^\/+|\/+$/g, '');
   const { member } = useSession();
   const [data, setData] = useState<PageData | null>(null);
+  // police pinceau chargée pour les kanjis des sceaux de la page (centrage exact)
+  const font = useBrushFont(
+    data
+      ? [sealGlyphs(data.page.kind === 'seal' ? data.page.icon_svg : 'x', data.page.kanji), ...(data.children ?? []).map((c) => sealGlyphs(c.icon_svg, c.kanji))].join('')
+      : '',
+  );
   const [error, setError] = useState<ApiError | null>(null);
 
   const load = useCallback(async () => {
@@ -175,7 +182,7 @@ export default function PageView() {
   const { page, slot, children, related } = data;
   const icon = sanitizeSvg(page.icon_svg);
   // chaque sceau a un visuel : celui du créateur, l'icône importée, ou un sceau dessiné avec sa formule
-  const emblem = page.kind === 'seal' ? page.icon_svg || buildSealSvg(defaultDesign(page.kanji), { embed: false }) : null;
+  const emblem = page.kind === 'seal' && font.ready ? displaySealSvg(page.icon_svg, page.kanji) : null;
   const crumbHref = page.category.index_slug && page.category.index_slug !== page.slug ? '/' + page.category.index_slug : '/';
 
   return (
@@ -190,7 +197,7 @@ export default function PageView() {
           {page.hidden && <span className="badge badge--draft">brouillon · invisible des joueurs</span>}
         </p>
         <div className="archive__title-row">
-          {icon && !emblem && <div className="seal-icon" dangerouslySetInnerHTML={{ __html: icon }} />}
+          {icon && page.kind !== 'seal' && <div className="seal-icon" dangerouslySetInnerHTML={{ __html: icon }} />}
           <h1>{page.title}</h1>
         </div>
         {page.description && <p className="archive__desc">{page.description}</p>}
@@ -248,7 +255,7 @@ export default function PageView() {
                     <span
                       className="talisman__seal seal-icon"
                       dangerouslySetInnerHTML={{
-                        __html: sanitizeSvg(c.icon_svg) || sanitizeSvg(buildSealSvg(defaultDesign(c.kanji), { embed: false })),
+                        __html: sanitizeSvg(displaySealSvg(c.icon_svg, c.kanji)),
                       }}
                     />
                     {c.kanji && (
