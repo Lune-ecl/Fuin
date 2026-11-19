@@ -850,6 +850,10 @@ a.archive-list__item:hover {
   margin-bottom: 6px;
 }
 
+.callout--title-only .callout__title {
+  margin-bottom: 0;
+}
+
 .callout__body > * + * {
   margin-top: 0.7em;
 }

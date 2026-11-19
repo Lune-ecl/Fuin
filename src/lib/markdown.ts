@@ -21,17 +21,26 @@ const callout: TokenizerAndRendererExtension = {
     return src.match(/^:::/m)?.index;
   },
   tokenizer(src: string) {
-    const m = /^:::(\w+)(?:\[([^\]\n]*)\])?[ \t]*\n([\s\S]*?)\n:::[ \t]*(?:\n+|$)/.exec(src);
+    // forme normale (titre facultatif, corps sur plusieurs lignes, corps vide accepté) :
+    //   :::danger[Titre]
+    //   Texte
+    //   :::
+    // forme sur une ligne, crochets éventuellement échappés (contenu importé de l'ancien site) :
+    //   :::tip\[Titre\] :::      ou      :::note Texte de l'encadré :::
+    const m =
+      /^:::(\w+)(?:\\?\[([^\]\n]*?)\\?\])?[ \t]*(?:\n([\s\S]*?))?\n:::[ \t]*(?:\n+|$)/.exec(src) ||
+      /^:::(\w+)(?:\\?\[([^\]\n]*?)\\?\])?[ \t]+([^\n]*?)[ \t]*:::[ \t]*(?:\n+|$)/.exec(src);
     if (!m) return undefined;
     const kind = (CALLOUT_KINDS as readonly string[]).includes(m[1]) ? m[1] : 'note';
-    const token = { type: 'callout', raw: m[0], kind, title: m[2] || '', tokens: [] as Tokens.Generic[] };
-    this.lexer.blockTokens(m[3], token.tokens);
+    const token = { type: 'callout', raw: m[0], kind, title: (m[2] || '').trim(), tokens: [] as Tokens.Generic[] };
+    if (m[3] && m[3].trim()) this.lexer.blockTokens(m[3], token.tokens);
     return token;
   },
   renderer(token) {
     const t = token as unknown as { kind: string; title: string; tokens: Tokens.Generic[] };
     const title = t.title ? `<span class="callout__title">${escapeHtml(t.title)}</span>` : '';
-    return `<aside class="callout callout--${t.kind}">${title}<div class="callout__body">${this.parser.parse(t.tokens)}</div></aside>`;
+    const body = t.tokens.length ? `<div class="callout__body">${this.parser.parse(t.tokens)}</div>` : '';
+    return `<aside class="callout callout--${t.kind}${body ? '' : ' callout--title-only'}">${title}${body}</aside>`;
   },
 };
 
