@@ -122,6 +122,7 @@ fois, mais le relancer ne casse rien).
   n'existent plus du tout pour les joueurs, et les pages des cercles ne leur citent plus les sceaux MJ.
 - `004_demandes_et_trames.sql` : demandes de création de sceau et outils de trame (tables de roll).
 - `005_trames.sql` : trames (énigmes, désenclavement, récit) ouvertes aux joueurs le temps d'un événement.
+- `006_sceau_des_trames.sql` : sceau dessiné dans le créateur pour les étapes de désenclavement ; il rougeoie plus fort à chaque roll raté, se fissure à chaque verrou brisé et vole en éclats quand il cède.
 
 ### 5. Base toujours éveillée
 

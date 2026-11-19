@@ -1399,3 +1399,214 @@
     padding: 16px;
   }
 }
+
+/* ---------------------------------------------------------------------
+   Sceau vivant des étapes de désenclavement
+   --------------------------------------------------------------------- */
+.step-seal {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px dashed var(--line-red);
+  background: rgba(216, 30, 48, 0.04);
+}
+
+.step-seal__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.step-seal__actions .request__actions {
+  margin-top: 0;
+}
+
+.trame-seal {
+  --rage: 0;
+  margin: 4px auto 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.trame-seal__stage {
+  position: relative;
+  width: min(240px, 62vw);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+}
+
+.trame-seal--compact .trame-seal__stage {
+  width: 120px;
+}
+
+.trame-seal__stage::before {
+  content: '';
+  position: absolute;
+  inset: -16%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 30, 50, calc(0.12 + var(--rage) * 0.09)), transparent 70%);
+  animation: seal-throb max(0.7s, calc(3.2s - var(--rage) * 0.32s)) ease-in-out infinite;
+}
+
+.trame-seal__art {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  filter: brightness(calc(1 + var(--rage) * 0.07))
+    drop-shadow(0 0 calc(4px + var(--rage) * 2px) rgba(255, 50, 70, min(1, calc(0.4 + var(--rage) * 0.08))))
+    drop-shadow(0 0 calc(var(--rage) * 7px) rgba(255, 15, 35, calc(var(--rage) * 0.11)));
+  transition: filter 0.6s;
+}
+
+/* à partir de 5 échecs, le sceau bat comme un cœur */
+.trame-seal.is-raging .trame-seal__stage {
+  animation: seal-heart max(0.55s, calc(1.6s - var(--rage) * 0.12s)) ease-in-out infinite;
+}
+
+@keyframes seal-heart {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  15% {
+    transform: scale(1.035);
+  }
+  30% {
+    transform: scale(0.995);
+  }
+  45% {
+    transform: scale(1.02);
+  }
+}
+
+.trame-seal__art svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.trame-seal__cracks {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.trame-seal__cracks path {
+  fill: none;
+  stroke: #fff6e6;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 4px #fff) drop-shadow(0 0 10px #f2b33d);
+  stroke-dasharray: 160;
+  stroke-dashoffset: 160;
+  animation: crack 0.7s ease-out forwards;
+}
+
+.trame-seal figcaption {
+  font: 600 14px var(--display);
+  color: var(--ink-2);
+  text-align: center;
+}
+
+.flash-fail {
+  animation: seal-fail 0.8s ease-out;
+}
+
+.flash-hit {
+  animation: seal-hit 0.7s ease-out;
+}
+
+.trame-seal.is-broken .trame-seal__art {
+  opacity: 0.25;
+  filter: grayscale(0.5) drop-shadow(0 0 10px rgba(242, 179, 61, 0.5));
+  animation: seal-break 1.1s ease-out;
+}
+
+.trame-seal.is-broken .trame-seal__stage::before {
+  background: radial-gradient(circle, rgba(242, 179, 61, 0.22), transparent 68%);
+  animation: none;
+}
+
+.trame-seal.is-broken figcaption {
+  color: #f2b33d;
+}
+
+.trame-seal__broken {
+  position: absolute;
+  z-index: 3;
+  font: 400 clamp(56px, 13vw, 92px) / 1 var(--brush);
+  color: #f2b33d;
+  text-shadow: 0 0 30px rgba(242, 179, 61, 0.7);
+  animation: rise 0.8s 0.3s both;
+}
+
+.trame-seal--compact .trame-seal__broken {
+  font-size: 46px;
+}
+
+@keyframes seal-throb {
+  50% {
+    transform: scale(1.08);
+    opacity: 0.75;
+  }
+}
+
+@keyframes crack {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes seal-fail {
+  0% {
+    transform: scale(1);
+    filter: brightness(1.9) drop-shadow(0 0 45px rgba(255, 20, 40, 1));
+  }
+  25% {
+    transform: scale(1.07) rotate(-2.5deg);
+  }
+  50% {
+    transform: scale(0.97) rotate(2deg);
+  }
+  75% {
+    transform: scale(1.02) rotate(-1deg);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes seal-hit {
+  0% {
+    filter: brightness(2.6) drop-shadow(0 0 30px #fff);
+    transform: scale(0.96);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+@keyframes seal-break {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+    filter: brightness(3) drop-shadow(0 0 40px #fff);
+  }
+  35% {
+    transform: scale(1.14);
+  }
+  100% {
+    opacity: 0.25;
+    transform: scale(1);
+  }
+}

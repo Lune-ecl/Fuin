@@ -72,6 +72,7 @@ export interface TrameStepDef {
   seal_circle?: number;
   min_rank?: number;
   roll_table?: string;
+  seal_svg?: string;
   success_md?: string;
 }
 
@@ -130,6 +131,8 @@ export interface TramePlayerStep {
   attempts_used?: number;
   max_attempts?: number;
   seal_circle?: number;
+  seal_svg?: string | null;
+  fails_total?: number;
   required_rank?: number;
   allowed?: number;
   successes?: number;

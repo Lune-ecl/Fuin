@@ -1496,6 +1496,9 @@ begin
        where a.trame_id = t.id and a.step_index = i and a.member_id = m.id;
       req := greatest(coalesce((s ->> 'min_rank')::integer, 3), coalesce((s ->> 'seal_circle')::integer, 3));
       st := st || jsonb_build_object(
+        'seal_svg', nullif(s ->> 'seal_svg', ''),
+        'fails_total', (select count(*) from fuin.trame_attempts a
+                         where a.trame_id = t.id and a.step_index = i and not a.success),
         'seal_circle', coalesce((s ->> 'seal_circle')::integer, 3),
         'required_rank', req,
         'allowed', m.rank,
@@ -1698,6 +1701,10 @@ begin
       if coalesce((s ->> 'seal_circle')::integer, 3) not between 1 and 5
          or coalesce((s ->> 'min_rank')::integer, 3) not between 1 and 5 then
         perform fuin.fail('FU422', format('Étape %s : cercles entre 1 et 5.', pos));
+      end if;
+      if coalesce(s ->> 'seal_svg', '') <> ''
+         and (length(s ->> 'seal_svg') > 60000 or (s ->> 'seal_svg') !~* '^<svg') then
+        perform fuin.fail('FU422', format('Étape %s : visuel du sceau invalide.', pos));
       end if;
     end if;
   end loop;

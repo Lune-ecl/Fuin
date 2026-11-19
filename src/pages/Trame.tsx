@@ -4,6 +4,7 @@ import { api, ApiError, type TramePlayerStep, type TrameView, type UnsealResult 
 import { useSession } from '../lib/session';
 import { circleLabel } from '../lib/format';
 import Markdown from '../components/Markdown';
+import TrameSeal from '../components/TrameSeal';
 import { ErrorState, Loader, useToast } from '../components/ui';
 
 const KIND_LABEL: Record<TramePlayerStep['kind'], string> = {
@@ -79,12 +80,16 @@ function UnsealStep({ step, trameId, shared, onDone }: { step: TramePlayerStep; 
   const [busy, setBusy] = useState(false);
   const [last, setLast] = useState<UnsealResult | null>(null);
   const [display, setDisplay] = useState<number | null>(null);
+  const [flash, setFlash] = useState<{ type: 'fail' | 'hit' | null; key: number }>({ type: null, key: 0 });
   const timer = useRef<number | null>(null);
   const needed = step.seal_circle ?? 3;
   const allowed = step.allowed ?? 0;
   const used = step.attempts_used ?? 0;
   const successes = step.successes ?? 0;
   const exhausted = used >= allowed;
+  // en progression commune, le sceau réagit aux échecs de tous les shinobi
+  const fails = shared ? step.fails_total ?? 0 : used - successes;
+  const seal = <TrameSeal svg={step.seal_svg} fails={fails} successes={successes} needed={needed} broken={false} flash={flash} />;
 
   useEffect(() => () => {
     if (timer.current) window.clearInterval(timer.current);
@@ -92,10 +97,13 @@ function UnsealStep({ step, trameId, shared, onDone }: { step: TramePlayerStep; 
 
   if (!step.eligible) {
     return (
+      <>
+      {seal}
       <p className="step-blocked">
         Seuls les shinobi du {circleLabel(step.required_rank ?? 3)} et plus peuvent tenter ce désenclavement.
         {shared ? ' Quand l’un d’eux brisera le sceau, la suite s’ouvrira pour tous.' : ''}
       </p>
+      </>
     );
   }
 
@@ -110,6 +118,7 @@ function UnsealStep({ step, trameId, shared, onDone }: { step: TramePlayerStep; 
       if (timer.current) window.clearInterval(timer.current);
       setDisplay(r.roll);
       setLast(r);
+      setFlash((f) => ({ type: r.tone === 'success' || r.tone === 'crit-success' ? 'hit' : 'fail', key: f.key + 1 }));
       if (r.broken) toast('Le sceau est brisé');
       onDone();
     } catch (err) {
@@ -124,6 +133,7 @@ function UnsealStep({ step, trameId, shared, onDone }: { step: TramePlayerStep; 
 
   return (
     <>
+      {seal}
       <div className="unseal-progress unseal-progress--compact">
         <div>
           <p className="kicker">Verrous brisés</p>
@@ -272,6 +282,9 @@ export default function Trame() {
               {s.state === 'current' && s.kind === 'unseal' && <UnsealStep step={s} trameId={trame.id} shared={trame.shared} onDone={load} />}
               {s.state === 'solved' && s.kind !== 'text' && (
                 <>
+                  {s.kind === 'unseal' && (
+                    <TrameSeal svg={s.seal_svg} fails={s.fails_total ?? 0} successes={s.seal_circle ?? 3} needed={s.seal_circle ?? 3} broken compact />
+                  )}
                   {s.kind === 'cipher' && s.cipher_text && (
                     <p className="cipher-text cipher-text--done" lang="ja">
                       {s.cipher_text}

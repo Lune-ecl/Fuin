@@ -4,6 +4,9 @@ import { api, type RollTable, type TrameAdmin, type TrameDef, type TrameStepDef,
 import { useSession } from '../../lib/session';
 import { circleLabel, formatDate, timeAgo } from '../../lib/format';
 import Markdown from '../../components/Markdown';
+import SealCreator from '../../components/SealCreator';
+import { displaySealSvg } from '../../lib/sealDesign';
+import { sanitizeSvg } from '../../lib/markdown';
 import { Empty, ErrorState, Loader, RankPicker, Toggle, useConfirm, useToast } from '../../components/ui';
 import { TRAME_STATUS } from './Trames';
 
@@ -44,6 +47,7 @@ function StepEditor({
 }) {
   const set = <K extends keyof TrameStepDef>(k: K, v: TrameStepDef[K]) => onChange({ ...step, [k]: v });
   const k = KIND[step.kind];
+  const [creator, setCreator] = useState(false);
   return (
     <section className={`step-card step-card--${step.kind}`}>
       <header className="step-card__head">
@@ -97,6 +101,39 @@ function StepEditor({
             <input type="number" min={1} max={10} value={step.max_attempts ?? 2} onChange={(e) => set('max_attempts', Number(e.target.value) || 2)} />
           </label>
         </>
+      )}
+
+      {step.kind === 'unseal' && (
+        <div className="step-seal">
+          <div className="seal-icon seal-icon--md" dangerouslySetInnerHTML={{ __html: sanitizeSvg(displaySealSvg(step.seal_svg ?? null, '封 印')) }} />
+          <div className="step-seal__actions">
+            <span className="field__label">Visuel du sceau</span>
+            <div className="request__actions">
+              <button type="button" className="btn btn--red btn--sm" onClick={() => setCreator(true)}>
+                {step.seal_svg ? 'Modifier le visuel du sceau' : 'Créer le visuel du sceau'}
+              </button>
+              {step.seal_svg && (
+                <button type="button" className="btn btn--ghost btn--sm" onClick={() => set('seal_svg', '')}>
+                  Retirer
+                </button>
+              )}
+            </div>
+            <small className="muted">
+              Les joueurs voient ce sceau : il rougeoie plus fort à chaque roll raté, se fissure à chaque verrou brisé et vole en éclats
+              quand il cède. Sans visuel, un sceau est dessiné automatiquement.
+            </small>
+          </div>
+          <SealCreator
+            open={creator}
+            initialSvg={step.seal_svg ?? null}
+            kanji="封 印"
+            onClose={() => setCreator(false)}
+            onUse={(svg) => set('seal_svg', svg)}
+            fileName={step.title || 'sceau-de-trame'}
+            kicker="Sceau de la trame"
+            useLabel="Utiliser ce sceau"
+          />
+        </div>
       )}
 
       {step.kind === 'unseal' && (
