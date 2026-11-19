@@ -296,35 +296,6 @@ function SearchDialog({ open, onClose }: { open: boolean; onClose: () => void })
 }
 
 // ---------------------------------------------------------------------------
-// Coup de pinceau rouge qui balaie l'écran au changement de page
-// ---------------------------------------------------------------------------
-function BrushWipe() {
-  return (
-    <div className="brush-wipe" aria-hidden="true">
-      <svg viewBox="0 0 1200 320" preserveAspectRatio="none">
-        <defs>
-          <filter id="brush-rough" x="-5%" y="-30%" width="110%" height="160%">
-            <feTurbulence type="fractalNoise" baseFrequency="0.012 0.32" numOctaves="2" seed="7" />
-            <feDisplacementMap in="SourceGraphic" scale="46" />
-          </filter>
-          <linearGradient id="brush-ink" x1="0" x2="1">
-            <stop offset="0" stopColor="#7c0c17" stopOpacity="0" />
-            <stop offset="0.18" stopColor="#a3121f" />
-            <stop offset="0.6" stopColor="#d81e30" />
-            <stop offset="1" stopColor="#ff3445" />
-          </linearGradient>
-        </defs>
-        <path
-          filter="url(#brush-rough)"
-          fill="url(#brush-ink)"
-          d="M0 170 C180 96 330 210 520 140 S860 70 1040 128 L1200 120 L1200 214 C1040 238 900 196 720 232 S330 268 170 236 L0 250 Z"
-        />
-      </svg>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Coquille de l'application
 // ---------------------------------------------------------------------------
 export default function Layout() {
@@ -332,16 +303,11 @@ export default function Layout() {
   const [navOpen, setNavOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const inConclave = location.pathname.startsWith('/conclave');
-  const [wipe, setWipe] = useState(0);
-  const firstRoute = useRef(true);
 
   useEffect(() => {
     setNavOpen(false);
     window.scrollTo({ top: 0 });
-    // coup de pinceau entre deux pages des archives (pas dans la console)
-    if (firstRoute.current) firstRoute.current = false;
-    else if (!inConclave && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) setWipe((w) => w + 1);
-  }, [location.pathname, inConclave]);
+  }, [location.pathname]);
 
   const onKey = useCallback((e: KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -399,7 +365,6 @@ export default function Layout() {
       </div>
 
       <SearchDialog open={searchOpen} onClose={() => setSearchOpen(false)} />
-      {wipe > 0 && <BrushWipe key={wipe} />}
     </div>
   );
 }
