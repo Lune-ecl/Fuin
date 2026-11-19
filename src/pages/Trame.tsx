@@ -157,7 +157,8 @@ function UnsealStep({ step, trameId, shared, onDone }: { step: TramePlayerStep; 
         </div>
       </div>
       <p className="muted small">
-        Il faut briser {needed} verrou{needed > 1 ? 's' : ''} (sceau du {circleLabel(needed)}). Tu as autant d’essais que ton cercle.
+        Il faut briser {needed} verrou{needed > 1 ? 's' : ''} (sceau du {circleLabel(needed)}). Tu as autant d’essais que ton cercle. Une
+        réussite critique brise deux verrous d’un coup.
       </p>
 
       {(display !== null || busy) && (
@@ -166,6 +167,7 @@ function UnsealStep({ step, trameId, shared, onDone }: { step: TramePlayerStep; 
           {last && (
             <div>
               <span className={`tone tone--${last.tone}`}>{last.label}</span>
+              {(last.gained ?? 0) > 1 && <span className="tone tone--crit-success tone--double">+{last.gained} verrous</span>}
               {last.effect && <p>{last.effect}</p>}
             </div>
           )}
@@ -188,7 +190,10 @@ function UnsealStep({ step, trameId, shared, onDone }: { step: TramePlayerStep; 
             <li key={i} className={`roll roll--${r.tone}`}>
               <span className="roll__index">Essai {i + 1}</span>
               <span className="roll__value">{r.roll}</span>
-              <span className={`tone tone--${r.tone}`}>{r.label}</span>
+              <span className={`tone tone--${r.tone}`}>
+                {r.label}
+                {r.tone === 'crit-success' ? ' · ×2' : ''}
+              </span>
               <span className="roll__text">{r.effect}</span>
             </li>
           ))}
@@ -232,8 +237,17 @@ export default function Trame() {
           <span>終</span>
         </div>
         <p className="kicker">Trame</p>
-        <h1>Cette trame est terminée.</h1>
-        <p className="muted">Le Conclave a refermé ce chapitre. La page n’est plus accessible.</p>
+        {view ? (
+          <>
+            <h1>Cette trame est terminée.</h1>
+            <p className="muted">Le Conclave a refermé ce chapitre. La page n’est plus accessible.</p>
+          </>
+        ) : (
+          <>
+            <h1>Cette trame n’est pas accessible.</h1>
+            <p className="muted">Elle est terminée, ou réservée à d’autres shinobi.</p>
+          </>
+        )}
         <Link to="/" className="btn btn--ghost">
           ← Retour au Conclave
         </Link>
@@ -263,6 +277,12 @@ export default function Trame() {
           {' · '}
           {trame.shared ? 'progression commune à tous les shinobi' : 'progression personnelle'}
         </p>
+        {(trame.restricted_names?.length ?? 0) > 0 && (
+          <p className="trame__private">
+            <i aria-hidden="true">密</i>
+            Trame réservée à {trame.restricted_names!.join(', ')}
+          </p>
+        )}
       </header>
 
       <ol className="trame__steps">

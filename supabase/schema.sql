@@ -214,6 +214,8 @@ create table if not exists fuin.trames (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+-- trame réservée à des shinobi choisis (vide : ouverte à tous à partir de min_rank)
+alter table fuin.trames add column if not exists restricted_to uuid[] not null default '{}';
 alter table fuin.trames enable row level security;
 
 create table if not exists fuin.trame_attempts (
@@ -557,7 +559,7 @@ begin
                           then (select count(*) from fuin.seal_requests where status = 'pending') end,
     'active_trames', coalesce((select json_agg(json_build_object('id', t.id, 'title', t.title) order by t.started_at)
                                  from fuin.trames t
-                                where t.status = 'active' and (m.is_conclave or m.rank >= t.min_rank)), '[]'::json),
+                                where t.status = 'active' and fuin.trame_visible(t, m)), '[]'::json),
     'categories', coalesce((
       select json_agg(json_build_object(
         'id', c.id, 'slug', c.slug, 'name', c.name, 'glyph', c.glyph, 'tagline', c.tagline,
@@ -1435,7 +1437,17 @@ end $$;
 
 create or replace function fuin.trame_visible(t fuin.trames, m fuin.members) returns boolean
 language sql stable set search_path = '' as $$
-  select m.is_conclave or (t.status = 'active' and m.rank >= t.min_rank)
+  select m.is_conclave
+      or (t.status = 'active'
+          and case when cardinality(t.restricted_to) > 0 then m.id = any(t.restricted_to)
+                   else m.rank >= t.min_rank end)
+$$;
+
+-- Noms des shinobi à qui la trame est réservée
+create or replace function fuin.trame_restricted_names(t fuin.trames) returns jsonb
+language sql stable security definer set search_path = '' as $$
+  select coalesce(jsonb_agg(mm.display_name order by mm.display_name), '[]'::jsonb)
+    from fuin.members mm where mm.id = any(t.restricted_to)
 $$;
 
 -- Une étape « texte » ne bloque jamais ; sinon il faut une résolution (la sienne, ou celle
@@ -1515,7 +1527,8 @@ begin
         'attempts_used', used,
         'max_attempts', coalesce((s ->> 'max_attempts')::integer, 2));
     elsif s ->> 'kind' = 'unseal' then
-      select count(*), count(*) filter (where a.success) into used, succ from fuin.trame_attempts a
+      -- une réussite critique brise deux verrous
+      select count(*), coalesce(sum(case when a.tone = 'crit-success' then 2 when a.success then 1 else 0 end), 0) into used, succ from fuin.trame_attempts a
        where a.trame_id = t.id and a.step_index = i and a.member_id = m.id;
       req := greatest(coalesce((s ->> 'min_rank')::integer, 3), coalesce((s ->> 'seal_circle')::integer, 3));
       st := st || jsonb_build_object(
@@ -1546,7 +1559,8 @@ begin
 
   return json_build_object(
     'trame', json_build_object('id', t.id, 'title', t.title, 'intro_md', t.intro_md, 'status', t.status,
-                               'shared', t.shared, 'started_at', t.started_at),
+                               'shared', t.shared, 'started_at', t.started_at,
+                               'restricted_names', fuin.trame_restricted_names(t)),
     'steps', steps,
     'total', n,
     'remaining', greatest(0, n - cur - 1),
@@ -1603,6 +1617,7 @@ declare
   v_roll integer;
   tier jsonb;
   ok boolean;
+  gained integer;
 begin
   m := fuin.session_member(p_token);
   select * into t from fuin.trames where id = p_id for update;
@@ -1619,8 +1634,8 @@ begin
   if not m.is_conclave and m.rank < req then
     perform fuin.fail('FU403', format('Seuls les shinobi du %s et plus peuvent tenter ce désenclavement.', fuin.circle_label(req)));
   end if;
-  select count(*), count(*) filter (where success) into used, succ from fuin.trame_attempts
-   where trame_id = t.id and step_index = p_step and member_id = m.id;
+  select count(*), coalesce(sum(case when a.tone = 'crit-success' then 2 when a.success then 1 else 0 end), 0) into used, succ from fuin.trame_attempts a
+   where a.trame_id = t.id and a.step_index = p_step and a.member_id = m.id;
   if used >= m.rank then
     perform fuin.fail('FU422', 'Tu as épuisé tes essais (autant que ton cercle).');
   end if;
@@ -1630,13 +1645,15 @@ begin
   insert into fuin.trame_attempts(trame_id, step_index, member_id, kind, roll, label, tone, effect, success)
   values (t.id, p_step, m.id, 'unseal', v_roll, tier ->> 'label', tier ->> 'tone', tier ->> 'effect', ok);
   used := used + 1;
-  if ok then succ := succ + 1; end if;
+  -- une réussite critique brise deux verrous
+  gained := case when tier ->> 'tone' = 'crit-success' then 2 when ok then 1 else 0 end;
+  succ := succ + gained;
   if succ >= needed then
     insert into fuin.trame_solves(trame_id, step_index, member_id) values (t.id, p_step, m.id) on conflict do nothing;
   end if;
   return json_build_object(
     'roll', v_roll, 'label', tier ->> 'label', 'tone', tier ->> 'tone', 'effect', tier ->> 'effect',
-    'successes', succ, 'needed', needed, 'attempts_used', used, 'allowed', m.rank, 'broken', succ >= needed);
+    'gained', gained, 'successes', succ, 'needed', needed, 'attempts_used', used, 'allowed', m.rank, 'broken', succ >= needed);
 end $$;
 
 -- ---------- Conclave ----------
@@ -1647,6 +1664,7 @@ begin
   m := fuin.require_conclave(p_token);
   return coalesce((select json_agg(json_build_object(
       'id', t.id, 'title', t.title, 'status', t.status, 'shared', t.shared, 'min_rank', t.min_rank,
+      'restricted_names', fuin.trame_restricted_names(t),
       'steps', jsonb_array_length(t.steps), 'started_at', t.started_at, 'ended_at', t.ended_at,
       'updated_at', t.updated_at,
       'participants', (select count(distinct a.member_id) from fuin.trame_attempts a where a.trame_id = t.id),
@@ -1667,6 +1685,8 @@ begin
   return json_build_object(
     'trame', json_build_object('id', t.id, 'title', t.title, 'intro_md', t.intro_md, 'status', t.status,
                                'shared', t.shared, 'min_rank', t.min_rank, 'steps', t.steps,
+                               'restricted_to', to_jsonb(t.restricted_to),
+                               'restricted_names', fuin.trame_restricted_names(t),
                                'started_at', t.started_at, 'ended_at', t.ended_at, 'updated_at', t.updated_at),
     'progress', coalesce((
       select json_agg(json_build_object(
@@ -1697,12 +1717,22 @@ declare
   v_title text := btrim(coalesce(p_trame ->> 'title', ''));
   v_steps jsonb := coalesce(p_trame -> 'steps', '[]'::jsonb);
   v_min integer := coalesce(nullif(p_trame ->> 'min_rank', '')::integer, 1);
+  v_only uuid[] := '{}';
   s jsonb;
   k text;
   pos integer := 0;
 begin
   m := fuin.require_conclave(p_token);
   if v_title = '' then perform fuin.fail('FU422', 'Donne un titre à la trame.'); end if;
+  -- trame réservée : on ne garde que des membres qui existent
+  if jsonb_typeof(p_trame -> 'restricted_to') = 'array' then
+    select coalesce(array_agg(mm.id order by mm.display_name), '{}') into v_only
+      from fuin.members mm
+     where mm.id::text in (select jsonb_array_elements_text(p_trame -> 'restricted_to'));
+    if jsonb_array_length(p_trame -> 'restricted_to') > 0 and cardinality(v_only) = 0 then
+      perform fuin.fail('FU422', 'Les shinobi choisis pour cette trame sont introuvables.');
+    end if;
+  end if;
   if v_min not between 1 and 5 then perform fuin.fail('FU422', 'Cercle minimum invalide.'); end if;
   if jsonb_typeof(v_steps) <> 'array' then perform fuin.fail('FU422', 'Étapes invalides.'); end if;
   if jsonb_array_length(v_steps) > 20 then perform fuin.fail('FU422', '20 étapes au maximum.'); end if;
@@ -1733,13 +1763,15 @@ begin
   end loop;
 
   if v_id is null then
-    insert into fuin.trames(title, intro_md, shared, min_rank, steps, created_by)
-    values (v_title, coalesce(p_trame ->> 'intro_md', ''), coalesce((p_trame ->> 'shared')::boolean, true), v_min, v_steps, m.id)
+    insert into fuin.trames(title, intro_md, shared, min_rank, steps, restricted_to, created_by)
+    values (v_title, coalesce(p_trame ->> 'intro_md', ''), coalesce((p_trame ->> 'shared')::boolean, true), v_min, v_steps,
+            v_only, m.id)
     returning id into v_id;
   else
     update fuin.trames
        set title = v_title, intro_md = coalesce(p_trame ->> 'intro_md', ''),
-           shared = coalesce((p_trame ->> 'shared')::boolean, true), min_rank = v_min, steps = v_steps, updated_at = now()
+           shared = coalesce((p_trame ->> 'shared')::boolean, true), min_rank = v_min, steps = v_steps,
+           restricted_to = v_only, updated_at = now()
      where id = v_id;
     if not found then perform fuin.fail('FU404', 'Trame introuvable.'); end if;
   end if;
@@ -1964,14 +1996,14 @@ on conflict (name) do nothing;
 -- Tables de roll par défaut (à adapter dans Console → Outils de trame → Tables de roll)
 insert into fuin.roll_tables(slug, name, description, tiers, position) values
 ('desenclavement', 'Désenclavement',
- 'Un roll par essai. Il faut autant de réussites que le cercle du sceau, en autant d''essais que le cercle du désenclaveur. Effets à adapter par le Conclave.',
+ 'Un roll par essai. Il faut autant de réussites que le cercle du sceau, en autant d''essais que le cercle du désenclaveur. Une réussite critique compte pour deux. Effets à adapter par le Conclave.',
  '[
    {"min":1,"max":1,"label":"Échec critique","tone":"crit-fail","effect":"Le sceau se retourne contre le désenclaveur : violent retour de chakra (blessure grave ou perte de conscience selon le cercle du sceau). L''essai est perdu."},
    {"min":2,"max":15,"label":"Échec avec contrecoup","tone":"fail","effect":"Le sceau résiste et renvoie une partie du chakra : douleur vive, épuisement ou brûlure du kanji dans la paume."},
    {"min":16,"max":50,"label":"Échec","tone":"neutral","effect":"Le sceau tient bon, sans conséquence."},
    {"min":51,"max":90,"label":"Réussite","tone":"success","effect":"Un verrou du sceau cède."},
    {"min":91,"max":99,"label":"Belle réussite","tone":"success","effect":"Le verrou cède proprement et le désenclaveur comprend mieux la structure du sceau."},
-   {"min":100,"max":100,"label":"Réussite critique","tone":"crit-success","effect":"Le verrou se brise net, sans le moindre contrecoup."}
+   {"min":100,"max":100,"label":"Réussite critique","tone":"crit-success","effect":"Deux verrous se brisent net, sans le moindre contrecoup : la réussite critique compte double."}
  ]'::jsonb, 1),
 ('dechiffrement', 'Déchiffrement',
  'Un roll par kanji lors du déchiffrement d''une inscription.',

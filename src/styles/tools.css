@@ -1610,3 +1610,97 @@
     transform: scale(1);
   }
 }
+
+/* trame réservée à des shinobi choisis */
+.trame__private {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 6px 14px 6px 6px;
+  border-radius: 99px;
+  border: 1px solid var(--line-red);
+  background: var(--red-wash);
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.trame__private i {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--red);
+  font: 400 13px/1 var(--brush);
+  font-style: normal;
+  color: #fff;
+}
+
+.tone--double {
+  margin-left: 6px;
+}
+
+.member-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+}
+
+.member-picker__chosen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.member-picker__chosen .chip span {
+  margin-left: 4px;
+  opacity: 0.75;
+}
+
+.member-picker__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.member-picker__list button {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line-2);
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.member-picker__list button:hover {
+  border-color: var(--red);
+  background: var(--red-wash);
+}
+
+.member-picker__list b {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.member-picker__list small {
+  font-size: 11px;
+  color: var(--mut);
+}
+
+.access-rank {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}

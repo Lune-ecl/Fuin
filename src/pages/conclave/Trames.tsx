@@ -556,7 +556,8 @@ function TrameList() {
               <div className="trame-card__top">
                 <span className={`status status--trame-${r.status}`}>{TRAME_STATUS[r.status]}</span>
                 <small className="muted">
-                  {r.steps} étape{r.steps > 1 ? 's' : ''} · {r.shared ? 'progression commune' : 'progression personnelle'} · dès le {circleLabel(r.min_rank)}
+                  {r.steps} étape{r.steps > 1 ? 's' : ''} · {r.shared ? 'progression commune' : 'progression personnelle'} ·{' '}
+                  {r.restricted_names?.length ? `réservée à ${r.restricted_names.join(', ')}` : `dès le ${circleLabel(r.min_rank)}`}
                 </small>
               </div>
               <h3>

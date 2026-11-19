@@ -102,6 +102,9 @@ export interface TrameDef {
   status?: TrameStatus;
   shared: boolean;
   min_rank: number;
+  /** vide : ouverte à tous à partir de min_rank ; sinon réservée à ces membres */
+  restricted_to?: string[];
+  restricted_names?: string[];
   steps: TrameStepDef[];
   started_at?: string | null;
   ended_at?: string | null;
@@ -120,6 +123,7 @@ export interface TrameRow {
   updated_at: string;
   participants: number;
   solves: number;
+  restricted_names?: string[];
 }
 
 export interface TrameAdmin {
@@ -162,7 +166,15 @@ export interface TramePlayerStep {
 }
 
 export interface TrameView {
-  trame: { id: number; title: string; intro_md: string; status: TrameStatus; shared: boolean; started_at: string | null };
+  trame: {
+    id: number;
+    title: string;
+    intro_md: string;
+    status: TrameStatus;
+    shared: boolean;
+    started_at: string | null;
+    restricted_names?: string[];
+  };
   steps: TramePlayerStep[];
   total: number;
   remaining: number;
@@ -174,6 +186,7 @@ export interface UnsealResult {
   label: string;
   tone: string;
   effect: string;
+  gained?: number;
   successes: number;
   needed: number;
   attempts_used: number;

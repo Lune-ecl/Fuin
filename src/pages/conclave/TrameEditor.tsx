@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { api, type RollTable, type TrameAdmin, type TrameDef, type TrameStepDef, type TrameStepKind } from '../../lib/api';
+import { api, type AdminMember, type RollTable, type TrameAdmin, type TrameDef, type TrameStepDef, type TrameStepKind } from '../../lib/api';
 import { useSession } from '../../lib/session';
 import { circleLabel, formatDate, timeAgo } from '../../lib/format';
 import Markdown from '../../components/Markdown';
@@ -9,6 +9,106 @@ import { displaySealSvg } from '../../lib/sealDesign';
 import { sanitizeSvg } from '../../lib/markdown';
 import { Empty, ErrorState, Loader, RankPicker, Toggle, useConfirm, useToast } from '../../components/ui';
 import { TRAME_STATUS } from './Trames';
+
+const norm = (s: string) =>
+  s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+/** Choix des shinobi qui ont accès à une trame réservée. */
+function MemberPicker({ value, onChange }: { value: string[]; onChange: (ids: string[]) => void }) {
+  const [members, setMembers] = useState<AdminMember[] | null>(null);
+  const [q, setQ] = useState('');
+  useEffect(() => {
+    api
+      .members()
+      .then(setMembers)
+      .catch(() => setMembers([]));
+  }, []);
+  if (!members) return <p className="muted small">Chargement des shinobi…</p>;
+  const chosen = value.map((id) => members.find((m) => m.id === id)).filter((m): m is AdminMember => !!m);
+  const matches = members
+    .filter((m) => m.active && !m.is_conclave && !value.includes(m.id) && (!q.trim() || norm(m.display_name).includes(norm(q.trim()))))
+    .sort((a, b) => a.display_name.localeCompare(b.display_name, 'fr'))
+    .slice(0, q.trim() ? 12 : 8);
+  return (
+    <div className="member-picker">
+      <div className="member-picker__chosen">
+        {chosen.length ? (
+          chosen.map((m) => (
+            <button key={m.id} type="button" className="chip is-on" onClick={() => onChange(value.filter((id) => id !== m.id))} title="Retirer">
+              {m.display_name} <span aria-hidden="true">✕</span>
+            </button>
+          ))
+        ) : (
+          <span className="muted small">Choisis au moins un shinobi : lui seul (et le Conclave) verra la trame.</span>
+        )}
+      </div>
+      <input className="input-search" placeholder="Chercher un shinobi…" value={q} onChange={(e) => setQ(e.target.value)} />
+      <div className="member-picker__list">
+        {matches.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            onClick={() => {
+              onChange([...value, m.id]);
+              setQ('');
+            }}
+          >
+            <b>{m.display_name}</b>
+            <small>{circleLabel(m.rank)}</small>
+          </button>
+        ))}
+        {!matches.length && <span className="muted small">Aucun shinobi ne correspond.</span>}
+      </div>
+    </div>
+  );
+}
+
+/** Qui voit la trame : tous les shinobi d'un cercle, ou seulement ceux qu'on choisit. */
+function Access({
+  trame,
+  update,
+  only,
+  setOnly,
+}: {
+  trame: TrameDef;
+  update: (p: Partial<TrameDef>) => void;
+  only: boolean;
+  setOnly: (v: boolean) => void;
+}) {
+  return (
+    <div className="field">
+      <span>Qui a accès à la trame</span>
+      <div className="segmented" role="radiogroup" aria-label="Accès à la trame">
+        <button
+          type="button"
+          role="radio"
+          aria-checked={!only}
+          className={!only ? 'is-on' : ''}
+          onClick={() => {
+            setOnly(false);
+            update({ restricted_to: [] });
+          }}
+        >
+          Tous les shinobi d’un cercle
+        </button>
+        <button type="button" role="radio" aria-checked={only} className={only ? 'is-on' : ''} onClick={() => setOnly(true)}>
+          Shinobi choisis
+        </button>
+      </div>
+      {only ? (
+        <MemberPicker value={trame.restricted_to ?? []} onChange={(ids) => update({ restricted_to: ids })} />
+      ) : (
+        <div className="access-rank">
+          <small className="muted">Accessible à partir du</small>
+          <RankPicker value={trame.min_rank} onChange={(r) => update({ min_rank: r })} name="trame-min" />
+        </div>
+      )}
+    </div>
+  );
+}
 
 const KIND: Record<TrameStepKind, { label: string; glyph: string; hint: string }> = {
   cipher: { label: 'Énigme à déchiffrer', glyph: '謎', hint: 'Un texte à traduire, avec un nombre d’essais limité.' },
@@ -157,7 +257,8 @@ function StepEditor({
             </select>
           </label>
           <p className="muted small step-card__note">
-            Peut tenter : à partir du {circleLabel(Math.max(step.min_rank ?? 3, step.seal_circle ?? 3))}. Chaque joueur a autant d’essais que son cercle.
+            Peut tenter : à partir du {circleLabel(Math.max(step.min_rank ?? 3, step.seal_circle ?? 3))}. Chaque joueur a autant d’essais que son cercle ;
+            une réussite critique brise deux verrous.
           </p>
         </div>
       )}
@@ -276,6 +377,12 @@ export default function TrameEditor() {
     }
   }, [id, isNew]);
 
+  // trame réservée à des shinobi choisis (sinon ouverte à un cercle)
+  const [only, setOnly] = useState(false);
+  useEffect(() => {
+    if ((trame?.restricted_to?.length ?? 0) > 0) setOnly(true);
+  }, [trame?.restricted_to]);
+
   if (error) return <ErrorState text={error} onRetry={load} />;
   if (!trame) return <Loader label="Ouverture de la trame…" />;
 
@@ -293,6 +400,10 @@ export default function TrameEditor() {
   };
 
   const save = async (): Promise<number | null> => {
+    if (only && !trame.restricted_to?.length) {
+      toast('Choisis au moins un shinobi pour cette trame réservée.', 'error');
+      return null;
+    }
     setBusy(true);
     try {
       const clean = { ...trame, steps: trame.steps.map((s) => ({ ...s, answers: s.answers?.map((a) => a.trim()).filter(Boolean) })) };
@@ -417,11 +528,8 @@ export default function TrameEditor() {
                 <Markdown source={trame.intro_md} />
               </details>
             )}
+            <Access trame={trame} update={update} only={only} setOnly={setOnly} />
             <div className="step-card__grid">
-              <div className="field">
-                <span>Accessible à partir du</span>
-                <RankPicker value={trame.min_rank} onChange={(r) => update({ min_rank: r })} name="trame-min" />
-              </div>
               <Toggle
                 checked={trame.shared}
                 onChange={(v) => update({ shared: v })}

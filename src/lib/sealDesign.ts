@@ -239,9 +239,11 @@ export function buildSealSvg(d: SealDesign, { embed = true }: { embed?: boolean 
   if ((d.ring === 'kanji' || d.ring === 'both') && d.ringText.trim()) {
     const unit = [...d.ringText.replace(/\s+/g, '')].join(' ');
     const reps = Math.max(1, Math.round(24 / Math.max(1, unit.replace(/\s/g, '').length + 1)));
-    const text = Array.from({ length: reps }, () => unit).join(' · ');
+    // chaque répétition est suivie d'un point, y compris la dernière : la jonction en haut à gauche
+    // du cercle garde ainsi son séparateur ; l'espace insécable final occupe le reste du tour
+    const text = Array.from({ length: reps }, () => `${unit} ·`).join(' ') + '\u00a0';
     ring += `<path id="${id}" d="M${C} ${C} m-79 0 a79 79 0 1 1 158 0 a79 79 0 1 1 -158 0" fill="none" stroke="none"/>`;
-    ring += `<text font-family="${FONT}" font-size="13" fill="${color}" stroke="none"><textPath href="#${id}" startOffset="0" textLength="490" lengthAdjust="spacing">${esc(text)}</textPath></text>`;
+    ring += `<text font-family="${FONT}" font-size="13" fill="${color}" stroke="none"><textPath href="#${id}" startOffset="0" textLength="494" lengthAdjust="spacing">${esc(text)}</textPath></text>`;
     ring += `<circle cx="${C}" cy="${C}" r="75" stroke-width="${n(sw * 0.5)}"/>`;
   }
   if (d.ring === 'ticks' || d.ring === 'both') {

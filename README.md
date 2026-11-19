@@ -124,6 +124,7 @@ fois, mais le relancer ne casse rien).
 - `005_trames.sql` : trames (énigmes, désenclavement, récit) ouvertes aux joueurs le temps d'un événement.
 - `006_sceau_des_trames.sql` : sceau dessiné dans le créateur pour les étapes de désenclavement ; il rougeoie plus fort à chaque roll raté, se fissure à chaque verrou brisé et vole en éclats quand il cède.
 - `007_memorial.sql` : page **Mémorial des maîtres** dans Fondations (Grands Maîtres et Maîtres avec portrait, titre, statut et histoire), gérée par le Conclave directement sur la page.
+- `008_trames_reservees.sql` : trames réservées à des shinobi choisis (eux seuls et le Conclave les voient) et réussite critique qui brise deux verrous au désenclavement.
 
 ### 5. Base toujours éveillée
 
