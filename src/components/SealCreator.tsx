@@ -4,6 +4,9 @@ import {
   COLORS,
   defaultDesign,
   FRAMES,
+  GLYPH_LAYOUTS,
+  glyphChars,
+  MAX_GLYPHS,
   ORNAMENTS,
   parseDesign,
   randomDesign,
@@ -169,7 +172,8 @@ export function SealWorkbench({
     [section, mk],
   );
 
-  const kanjiChars = [...new Set([...(kanji || '').replace(/\s/g, ''), ...QUICK_GLYPHS])].slice(0, 16);
+  const kanjiChars = [...new Set([...(kanji || '').replace(/\s/g, ''), ...QUICK_GLYPHS])].slice(0, 18);
+  const glyphs = glyphChars(d.glyph);
   const frame = FRAMES.find((f) => f.key === d.frame);
   const ring = RINGS.find((r) => r.key === d.ring) ?? RINGS[0];
   const symbol = SYMBOLS.find((s) => s.key === d.symbol);
@@ -326,29 +330,71 @@ export function SealWorkbench({
           )}
         </Section>
 
-        <Section title="Kanji central" summary={d.glyph || 'Aucun'} open={section === 'glyph'} onToggle={() => toggle('glyph')}>
+        <Section
+          title="Kanjis du centre"
+          summary={glyphs.length ? `${glyphs.join('')} · ${glyphs.length}/${MAX_GLYPHS}` : 'Aucun'}
+          open={section === 'glyph'}
+          onToggle={() => toggle('glyph')}
+        >
+          <div className="field creator__field creator__field--top">
+            <span>
+              Kanjis (jusqu’à {MAX_GLYPHS}) · {glyphs.length}/{MAX_GLYPHS}
+            </span>
+            <div className="glyph-line">
+              <input
+                className="input-kanji"
+                lang="ja"
+                value={d.glyph}
+                onChange={(e) => set('glyph', glyphChars(e.target.value).join(''))}
+                placeholder="封印結界"
+                aria-label="Kanjis du centre"
+              />
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => set('glyph', glyphs.slice(0, -1).join(''))} disabled={!glyphs.length}>
+                ⌫ Retirer
+              </button>
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => set('glyph', '')} disabled={!glyphs.length}>
+                Vider
+              </button>
+            </div>
+          </div>
+          <p className="creator__hint">Clique pour ajouter un kanji à la suite. Ils se lisent comme un sceau japonais : de haut en bas, colonnes de droite à gauche.</p>
           <div className="glyph-picks">
-            <button type="button" className={`glyph-pick${!d.glyph ? ' is-on' : ''}`} onClick={() => set('glyph', '')}>
-              ∅
-            </button>
             {kanjiChars.map((k) => (
-              <button key={k} type="button" lang="ja" className={`glyph-pick${d.glyph === k ? ' is-on' : ''}`} onClick={() => set('glyph', k)}>
+              <button
+                key={k}
+                type="button"
+                lang="ja"
+                className={`glyph-pick${glyphs.includes(k) ? ' is-on' : ''}`}
+                disabled={glyphs.length >= MAX_GLYPHS}
+                onClick={() => set('glyph', glyphChars(d.glyph + k).join(''))}
+              >
                 {k}
               </button>
             ))}
-            <input
-              className="glyph-input"
-              lang="ja"
-              value={d.glyph}
-              maxLength={2}
-              onChange={(e) => set('glyph', e.target.value)}
-              aria-label="Kanji personnalisé"
-              placeholder="…"
-            />
           </div>
-          {d.glyph && (
+          {glyphs.length > 1 && (
+            <div className="field creator__field">
+              <span>Disposition</span>
+              <div className="segmented" role="radiogroup" aria-label="Disposition des kanjis">
+                {GLYPH_LAYOUTS.map((l) => (
+                  <button
+                    key={l.key}
+                    type="button"
+                    role="radio"
+                    aria-checked={(d.glyphLayout ?? 'auto') === l.key}
+                    className={(d.glyphLayout ?? 'auto') === l.key ? 'is-on' : ''}
+                    title={l.hint}
+                    onClick={() => set('glyphLayout', l.key)}
+                  >
+                    {l.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {glyphs.length > 0 && (
             <label className="range">
-              <span>Taille du kanji</span>
+              <span>Taille des kanjis</span>
               <Range min={0.3} max={1.8} step={0.05} value={d.glyphScale} onChange={(v) => set('glyphScale', v)} />
             </label>
           )}

@@ -15,12 +15,28 @@ export interface SealDesign {
   ornaments: string[];
   symbol: string | null;
   symbolScale: number;
+  /** kanjis du centre (jusqu'à 6), lus comme un sceau japonais : colonnes de droite à gauche */
   glyph: string;
   glyphScale: number;
+  glyphLayout?: GlyphLayout;
   color: string;
   stroke: number;
   rotation: number;
 }
+
+export type GlyphLayout = 'auto' | 'column' | 'row' | 'circle';
+
+export const GLYPH_LAYOUTS: { key: GlyphLayout; label: string; hint: string }[] = [
+  { key: 'auto', label: 'Auto', hint: 'La disposition la plus équilibrée selon le nombre de kanjis' },
+  { key: 'column', label: 'Colonnes', hint: 'De haut en bas, colonnes de droite à gauche (lecture japonaise)' },
+  { key: 'row', label: 'Lignes', hint: 'De gauche à droite, lignes de haut en bas' },
+  { key: 'circle', label: 'En cercle', hint: 'Autour du centre, en partant du haut' },
+];
+
+export const MAX_GLYPHS = 6;
+
+/** Kanjis du centre, sans espaces, 6 au plus. */
+export const glyphChars = (s: string): string[] => [...(s || '').replace(/\s+/g, '')].slice(0, MAX_GLYPHS);
 
 export const COLORS = [
   { value: '#ff3445', label: 'Rouge vif' },
@@ -475,6 +491,53 @@ export const RINGS: { key: string; label: string; text?: boolean; draw: (c: Ring
 ];
 
 // ---------------------------------------------------------------------------
+// Kanjis du centre : position et taille de chaque caractère (par rapport au centre)
+// ---------------------------------------------------------------------------
+type Slot = { x: number; y: number; size: number };
+
+/** Groupes de caractères : colonnes (droite → gauche) ou lignes (haut → bas), centrés. */
+function gridSlots(groups: number[], vertical: boolean): Slot[] {
+  const k = groups.length;
+  const m = Math.max(...groups);
+  const pitch = Math.min(70, 116 / Math.hypot(k, m));
+  const size = Math.min(66, pitch * 0.92);
+  const out: Slot[] = [];
+  groups.forEach((count, j) => {
+    for (let i = 0; i < count; i++) {
+      const along = (i - (count - 1) / 2) * pitch;
+      const across = vertical ? ((k - 1) / 2 - j) * pitch : (j - (k - 1) / 2) * pitch;
+      out.push(vertical ? { x: across, y: along, size } : { x: along, y: across, size });
+    }
+  });
+  return out;
+}
+
+const split = (count: number) => (count <= 3 ? [count] : [Math.ceil(count / 2), Math.floor(count / 2)]);
+
+function glyphSlots(count: number, layout: GlyphLayout): Slot[] {
+  if (count <= 0) return [];
+  if (count === 1) return [{ x: 0, y: 0, size: 66 }];
+  if (layout === 'circle') {
+    const r = count === 2 ? 24 : count === 3 ? 27 : 31;
+    const size = count <= 3 ? 34 : count === 4 ? 30 : 26;
+    return Array.from({ length: count }, (_, i) => {
+      const a = rad(-90 + (i * 360) / count);
+      return { x: r * Math.cos(a), y: r * Math.sin(a), size };
+    });
+  }
+  if (layout === 'row') return gridSlots(split(count), false);
+  if (layout === 'auto' && count === 3) {
+    // trois kanjis : un en haut, deux en bas (lus de droite à gauche)
+    return [
+      { x: 0, y: -22, size: 38 },
+      { x: 23, y: 18, size: 38 },
+      { x: -23, y: 18, size: 38 },
+    ];
+  }
+  return gridSlots(split(count), true);
+}
+
+// ---------------------------------------------------------------------------
 // Construction
 // ---------------------------------------------------------------------------
 export function defaultDesign(kanji?: string | null): SealDesign {
@@ -489,6 +552,7 @@ export function defaultDesign(kanji?: string | null): SealDesign {
     symbolScale: 1,
     glyph: chars[0] || '封',
     glyphScale: 1,
+    glyphLayout: 'auto',
     color: '#ff3445',
     stroke: 2,
     rotation: 0,
@@ -539,12 +603,16 @@ export function buildSealSvg(d: SealDesign, { embed = true }: { embed?: boolean 
     symbol = `<g transform="translate(${n(C - 50 * s)} ${n(C - 50 * s)}) scale(${n(s)})" stroke-width="${n(sw / s)}">${sym.svg(color)}</g>`;
   }
 
-  let glyph = '';
-  if (d.glyph.trim()) {
-    const size = 66 * Math.max(0.3, Math.min(1.8, d.glyphScale || 1));
-    const off = glyphOffset(d.glyph.trim(), size);
-    glyph = `<text x="${n(C + off.dx)}" y="${n(C + off.dy)}" text-anchor="middle" font-family="${FONT}" font-size="${n(size)}" fill="${color}" stroke="none">${esc(d.glyph.trim())}</text>`;
-  }
+  // kanjis du centre : chacun est centré sur sa case d'après son encre réelle
+  const chars = glyphChars(d.glyph);
+  const scale = Math.max(0.3, Math.min(1.8, d.glyphScale || 1));
+  const glyph = glyphSlots(chars.length, d.glyphLayout ?? 'auto')
+    .map((slot, i) => {
+      const size = slot.size * scale;
+      const off = glyphOffset(chars[i], size);
+      return `<text x="${n(C + slot.x * scale + off.dx)}" y="${n(C + slot.y * scale + off.dy)}" text-anchor="middle" font-family="${FONT}" font-size="${n(size)}" fill="${color}" stroke="none">${esc(chars[i])}</text>`;
+    })
+    .join('');
 
   const rot = d.rotation ? ` transform="rotate(${n(d.rotation)} ${C} ${C})"` : '';
   // le carré reste droit : tourné, ses coins sortiraient du sceau
@@ -603,8 +671,9 @@ export function randomDesign(kanji?: string | null): SealDesign {
     ornaments: orns,
     symbol: withSymbol ? pick(SYMBOLS).key : null,
     symbolScale: withSymbol ? 0.8 + Math.random() * 0.4 : 1,
-    glyph: withSymbol && Math.random() < 0.6 ? '' : pick(chars),
+    glyph: withSymbol && Math.random() < 0.6 ? '' : Math.random() < 0.3 ? chars.slice(0, 2 + Math.floor(Math.random() * 3)).join('') : pick(chars),
     glyphScale: withSymbol ? 0.6 : 1,
+    glyphLayout: 'auto',
     color: pick(COLORS.slice(0, 4)).value,
     stroke: Math.round((1.4 + Math.random() * 1.4) * 10) / 10,
     rotation: pick([0, 0, 0, 15, 22.5, 45]),
