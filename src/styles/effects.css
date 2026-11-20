@@ -395,7 +395,7 @@
   padding-right: 6px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 10px;
   scrollbar-width: thin;
   scrollbar-color: var(--surface-3) transparent;
 }
@@ -420,6 +420,222 @@
 
 .creator__field {
   margin-top: 10px;
+}
+
+/* sections repliables */
+.creator__controls .creator__group {
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.creator__controls .creator__group.is-open {
+  border-color: var(--line-red);
+  background: linear-gradient(180deg, rgba(216, 30, 48, 0.06), transparent 120px), var(--bg-2);
+}
+
+.creator__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  text-align: left;
+  color: inherit;
+}
+
+.creator__title {
+  flex: none;
+  font: 800 11px var(--sans);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--red-soft);
+}
+
+.creator__summary {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.creator__dot {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--surface-3);
+}
+
+.creator__chevron {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  margin: 0 2px 4px 4px;
+  border-right: 2px solid var(--mut);
+  border-bottom: 2px solid var(--mut);
+  transform: rotate(45deg);
+  transition: transform 0.25s var(--ease), border-color 0.2s;
+}
+
+.creator__group.is-open .creator__chevron {
+  transform: rotate(-135deg) translate(-3px, -3px);
+  border-color: var(--red-hot);
+}
+
+.creator__head:hover .creator__chevron {
+  border-color: var(--ink);
+}
+
+.creator__body {
+  padding: 0 16px 16px;
+  animation: rise 0.3s var(--ease) both;
+}
+
+.creator__hint {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  color: var(--mut);
+}
+
+.creator__clear {
+  margin-top: 10px;
+}
+
+.creator__field--top {
+  margin: 0 0 14px;
+}
+
+.symbol-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.symbol-bar .input-search {
+  flex: 1;
+}
+
+.family-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.family-head b {
+  font: 600 16px var(--display);
+}
+
+.family-head small {
+  color: var(--mut);
+  font-size: 12px;
+}
+
+.families {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 124px), 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 640px) {
+  .family {
+    padding: 10px;
+  }
+
+  .family__label {
+    font-size: 12.5px;
+  }
+
+  .creator__head {
+    padding: 12px 14px;
+  }
+
+  .creator__body {
+    padding: 0 12px 12px;
+  }
+}
+
+.family {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  text-align: left;
+  transition: border-color 0.2s, transform 0.2s, background 0.2s;
+}
+
+.family:hover {
+  border-color: var(--line-red);
+  transform: translateY(-2px);
+}
+
+.family.is-on {
+  border-color: var(--red);
+  background: linear-gradient(180deg, rgba(216, 30, 48, 0.16), rgba(216, 30, 48, 0.03));
+}
+
+.family__covers {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+.family__covers span {
+  aspect-ratio: 1;
+}
+
+.family__covers svg {
+  width: 100%;
+  height: 100%;
+}
+
+.family__label {
+  font-weight: 700;
+  font-size: 13.5px;
+  color: var(--ink);
+}
+
+.family small {
+  font-size: 11.5px;
+  color: var(--mut);
+}
+
+/* page « Création de visuel » des outils de trame */
+.creator--page .creator__controls {
+  max-height: none;
+  overflow: visible;
+}
+
+.creator--page .creator__preview {
+  top: calc(var(--topbar) + 16px);
+}
+
+.studio-bar {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.studio-bar .field {
+  max-width: 320px;
 }
 
 .tiles {

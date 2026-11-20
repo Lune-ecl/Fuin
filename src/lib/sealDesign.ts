@@ -9,7 +9,8 @@ export { SYMBOLS, SYMBOL_CATEGORIES, type SymbolCategory } from './sealSymbols';
 export interface SealDesign {
   v: 1;
   frame: string;
-  ring: 'none' | 'kanji' | 'ticks' | 'both';
+  /** clé d'un anneau de RINGS (les anciennes valeurs none, kanji, ticks et both restent valables) */
+  ring: string;
   ringText: string;
   ornaments: string[];
   symbol: string | null;
@@ -85,6 +86,30 @@ function pts(count: number, r: number, rot = -90): string {
   }).join(' ');
 }
 
+const rad = (deg: number) => (deg * Math.PI) / 180;
+/** point « x y » à `r` du centre, angle en degrés (0 = droite, -90 = haut) */
+const P = (r: number, deg: number) => `${n(C + r * Math.cos(rad(deg)))} ${n(C + r * Math.sin(rad(deg)))}`;
+const circle = (r: number, w?: number, extra = '') =>
+  `<circle cx="${C}" cy="${C}" r="${r}"${w !== undefined ? ` stroke-width="${n(w)}"` : ''}${extra}/>`;
+/** courbe fermée dont le rayon varie avec l'angle */
+function polar(fn: (deg: number) => number, steps = 360, w?: number): string {
+  const p: string[] = [];
+  for (let i = 0; i < steps; i++) {
+    const deg = (i / steps) * 360 - 90;
+    p.push(P(fn(deg), deg));
+  }
+  return `<path d="M${p.join(' L')} Z"${w !== undefined ? ` stroke-width="${n(w)}"` : ''}/>`;
+}
+/** même motif répété autour du centre (dessiné en haut, puis tourné) */
+const around = (count: number, shape: string, offset = 0) =>
+  Array.from({ length: count }, (_, i) => `<g transform="rotate(${n(offset + (i * 360) / count)} ${C} ${C})">${shape}</g>`).join('');
+const dotsAround = (count: number, r: number, size: number, color: string, offset = 0) =>
+  Array.from({ length: count }, (_, i) => {
+    const deg = offset - 90 + (i * 360) / count;
+    const [x, y] = P(r, deg).split(' ');
+    return `<circle cx="${x}" cy="${y}" r="${size}" fill="${color}" stroke="none"/>`;
+  }).join('');
+
 function esc(s: string) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -92,7 +117,8 @@ function esc(s: string) {
 // ---------------------------------------------------------------------------
 // Contours
 // ---------------------------------------------------------------------------
-export const FRAMES: { key: string; label: string; draw: (sw: number) => string }[] = [
+/** `fixed` : contour qui ne tourne jamais (ses coins sortiraient du sceau) */
+export const FRAMES: { key: string; label: string; fixed?: boolean; draw: (sw: number, color: string) => string }[] = [
   { key: 'none', label: 'Aucun', draw: () => '' },
   { key: 'circle', label: 'Cercle', draw: () => `<circle cx="${C}" cy="${C}" r="94"/>` },
   {
@@ -103,6 +129,7 @@ export const FRAMES: { key: string; label: string; draw: (sw: number) => string 
   {
     key: 'square',
     label: 'Carré',
+    fixed: true,
     draw: (sw) =>
       `<rect x="7" y="7" width="186" height="186" rx="3"/><rect x="14" y="14" width="172" height="172" rx="2" stroke-width="${n(sw * 0.55)}"/>`,
   },
@@ -125,6 +152,67 @@ export const FRAMES: { key: string; label: string; draw: (sw: number) => string 
         return `<line x1="${n(C + 90 * Math.cos(a))}" y1="${n(C + 90 * Math.sin(a))}" x2="${n(C + 98 * Math.cos(a))}" y2="${n(C + 98 * Math.sin(a))}" stroke-width="${n(sw * 0.8)}"/>`;
       }).join(''),
   },
+  {
+    key: 'triple',
+    label: 'Triple cercle',
+    draw: (sw) => circle(97) + circle(93.6, sw * 0.5) + circle(90.8, sw * 0.35),
+  },
+  { key: 'beaded', label: 'Cercle perlé', draw: (_sw, color) => circle(91) + dotsAround(60, 96.5, 1.5, color) },
+  {
+    key: 'scalloped',
+    label: 'Festonné',
+    draw: () => {
+      const k = 24;
+      let d = `M${P(91, -90)}`;
+      for (let i = 1; i <= k; i++) d += ` A13 13 0 0 1 ${P(91, -90 + (i * 360) / k)}`;
+      return `<path d="${d} Z"/>`;
+    },
+  },
+  {
+    key: 'gear',
+    label: 'Engrenage',
+    draw: () => {
+      const p: string[] = [];
+      for (let i = 0; i < 20; i++) {
+        const a = -90 + i * 18;
+        p.push(P(88, a), P(97, a + 3), P(97, a + 10), P(88, a + 13));
+      }
+      return `<path d="M${p.join(' L')} Z"/>`;
+    },
+  },
+  { key: 'pentagon', label: 'Pentagone', draw: () => `<polygon points="${pts(5, 98)}"/>` },
+  { key: 'dodecagon', label: 'Dodécagone', draw: () => `<polygon points="${pts(12, 96, -75)}"/>` },
+  {
+    key: 'rounded',
+    label: 'Carré arrondi',
+    fixed: true,
+    draw: (sw) => `<rect x="8" y="8" width="184" height="184" rx="38"/><rect x="15" y="15" width="170" height="170" rx="32" stroke-width="${n(sw * 0.5)}"/>`,
+  },
+  {
+    key: 'brackets',
+    label: 'Crochets',
+    fixed: true,
+    draw: (sw) =>
+      `<path d="M8 46 V8 H46 M154 8 H192 V46 M192 154 V192 H154 M46 192 H8 V154"/>` + circle(92, sw * 0.5),
+  },
+  {
+    key: 'lotus',
+    label: 'Lotus',
+    draw: () =>
+      circle(84) +
+      around(
+        16,
+        `<path d="M${C} ${C - 84} C${C + 13} ${C - 86} ${C + 9} ${C - 96} ${C} ${C - 99} C${C - 9} ${C - 96} ${C - 13} ${C - 86} ${C} ${C - 84} Z"/>`,
+      ),
+  },
+  {
+    key: 'flames',
+    label: 'Couronne de flammes',
+    draw: () =>
+      circle(86) +
+      around(18, `<path d="M${C - 6} ${C - 86} Q${C - 7} ${C - 93} ${C + 1} ${C - 99} Q${C} ${C - 92} ${C + 6} ${C - 86}"/>`),
+  },
+  { key: 'wave', label: 'Onde', draw: () => polar((deg) => 93 + 3.2 * Math.sin(rad(deg + 90) * 20)) },
 ];
 
 // ---------------------------------------------------------------------------
@@ -196,6 +284,194 @@ export const ORNAMENTS: { key: string; label: string; draw: (sw: number, color: 
     draw: () =>
       Array.from({ length: 8 }, (_, i) => `<path d="M${C} ${C} Q${C + 14} ${C - 34} ${C} ${C - 66} Q${C - 14} ${C - 34} ${C} ${C} Z" transform="rotate(${i * 45} ${C} ${C})"/>`).join(''),
   },
+  { key: 'inner-double', label: 'Double cercle', draw: (sw) => circle(66) + circle(61, sw * 0.5) },
+  { key: 'beads-inner', label: 'Perles', draw: (_sw, color) => dotsAround(24, 66, 1.7, color) },
+  {
+    key: 'pentagram',
+    label: 'Pentacle',
+    draw: () => `<polygon points="${[0, 2, 4, 1, 3].map((i) => P(66, -90 + i * 72).replace(' ', ',')).join(' ')}"/>`,
+  },
+  { key: 'octagram', label: 'Étoile à huit', draw: () => `<polygon points="${pts(4, 66)}"/><polygon points="${pts(4, 66, -45)}"/>` },
+  { key: 'pentagon', label: 'Pentagone', draw: () => `<polygon points="${pts(5, 66)}"/>` },
+  { key: 'triangle-down', label: 'Triangle inversé', draw: () => `<polygon points="${pts(3, 66, 90)}"/>` },
+  {
+    key: 'nested',
+    label: 'Carrés imbriqués',
+    draw: () => `<polygon points="${pts(4, 66, -45)}"/><polygon points="${pts(4, 47)}"/><polygon points="${pts(4, 33, -45)}"/>`,
+  },
+  { key: 'spokes', label: 'Rayons longs', draw: () => around(8, `<line x1="${C}" y1="${C - 22}" x2="${C}" y2="${C - 66}"/>`) },
+  {
+    key: 'web',
+    label: 'Toile',
+    draw: (sw) =>
+      around(8, `<line x1="${C}" y1="${C}" x2="${C}" y2="${C - 66}"/>`) +
+      [26, 46, 66].map((r) => `<polygon points="${pts(8, r)}" stroke-width="${n(sw * 0.6)}"/>`).join(''),
+  },
+  {
+    key: 'flower',
+    label: 'Fleur de vie',
+    draw: (sw) => `<g stroke-width="${n(sw * 0.7)}">${circle(32)}${around(6, `<circle cx="${C}" cy="${C - 32}" r="32"/>`)}</g>`,
+  },
+  { key: 'six-circles', label: 'Six cercles', draw: () => around(6, `<circle cx="${C}" cy="${C - 56}" r="9"/>`) },
+  {
+    key: 'diamonds',
+    label: 'Losanges',
+    draw: () => around(8, `<path d="M${C} ${C - 66} L${C + 5} ${C - 58} L${C} ${C - 50} L${C - 5} ${C - 58} Z"/>`, 22.5),
+  },
+  {
+    key: 'arcs',
+    label: 'Arcs',
+    draw: () => around(4, `<path d="M${P(58, -120)} A58 58 0 0 1 ${P(58, -60)}"/>`, 45),
+  },
+  {
+    key: 'crescents',
+    label: 'Croissants',
+    draw: () =>
+      around(4, `<path d="M${C - 9} ${C - 64} A10 10 0 1 0 ${C + 9} ${C - 64} A13 13 0 0 1 ${C - 9} ${C - 64} Z"/>`, 45),
+  },
+  {
+    key: 'tomoe',
+    label: 'Virgules',
+    draw: (_sw, color) =>
+      around(
+        3,
+        `<circle cx="${C}" cy="${C - 58}" r="6.5" fill="${color}" stroke="none"/><path d="M${C + 6} ${C - 56} Q${C + 6} ${C - 40} ${C - 10} ${C - 36}"/>`,
+      ),
+  },
+  {
+    key: 'eyes',
+    label: 'Yeux',
+    draw: (_sw, color) =>
+      around(
+        4,
+        `<path d="M${C - 11} ${C - 58} Q${C} ${C - 67} ${C + 11} ${C - 58} Q${C} ${C - 49} ${C - 11} ${C - 58} Z"/><circle cx="${C}" cy="${C - 58}" r="2.6" fill="${color}" stroke="none"/>`,
+        45,
+      ),
+  },
+];
+
+// ---------------------------------------------------------------------------
+// Anneaux (entre les ornements et le contour, rayon 70 à 92)
+// ---------------------------------------------------------------------------
+function ticks(sw: number, inner: number): string {
+  return Array.from({ length: 72 }, (_, i) => {
+    const a = i * 5 - 90;
+    return `<line x1="${P(inner, a).replace(' ', '" y1="')}" x2="${P(inner + (i % 6 === 0 ? 6 : 3.5), a).replace(' ', '" y2="')}" stroke-width="${n(i % 6 === 0 ? sw * 0.8 : sw * 0.45)}"/>`;
+  }).join('');
+}
+
+export interface RingContext {
+  sw: number;
+  color: string;
+  /** kanjis de la formule écrits sur le cercle (rayon 79) */
+  text: () => string;
+}
+
+/** `text` : l'anneau écrit la formule de kanjis */
+export const RINGS: { key: string; label: string; text?: boolean; draw: (c: RingContext) => string }[] = [
+  { key: 'none', label: 'Aucun', draw: () => '' },
+  { key: 'kanji', label: 'Kanjis', text: true, draw: ({ sw, text }) => text() + circle(75, sw * 0.5) },
+  { key: 'ticks', label: 'Graduations', draw: ({ sw }) => ticks(sw, 80) },
+  { key: 'both', label: 'Kanjis et graduations', text: true, draw: ({ sw, text }) => text() + circle(75, sw * 0.5) + ticks(sw, 69) },
+  {
+    key: 'kanji-framed',
+    label: 'Kanjis encadrés',
+    text: true,
+    draw: ({ sw, text }) => text() + circle(75, sw * 0.5) + circle(91.5, sw * 0.5),
+  },
+  {
+    key: 'kanji-beads',
+    label: 'Kanjis et perles',
+    text: true,
+    draw: ({ sw, color, text }) => text() + circle(75, sw * 0.5) + dotsAround(36, 70.5, 1.4, color),
+  },
+  { key: 'beads', label: 'Perles', draw: ({ color }) => dotsAround(48, 81, 2.1, color) },
+  {
+    key: 'rosary',
+    label: 'Chapelet',
+    draw: ({ sw, color }) =>
+      `<g stroke-width="${n(sw * 0.6)}">${around(24, `<circle cx="${C}" cy="${C - 81}" r="3.4"/>`)}</g>` + dotsAround(24, 81, 1.4, color, 7.5),
+  },
+  {
+    key: 'chain',
+    label: 'Chaîne',
+    draw: ({ sw }) =>
+      `<g stroke-width="${n(sw * 0.6)}">` +
+      around(24, `<ellipse cx="${C}" cy="${C - 81}" rx="8.2" ry="3.3"/>`) +
+      around(24, `<ellipse cx="${C}" cy="${C - 81}" rx="3.4" ry="1.6"/>`, 7.5) +
+      `</g>`,
+  },
+  { key: 'waves', label: 'Vagues', draw: ({ sw }) => polar((deg) => 81 + 3.4 * Math.sin(rad(deg + 90) * 24), 480, sw * 0.7) },
+  {
+    key: 'rope',
+    label: 'Corde',
+    draw: ({ sw }) =>
+      polar((deg) => 81 + 3 * Math.sin(rad(deg + 90) * 36), 540, sw * 0.6) +
+      polar((deg) => 81 - 3 * Math.sin(rad(deg + 90) * 36), 540, sw * 0.6),
+  },
+  {
+    key: 'zigzag',
+    label: 'Dents de scie',
+    draw: ({ sw }) => {
+      const p = Array.from({ length: 72 }, (_, i) => P(i % 2 ? 86 : 76, -90 + i * 5));
+      return `<path d="M${p.join(' L')} Z" stroke-width="${n(sw * 0.7)}"/>`;
+    },
+  },
+  {
+    key: 'crenel',
+    label: 'Créneaux',
+    draw: ({ sw }) => {
+      const p: string[] = [];
+      for (let i = 0; i < 40; i++) {
+        const r = i % 2 ? 85 : 77;
+        p.push(P(r, -90 + i * 9), P(r, -90 + (i + 1) * 9));
+      }
+      return `<path d="M${p.join(' L')} Z" stroke-width="${n(sw * 0.7)}"/>`;
+    },
+  },
+  {
+    key: 'dashes',
+    label: 'Tirets',
+    draw: ({ sw }) => circle(82, sw, ' stroke-dasharray="9 6"') + circle(76, sw * 0.4),
+  },
+  { key: 'double-line', label: 'Double filet', draw: ({ sw }) => circle(84, sw * 0.7) + circle(78, sw * 0.45) },
+  {
+    key: 'petals',
+    label: 'Pétales',
+    draw: ({ sw }) =>
+      `<g stroke-width="${n(sw * 0.6)}">${around(32, `<path d="M${C} ${C - 75} Q${C + 4.5} ${C - 81} ${C} ${C - 88} Q${C - 4.5} ${C - 81} ${C} ${C - 75} Z"/>`)}</g>`,
+  },
+  {
+    key: 'flames',
+    label: 'Flammes',
+    draw: ({ sw }) =>
+      circle(75, sw * 0.5) +
+      `<g stroke-width="${n(sw * 0.7)}">${around(18, `<path d="M${C - 5} ${C - 75} C${C - 7} ${C - 81} ${C - 2} ${C - 85} ${C} ${C - 91} C${C + 2} ${C - 85} ${C + 7} ${C - 81} ${C + 5} ${C - 75} Z"/>`)}</g>`,
+  },
+  {
+    key: 'stars',
+    label: 'Étoiles',
+    draw: ({ color }) =>
+      around(12, `<path d="M${C} ${C - 87} L${C + 1.8} ${C - 82.8} L${C + 6} ${C - 81} L${C + 1.8} ${C - 79.2} L${C} ${C - 75} L${C - 1.8} ${C - 79.2} L${C - 6} ${C - 81} L${C - 1.8} ${C - 82.8} Z" fill="${color}" stroke="none"/>`) +
+      dotsAround(12, 81, 1.3, color, 15),
+  },
+  {
+    key: 'trigrams',
+    label: 'Trigrammes',
+    draw: ({ sw, color }) =>
+      TRIGRAMS.map((t, i) => {
+        const lines = t
+          .split('')
+          .map((bit, j) => {
+            const y = C - 76 - j * 5;
+            return bit === '1'
+              ? `<line x1="${C - 7}" y1="${y}" x2="${C + 7}" y2="${y}"/>`
+              : `<line x1="${C - 7}" y1="${y}" x2="${C - 1.6}" y2="${y}"/><line x1="${C + 1.6}" y1="${y}" x2="${C + 7}" y2="${y}"/>`;
+          })
+          .join('');
+        return `<g transform="rotate(${i * 45} ${C} ${C})" stroke-width="${n(sw * 0.8)}">${lines}</g>`;
+      }).join('') + dotsAround(8, 81, 1.6, color, 22.5),
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -234,27 +510,21 @@ export function buildSealSvg(d: SealDesign, { embed = true }: { embed?: boolean 
   const id = `fs-${hash(json)}`;
   const frame = FRAMES.find((f) => f.key === d.frame) ?? FRAMES[0];
 
-  // Anneau extérieur : kanjis sur un cercle + graduations
-  let ring = '';
-  if ((d.ring === 'kanji' || d.ring === 'both') && d.ringText.trim()) {
+  // Anneau extérieur
+  const ringDef = RINGS.find((r) => r.key === d.ring) ?? RINGS[0];
+  const text = () => {
+    if (!d.ringText.trim()) return '';
     const unit = [...d.ringText.replace(/\s+/g, '')].join(' ');
     const reps = Math.max(1, Math.round(24 / Math.max(1, unit.replace(/\s/g, '').length + 1)));
-    // chaque répétition est suivie d'un point, y compris la dernière : la jonction en haut à gauche
+    // chaque répétition est suivie d'un point, y compris la dernière : la jonction à gauche
     // du cercle garde ainsi son séparateur ; l'espace insécable final occupe le reste du tour
-    const text = Array.from({ length: reps }, () => `${unit} ·`).join(' ') + '\u00a0';
-    ring += `<path id="${id}" d="M${C} ${C} m-79 0 a79 79 0 1 1 158 0 a79 79 0 1 1 -158 0" fill="none" stroke="none"/>`;
-    ring += `<text font-family="${FONT}" font-size="13" fill="${color}" stroke="none"><textPath href="#${id}" startOffset="0" textLength="494" lengthAdjust="spacing">${esc(text)}</textPath></text>`;
-    ring += `<circle cx="${C}" cy="${C}" r="75" stroke-width="${n(sw * 0.5)}"/>`;
-  }
-  if (d.ring === 'ticks' || d.ring === 'both') {
-    const inner = d.ring === 'both' ? 69 : 80;
-    ring += Array.from({ length: 72 }, (_, i) => {
-      const a = ((i * 5 - 90) * Math.PI) / 180;
-      const r1 = inner;
-      const r2 = inner + (i % 6 === 0 ? 6 : 3.5);
-      return `<line x1="${n(C + r1 * Math.cos(a))}" y1="${n(C + r1 * Math.sin(a))}" x2="${n(C + r2 * Math.cos(a))}" y2="${n(C + r2 * Math.sin(a))}" stroke-width="${n(i % 6 === 0 ? sw * 0.8 : sw * 0.45)}"/>`;
-    }).join('');
-  }
+    const t = Array.from({ length: reps }, () => `${unit} ·`).join(' ') + '\u00a0';
+    return (
+      `<path id="${id}" d="M${C} ${C} m-79 0 a79 79 0 1 1 158 0 a79 79 0 1 1 -158 0" fill="none" stroke="none"/>` +
+      `<text font-family="${FONT}" font-size="13" fill="${color}" stroke="none"><textPath href="#${id}" startOffset="0" textLength="494" lengthAdjust="spacing">${esc(t)}</textPath></text>`
+    );
+  };
+  const ring = ringDef.draw({ sw, color, text });
 
   const orn = d.ornaments
     .map((k) => ORNAMENTS.find((o) => o.key === k))
@@ -278,13 +548,13 @@ export function buildSealSvg(d: SealDesign, { embed = true }: { embed?: boolean 
 
   const rot = d.rotation ? ` transform="rotate(${n(d.rotation)} ${C} ${C})"` : '';
   // le carré reste droit : tourné, ses coins sortiraient du sceau
-  const frameRot = d.frame === 'square' ? '' : rot;
+  const frameRot = frame.fixed ? '' : rot;
   const attr = embed ? ` data-fuin-design="${encodeURIComponent(json)}"` : '';
 
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" class="fuin-seal"${attr}>` +
     `<g fill="none" stroke="${color}" stroke-width="${n(sw)}" stroke-linecap="round" stroke-linejoin="round">` +
-    `<g class="fs-frame"${frameRot}>${frame.draw(sw)}</g>` +
+    `<g class="fs-frame"${frameRot}>${frame.draw(sw, color)}</g>` +
     `<g class="fs-outer"${rot}>${ring}</g>` +
     `<g class="fs-inner"${rot}>${orn}${symbol}</g>` +
     `</g>${glyph}</svg>`
@@ -328,7 +598,7 @@ export function randomDesign(kanji?: string | null): SealDesign {
   return {
     v: 1,
     frame: pick(FRAMES.slice(1)).key,
-    ring: pick(['kanji', 'ticks', 'both', 'both'] as const),
+    ring: Math.random() < 0.4 ? 'both' : pick(RINGS.slice(1)).key,
     ringText: (kanji || '封 印 結 界').trim(),
     ornaments: orns,
     symbol: withSymbol ? pick(SYMBOLS).key : null,

@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { api, type CodexPage, type RollTable, type RollTier, type TrameRow, type TrameStatus } from '../../lib/api';
+import SealStudio from './SealStudio';
 import { useSession } from '../../lib/session';
 import { circleLabel, formatDate, slugify } from '../../lib/format';
 import { coverage, d100, effectiveRoll, isSuccess, ranges, tierFor, TONES } from '../../lib/rolls';
 import { copyToClipboard, Empty, ErrorState, Loader, useConfirm, useToast } from '../../components/ui';
 
-type Tab = 'liste' | 'tables' | 'dechiffreur';
+type Tab = 'liste' | 'tables' | 'dechiffreur' | 'visuel';
 const CJK = /[㐀-鿿豈-﫿]/g;
 
 export function useRollTables() {
@@ -611,9 +612,14 @@ export default function Trames({ tab }: { tab: Tab }) {
         <NavLink to="/conclave/trames/dechiffreur" className={({ isActive }) => `tab${isActive ? ' is-on' : ''}`}>
           Déchiffreur
         </NavLink>
+        <NavLink to="/conclave/trames/visuel" className={({ isActive }) => `tab${isActive ? ' is-on' : ''}`}>
+          Création de visuel
+        </NavLink>
       </nav>
       {tab === 'liste' ? (
         <TrameList />
+      ) : tab === 'visuel' ? (
+        <SealStudio />
       ) : error ? (
         <ErrorState text={error} onRetry={load} />
       ) : !tables ? (

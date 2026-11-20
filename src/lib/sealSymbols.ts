@@ -53,6 +53,18 @@ function spiral(): string {
   return `<polyline points="${p.join(' ')}"/>`;
 }
 
+/** spirale autour de (cx, cy) : `turns` tours, rayon qui grandit de `growth` par radian */
+function spiralAt(cx: number, cy: number, turns: number, growth: number, flip = false): string {
+  const p: string[] = [];
+  const steps = Math.round(turns * 40);
+  for (let i = 0; i <= steps; i++) {
+    const t = (i / steps) * Math.PI * 2 * turns;
+    const r = 1 + t * growth;
+    p.push(`${n(cx + (flip ? -1 : 1) * r * Math.cos(t))},${n(cy + r * Math.sin(t))}`);
+  }
+  return `<polyline points="${p.join(' ')}"/>`;
+}
+
 function squareSpiral(): string {
   const p: [number, number][] = [[50, 50]];
   let x = 50;
@@ -618,5 +630,282 @@ export const SYMBOLS: SealSymbol[] = [
     label: 'Lanterne',
     cat: 'mystique',
     svg: () => `<ellipse cx="50" cy="52" rx="28" ry="32"/><path d="M38 14 H62 M38 90 H62 M50 6 V14"/><path d="M24 40 Q50 48 76 40 M22 52 H78 M24 64 Q50 56 76 64"/>`,
+  },
+  // ---------------------------------------------------------------- Ajouts : corps & esprit
+  {
+    key: 'eye-spiral',
+    label: 'Œil spirale',
+    cat: 'corps',
+    svg: () => `<path d="${EYE}"/>${spiralAt(50, 50, 2.2, 1.05)}`,
+  },
+  {
+    key: 'eye-radiant',
+    label: 'Œil rayonnant',
+    cat: 'corps',
+    svg: (c) =>
+      `<path d="M20 50 Q50 26 80 50 Q50 74 20 50 Z"/><circle cx="50" cy="50" r="10"/>${dot(50, 50, 4, c)}` +
+      Array.from({ length: 12 }, (_, i) => `<path d="M${pt(38, i * 30)} L${pt(47, i * 30)}"/>`).join(''),
+  },
+  {
+    key: 'tears',
+    label: 'Œil en larmes',
+    cat: 'corps',
+    svg: () =>
+      `<path d="M10 36 Q50 68 90 36"/><path d="M24 48 L18 56 M76 48 L82 56"/>` +
+      `<path d="M38 62 C42 70 44 74 44 78 A6 6 0 0 1 32 78 C32 74 34 70 38 62 Z"/><path d="M62 70 C65 76 67 79 67 82 A5 5 0 0 1 57 82 C57 79 59 76 62 70 Z"/>`,
+  },
+  {
+    key: 'oni',
+    label: 'Masque d’oni',
+    cat: 'corps',
+    svg: () =>
+      `<path d="M24 34 Q50 20 76 34 V58 Q76 86 50 92 Q24 86 24 58 Z"/><path d="M28 34 L16 6 L38 28 M72 34 L84 6 L62 28"/><path d="M31 46 L45 53 M69 46 L55 53"/><path d="M34 72 H66 M39 72 L42 79 L45 72 M55 72 L58 79 L61 72"/>`,
+  },
+  {
+    key: 'bone',
+    label: 'Os',
+    cat: 'corps',
+    svg: () =>
+      `<path d="M31 63 L63 31 M37 69 L69 37"/><circle cx="23" cy="65" r="8"/><circle cx="35" cy="77" r="8"/><circle cx="65" cy="23" r="8"/><circle cx="77" cy="35" r="8"/>`,
+  },
+
+  // ---------------------------------------------------------------- Ajouts : éléments
+  {
+    key: 'volcano',
+    label: 'Volcan',
+    cat: 'elements',
+    svg: () =>
+      `<path d="M6 90 L34 42 H66 L94 90 Z"/><path d="M34 42 Q38 36 42 42 Q46 36 50 42 Q54 36 58 42 Q62 36 66 42"/><path d="M44 42 L41 58 M56 42 L59 52"/><path d="M50 34 Q42 24 50 18 Q58 12 52 4"/>`,
+  },
+  {
+    key: 'whirlpool',
+    label: 'Remous',
+    cat: 'elements',
+    svg: () =>
+      `<path d="M62 50 A12 12 0 1 1 50 38"/><path d="M74 50 A24 24 0 1 1 50 26"/><path d="M86 50 A36 36 0 1 1 50 14"/><circle cx="50" cy="50" r="3"/>`,
+  },
+  {
+    key: 'bubble',
+    label: 'Sphère d’eau',
+    cat: 'elements',
+    svg: () => `<circle cx="46" cy="54" r="34"/><path d="M26 44 A22 22 0 0 1 40 30"/><circle cx="80" cy="18" r="6"/><circle cx="90" cy="34" r="3.5"/>`,
+  },
+  {
+    key: 'rock',
+    label: 'Rocher',
+    cat: 'elements',
+    svg: () => `<path d="M12 82 L20 46 L40 28 L64 24 L82 40 L90 66 L80 84 Z"/><path d="M40 28 L46 52 L34 68 M64 24 L60 44 L76 58 M46 52 L60 44"/>`,
+  },
+  {
+    key: 'ice',
+    label: 'Pics de glace',
+    cat: 'elements',
+    svg: () => `<path d="M10 88 L22 42 L32 88 M32 88 L46 14 L58 88 M58 88 L70 32 L80 88 M80 88 L87 56 L92 88"/><path d="M6 88 H94"/><path d="M46 14 L46 50 M22 42 V62 M70 32 V58"/>`,
+  },
+  {
+    key: 'smoke',
+    label: 'Fumée',
+    cat: 'elements',
+    svg: () =>
+      `<path d="M28 92 C18 72 38 64 28 46 C20 32 34 22 30 8"/><path d="M50 92 C40 72 60 64 50 46 C42 32 56 22 52 8"/><path d="M72 92 C62 72 82 64 72 46 C64 32 78 22 74 8"/>`,
+  },
+  {
+    key: 'wisp',
+    label: 'Feu follet',
+    cat: 'elements',
+    svg: () => `<path d="M50 26 C58 40 66 48 64 62 A14 14 0 0 1 36 62 C34 48 42 40 50 26 Z"/><circle cx="50" cy="56" r="38" stroke-dasharray="3 7"/>`,
+  },
+
+  // ---------------------------------------------------------------- Ajouts : astres
+  {
+    key: 'sun-moon',
+    label: 'Soleil et lune',
+    cat: 'astres',
+    svg: () =>
+      `<circle cx="32" cy="50" r="16"/>` +
+      [110, 140, 170, 200, 230, 260].map((a) => `<path d="M${pt(22, a, 32, 50)} L${pt(29, a, 32, 50)}"/>`).join('') +
+      `<path d="M72 26 A24 24 0 1 0 72 74 A19 19 0 1 1 72 26 Z"/><path d="M50 14 V86"/>`,
+  },
+  {
+    key: 'planet',
+    label: 'Planète',
+    cat: 'astres',
+    svg: () => `<circle cx="50" cy="50" r="24"/><ellipse cx="50" cy="50" rx="45" ry="12" transform="rotate(-20 50 50)"/>`,
+  },
+  {
+    key: 'full-moon',
+    label: 'Pleine lune',
+    cat: 'astres',
+    svg: () => `<circle cx="50" cy="50" r="38"/><circle cx="38" cy="38" r="8"/><circle cx="62" cy="58" r="11"/><circle cx="40" cy="66" r="4"/><circle cx="64" cy="32" r="3"/>`,
+  },
+  {
+    key: 'crescent-star',
+    label: 'Croissant et étoile',
+    cat: 'astres',
+    svg: (c) => `<path d="M58 12 A38 38 0 1 0 58 88 A30 30 0 1 1 58 12 Z"/><path d="M${[0, 2, 4, 1, 3].map((i) => pt(13, -90 + i * 72, 70, 50)).join(' L')} Z" fill="${c}" stroke="none"/>`,
+  },
+
+  // ---------------------------------------------------------------- Ajouts : armes & liens
+  {
+    key: 'handcuffs',
+    label: 'Menottes',
+    cat: 'armes',
+    svg: () =>
+      `<circle cx="26" cy="64" r="18"/><circle cx="74" cy="64" r="18"/><circle cx="26" cy="64" r="11"/><circle cx="74" cy="64" r="11"/>` +
+      `<ellipse cx="40" cy="38" rx="6" ry="3.5" transform="rotate(-40 40 38)"/><ellipse cx="50" cy="32" rx="6" ry="3.5"/><ellipse cx="60" cy="38" rx="6" ry="3.5" transform="rotate(40 60 38)"/>`,
+  },
+  {
+    key: 'explosive-tag',
+    label: 'Parchemin explosif',
+    cat: 'armes',
+    svg: () =>
+      `<rect x="30" y="22" width="40" height="70" rx="2"/><path d="M38 36 H62 M50 36 V58 M40 47 H60 M42 68 H58 M42 76 H58"/><path d="M50 22 Q45 14 52 9"/><path d="M52 9 L55 2 M52 9 L60 7 M52 9 L59 14 M52 9 L46 4"/>`,
+  },
+  {
+    key: 'scythe',
+    label: 'Faux',
+    cat: 'armes',
+    svg: () => `<path d="M26 94 L60 8"/><path d="M60 8 C80 10 94 28 92 50 C84 34 70 26 54 24"/><path d="M38 64 L46 68"/>`,
+  },
+  {
+    key: 'senbon',
+    label: 'Senbon',
+    cat: 'armes',
+    svg: () => `<path d="M46 90 L28 10 M50 90 V8 M54 90 L72 10"/><circle cx="45" cy="93" r="2.5"/><circle cx="50" cy="93" r="2.5"/><circle cx="55" cy="93" r="2.5"/>`,
+  },
+  {
+    key: 'bow',
+    label: 'Arc',
+    cat: 'armes',
+    svg: () => `<path d="M30 8 Q84 50 30 92"/><path d="M30 8 V92"/><path d="M30 50 H90 M90 50 L80 44 M90 50 L80 56 M36 50 L30 44 M36 50 L30 56"/>`,
+  },
+  {
+    key: 'sword',
+    label: 'Épée droite',
+    cat: 'armes',
+    svg: () => `<path d="M50 4 L57 14 V62 H43 V14 Z"/><path d="M50 14 V58"/><path d="M30 62 H70"/><path d="M50 62 V84"/><circle cx="50" cy="90" r="5"/>`,
+  },
+  {
+    key: 'poison',
+    label: 'Fiole',
+    cat: 'armes',
+    svg: () =>
+      `<path d="M40 8 H60 M43 8 V32 L22 76 Q18 90 32 90 H68 Q82 90 78 76 L57 32 V8"/><path d="M28 66 H72"/><circle cx="44" cy="76" r="3"/><circle cx="56" cy="80" r="2"/><circle cx="52" cy="72" r="1.5"/>`,
+  },
+  {
+    key: 'lock-broken',
+    label: 'Cadenas brisé',
+    cat: 'armes',
+    svg: () =>
+      `<rect x="22" y="46" width="56" height="44" rx="6"/><path d="M34 46 V32 A16 16 0 0 1 64 24"/><path d="M50 52 L44 64 L54 72 L48 84"/>`,
+  },
+
+  // ---------------------------------------------------------------- Ajouts : nature & bêtes
+  {
+    key: 'crow',
+    label: 'Corbeau',
+    cat: 'nature',
+    svg: (c) =>
+      `<path d="M6 46 Q24 30 42 42 Q46 30 58 32 L72 26 L66 38 Q82 38 94 28 Q86 52 62 56 Q54 72 38 74 Q44 62 40 56 Q22 60 6 46 Z"/>${dot(58, 38, 2, c)}`,
+  },
+  {
+    key: 'toad',
+    label: 'Crapaud',
+    cat: 'nature',
+    svg: (c) =>
+      `<path d="M14 70 Q14 42 50 42 Q86 42 86 70 Q86 84 50 84 Q14 84 14 70 Z"/><circle cx="33" cy="40" r="9"/><circle cx="67" cy="40" r="9"/>${dot(33, 40, 3.5, c)}${dot(67, 40, 3.5, c)}<path d="M30 62 Q50 72 70 62"/><path d="M16 74 L4 88 M84 74 L96 88"/>`,
+  },
+  {
+    key: 'koi',
+    label: 'Carpe',
+    cat: 'nature',
+    svg: (c) =>
+      `<path d="M8 50 Q32 22 64 40 L88 26 L82 50 L88 74 L64 60 Q32 78 8 50 Z"/>${dot(24, 46, 2.5, c)}<path d="M40 33 L48 22 L54 36"/><path d="M38 50 Q44 44 50 50 Q56 44 62 50"/>`,
+  },
+  {
+    key: 'spider',
+    label: 'Araignée',
+    cat: 'nature',
+    svg: () =>
+      `<circle cx="50" cy="40" r="9"/><ellipse cx="50" cy="64" rx="12" ry="16"/>` +
+      `<path d="M42 40 Q26 30 18 14 M42 46 Q24 44 10 36 M42 56 Q24 60 12 74 M42 62 Q30 74 24 92 M58 40 Q74 30 82 14 M58 46 Q76 44 90 36 M58 56 Q76 60 88 74 M58 62 Q70 74 76 92"/>`,
+  },
+  {
+    key: 'ginkgo',
+    label: 'Ginkgo',
+    cat: 'nature',
+    svg: () => `<path d="M50 92 V62"/><path d="M50 62 C30 60 10 42 12 22 Q50 8 88 22 C90 42 70 60 50 62 Z"/><path d="M50 62 L46 18 M50 62 L54 18 M50 62 L28 26 M50 62 L72 26"/>`,
+  },
+  {
+    key: 'snail',
+    label: 'Escargot',
+    cat: 'nature',
+    svg: () => `${spiralAt(58, 46, 2.4, 1.75)}<path d="M8 80 H90"/><path d="M14 80 Q8 64 18 60 L22 50 M18 60 L28 54"/>`,
+  },
+  {
+    key: 'roots',
+    label: 'Racines',
+    cat: 'nature',
+    svg: () =>
+      `<path d="M50 8 V42"/><path d="M38 20 L50 30 L62 18"/><path d="M18 42 H82"/><path d="M50 42 Q40 60 26 66 Q16 70 12 88 M50 42 Q58 62 72 68 Q84 74 88 90 M50 42 V92 M50 60 Q38 74 36 92 M50 60 Q62 74 64 92"/>`,
+  },
+
+  // ---------------------------------------------------------------- Ajouts : sacré & mystique
+  {
+    key: 'flower-of-life',
+    label: 'Fleur de vie',
+    cat: 'mystique',
+    svg: () => `<circle cx="50" cy="50" r="40"/><circle cx="50" cy="50" r="20"/>` + around(6, '<circle cx="50" cy="30" r="20"/>'),
+  },
+  {
+    key: 'triquetra',
+    label: 'Triquetra',
+    cat: 'mystique',
+    svg: () => around(3, '<path d="M50 52 C28 42 32 12 50 10 C68 12 72 42 50 52 Z"/>') + '<circle cx="50" cy="52" r="22"/>',
+  },
+  {
+    key: 'ankh',
+    label: 'Croix de vie',
+    cat: 'mystique',
+    svg: () => `<path d="M50 44 C34 34 36 8 50 8 C64 8 66 34 50 44 Z"/><path d="M50 44 V92 M26 50 H74"/>`,
+  },
+  {
+    key: 'mandala',
+    label: 'Mandala',
+    cat: 'mystique',
+    svg: () =>
+      around(8, '<path d="M50 50 Q58 32 50 12 Q42 32 50 50 Z"/>') +
+      around(8, '<path d="M50 40 Q55 32 50 24 Q45 32 50 40 Z"/>', 22.5) +
+      '<circle cx="50" cy="50" r="9"/><circle cx="50" cy="50" r="44" stroke-dasharray="2 5"/>',
+  },
+  {
+    key: 'solomon',
+    label: 'Sceau de Salomon',
+    cat: 'mystique',
+    svg: () => `<circle cx="50" cy="50" r="44"/><path d="M50 8 L86 70 H14 Z"/><path d="M50 92 L14 30 H86 Z"/><circle cx="50" cy="50" r="15"/>`,
+  },
+  {
+    key: 'gate',
+    label: 'Portail',
+    cat: 'mystique',
+    svg: () => `<path d="M20 92 V40 A30 30 0 0 1 80 40 V92 Z"/><path d="M33 92 V44 A17 17 0 0 1 67 44 V92"/><circle cx="50" cy="62" r="4"/><path d="M50 66 V76"/>`,
+  },
+  {
+    key: 'pyramid',
+    label: 'Pyramide',
+    cat: 'mystique',
+    svg: () => `<path d="M50 10 L92 86 H8 Z"/><path d="M50 10 L62 86"/><path d="M21 62 H79 M32 42 H68"/>`,
+  },
+  {
+    key: 'double-spiral',
+    label: 'Double spirale',
+    cat: 'mystique',
+    svg: () => `${spiralAt(29, 50, 2, 1.6)}${spiralAt(71, 50, 2, 1.6, true)}`,
+  },
+  {
+    key: 'vortex',
+    label: 'Vortex',
+    cat: 'mystique',
+    svg: () => around(6, '<path d="M50 50 Q70 42 76 18"/>') + '<circle cx="50" cy="50" r="44"/><circle cx="50" cy="50" r="5"/>',
   },
 ];

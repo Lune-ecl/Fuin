@@ -99,6 +99,7 @@ export default function App() {
                   <Route path="trames" element={<Trames tab="liste" />} />
                   <Route path="trames/tables" element={<Trames tab="tables" />} />
                   <Route path="trames/dechiffreur" element={<Trames tab="dechiffreur" />} />
+                  <Route path="trames/visuel" element={<Trames tab="visuel" />} />
                   <Route path="trames/nouvelle" element={<TrameEditor />} />
                   <Route path="trames/:id" element={<TrameEditor />} />
                   <Route path="*" element={<Navigate to="/conclave" replace />} />
