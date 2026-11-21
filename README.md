@@ -25,9 +25,11 @@ sceaux de son cercle**, et où **le Conclave** gère les comptes, les cercles, l
   - **Catégories & droits** : cercle requis par catégorie, catégories réservées au Conclave.
   - **Journal** : historique de toutes les actions du Conclave.
 - Chaque joueur peut changer son mot de passe dans **Mon compte**.
-- **Demande de création de sceau** (`/demandes`, à partir du 4e cercle) : le shinobi décrit son sceau
+- **Demande de création de sceau** (`/demandes`, à partir du 3e cercle) : le shinobi décrit son sceau
   (nom, cercle visé, formule, effet et règles) et compose son visuel dans le créateur. La demande part en
   attente ; le Conclave la valide ou la refuse avec une explication, et peut en faire une fiche brouillon.
+- **Mes sceaux maîtrisés** (`/mon-compte/sceaux`) : chaque shinobi coche les sceaux qu'il maîtrise, sur la
+  fiche du sceau ou cercle par cercle ; le Conclave voit qui maîtrise quoi (fiche du sceau, page Membres).
 - **Trames** (Conclave → Trames) : le Conclave crée des trames faites d'étapes (énigme à déchiffrer avec
   essais limités, désenclavement, récit). « Ouvrir la trame » fait apparaître une page temporaire dans le
   menu des joueurs ; « Terminer la trame » la retire. Une bonne traduction ouvre l'étape suivante ; le
