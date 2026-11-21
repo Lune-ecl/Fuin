@@ -10,6 +10,7 @@ import {
   ORNAMENTS,
   parseDesign,
   randomDesign,
+  reviveDesign,
   RINGS,
   SYMBOL_CATEGORIES,
   SYMBOLS,
@@ -21,7 +22,8 @@ import SealEmblem from './SealEmblem';
 import { Modal, useToast } from './ui';
 import { useBrushFont } from '../lib/useBrushFont';
 import { downloadSealPng } from '../lib/sealExport';
-import { slugify } from '../lib/format';
+import { slugify, timeAgo } from '../lib/format';
+import { clearDraft, readDraft, useDraft } from '../lib/draft';
 
 const QUICK_GLYPHS = ['封', '印', '禁', '呪', '結', '界', '解', '縛', '血', '魂', '火', '雷'];
 
@@ -451,6 +453,7 @@ export default function SealCreator({
   fileName = 'sceau',
   useLabel = 'Utiliser ce visuel',
   kicker = 'Visuel de la fiche',
+  draftKey,
 }: {
   open: boolean;
   initialSvg: string | null;
@@ -460,17 +463,58 @@ export default function SealCreator({
   fileName?: string;
   useLabel?: string;
   kicker?: string;
+  /** clé du brouillon : le visuel en cours survit à un changement de page ou à une fenêtre refermée */
+  draftKey?: string;
 }) {
   const [d, setD] = useState<SealDesign>(() => startDesign(kanji));
+  // le brouillon ne s'écrit qu'une fois le visuel réellement modifié
+  const [touched, setTouched] = useState(false);
+  const [resumed, setResumed] = useState<string | null>(null);
 
   useEffect(() => {
-    if (open) setD(parseDesign(initialSvg) ?? startDesign(kanji));
-  }, [open, initialSvg, kanji]);
+    if (!open) return;
+    const saved = draftKey ? readDraft<unknown>(draftKey) : null;
+    const fromDraft = saved ? reviveDesign(saved.value) : null;
+    setD(fromDraft ?? parseDesign(initialSvg) ?? startDesign(kanji));
+    setResumed(fromDraft && saved ? saved.at : null);
+    setTouched(false);
+  }, [open, initialSvg, kanji, draftKey]);
+
+  const discard = useDraft(open && touched && draftKey ? draftKey : null, open && touched ? d : null);
+
+  const edit = (next: SealDesign) => {
+    setD(next);
+    setTouched(true);
+  };
+
+  // efface aussi un brouillon repris mais pas encore retouché
+  const dropDraft = () => {
+    discard();
+    if (draftKey) clearDraft(draftKey);
+  };
+
+  const restart = () => {
+    dropDraft();
+    setD(parseDesign(initialSvg) ?? startDesign(kanji));
+    setResumed(null);
+    setTouched(false);
+  };
 
   return (
     <Modal open={open} onClose={onClose} title="Créateur de sceau" kicker={kicker} wide>
-      {open && <SealWorkbench design={d} onChange={setD} kanji={kanji} fileName={fileName} />}
+      {open && resumed && (
+        <div className="draft-banner">
+          <span>
+            <b>Brouillon repris</b> · dernière modification {timeAgo(resumed)}
+          </span>
+          <button type="button" className="btn btn--ghost btn--sm" onClick={restart}>
+            {initialSvg ? 'Revenir au visuel enregistré' : 'Repartir de zéro'}
+          </button>
+        </div>
+      )}
+      {open && <SealWorkbench design={d} onChange={edit} kanji={kanji} fileName={fileName} />}
       <div className="form-actions">
+        {draftKey && touched && <span className="draft-note">Brouillon gardé si tu changes de page</span>}
         <button type="button" className="btn btn--ghost" onClick={onClose}>
           Annuler
         </button>
@@ -478,6 +522,7 @@ export default function SealCreator({
           type="button"
           className="btn btn--red"
           onClick={() => {
+            dropDraft();
             onUse(buildSealSvg(d));
             onClose();
           }}

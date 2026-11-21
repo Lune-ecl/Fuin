@@ -170,7 +170,7 @@ export function PageEditor() {
   const navigate = useNavigate();
   const toast = useToast();
   const confirm = useConfirm();
-  const { refresh } = useSession();
+  const { refresh, member } = useSession();
 
   const [cats, setCats] = useState<AdminCategory[] | null>(null);
   const [page, setPage] = useState<EditablePage | null>(null);
@@ -520,6 +520,7 @@ export function PageEditor() {
         onClose={() => setCreatorOpen(false)}
         onUse={(svg) => set('icon_svg', svg)}
         fileName={page.title || 'sceau'}
+        draftKey={`fiche.${member?.id ?? 'conclave'}.${page.id ?? 'nouvelle'}.visuel`}
       />
     </form>
   );

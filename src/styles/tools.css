@@ -1704,3 +1704,45 @@
   flex-wrap: wrap;
   margin-top: 10px;
 }
+
+/* ---------------------------------------------------------------------------
+   Brouillons : formulaire de demande et créateur de sceau
+   --------------------------------------------------------------------------- */
+.draft-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: 12px 0 4px;
+  padding: 10px 12px 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-red);
+  border-left: 3px solid var(--red);
+  background: var(--red-wash);
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.draft-banner b {
+  color: var(--ink);
+}
+
+.draft-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto;
+  align-self: center;
+  color: var(--mut);
+  font-size: 12px;
+}
+
+.draft-note::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--red-soft);
+  box-shadow: 0 0 6px var(--red-glow);
+}

@@ -652,10 +652,16 @@ export function parseDesign(svg: string | null | undefined): SealDesign | null {
   const m = /data-fuin-design="([^"]*)"/.exec(svg);
   if (!m) return null;
   try {
-    return { ...defaultDesign(), ...(JSON.parse(decodeURIComponent(m[1])) as Partial<SealDesign>), v: 1 };
+    return reviveDesign(JSON.parse(decodeURIComponent(m[1])));
   } catch {
     return null;
   }
+}
+
+/** Recompose un visuel complet à partir d'un objet partiel (brouillon, ancien visuel). */
+export function reviveDesign(raw: unknown): SealDesign | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  return { ...defaultDesign(), ...(raw as Partial<SealDesign>), v: 1 };
 }
 
 export function randomDesign(kanji?: string | null): SealDesign {

@@ -1,17 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { SealWorkbench, startDesign } from '../../components/SealCreator';
-import { parseDesign, buildSealSvg, type SealDesign } from '../../lib/sealDesign';
+import { parseDesign, reviveDesign, type SealDesign } from '../../lib/sealDesign';
+import { readDraft, useDraft } from '../../lib/draft';
 
-const KEY = 'fuin.atelier.visuel';
+const KEY = 'atelier.visuel';
+const LEGACY_KEY = 'fuin.atelier.visuel';
 
-// le visuel en cours est gardé dans ce navigateur pour ne pas perdre le travail
+// le visuel en cours est gardé en brouillon dans ce navigateur pour ne pas perdre le travail
 function loadSaved(): { design: SealDesign; name: string } {
+  const draft = readDraft<{ design?: unknown; name?: unknown }>(KEY);
+  const design = reviveDesign(draft?.value?.design);
+  if (design) return { design, name: typeof draft?.value?.name === 'string' ? draft.value.name : 'sceau' };
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(LEGACY_KEY);
     if (raw) {
       const saved = JSON.parse(raw) as { svg?: string; name?: string };
-      const design = parseDesign(saved.svg);
-      if (design) return { design, name: saved.name ?? 'sceau' };
+      const old = parseDesign(saved.svg);
+      if (old) return { design: old, name: saved.name ?? 'sceau' };
     }
   } catch {
     /* stockage indisponible : on repart d'un visuel neuf */
@@ -25,16 +30,11 @@ export default function SealStudio() {
   const [design, setDesign] = useState<SealDesign>(initial.design);
   const [name, setName] = useState(initial.name);
 
-  useEffect(() => {
-    const t = window.setTimeout(() => {
-      try {
-        localStorage.setItem(KEY, JSON.stringify({ svg: buildSealSvg(design), name }));
-      } catch {
-        /* rien à faire : la sauvegarde locale est un confort */
-      }
-    }, 400);
-    return () => window.clearTimeout(t);
-  }, [design, name]);
+  // écrit au fil des modifications, et tout de suite quand on change de page ou d'onglet
+  useDraft(
+    KEY,
+    useMemo(() => ({ design, name }), [design, name]),
+  );
 
   return (
     <section className="panel">
@@ -42,8 +42,8 @@ export default function SealStudio() {
         <div>
           <h2 className="panel__title">Création de visuel</h2>
           <p className="muted small">
-            Dessine un sceau pour une trame, un objet ou un message, puis télécharge-le en PNG transparent. Ton travail reste gardé dans ce
-            navigateur.
+            Dessine un sceau pour une trame, un objet ou un message, puis télécharge-le en PNG transparent. Ton travail est gardé en brouillon
+            dans ce navigateur, même si tu changes de page.
           </p>
         </div>
         <label className="field">

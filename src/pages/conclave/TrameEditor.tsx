@@ -136,11 +136,13 @@ function StepEditor({
   onChange,
   onMove,
   onRemove,
+  draftKey,
 }: {
   step: TrameStepDef;
   index: number;
   count: number;
   tables: RollTable[];
+  draftKey: string;
   onChange: (s: TrameStepDef) => void;
   onMove: (dir: -1 | 1) => void;
   onRemove: () => void;
@@ -232,6 +234,7 @@ function StepEditor({
             fileName={step.title || 'sceau-de-trame'}
             kicker="Sceau de la trame"
             useLabel="Utiliser ce sceau"
+            draftKey={draftKey}
           />
         </div>
       )}
@@ -341,7 +344,7 @@ export default function TrameEditor() {
   const navigate = useNavigate();
   const toast = useToast();
   const confirm = useConfirm();
-  const { refresh } = useSession();
+  const { refresh, member } = useSession();
   const [trame, setTrame] = useState<TrameDef | null>(isNew ? emptyTrame() : null);
   const [admin, setAdmin] = useState<TrameAdmin | null>(null);
   const [tables, setTables] = useState<RollTable[]>([]);
@@ -549,6 +552,7 @@ export default function TrameEditor() {
               onChange={(n) => setStep(i, n)}
               onMove={(dir) => move(i, dir)}
               onRemove={() => update({ steps: trame.steps.filter((_, j) => j !== i) })}
+              draftKey={`trame.${member?.id ?? 'conclave'}.${trame.id ?? 'nouvelle'}.etape${i}.visuel`}
             />
           ))}
 

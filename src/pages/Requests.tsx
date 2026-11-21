@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { api, type SealRequest } from '../lib/api';
 import { useSession } from '../lib/session';
@@ -6,6 +6,7 @@ import { canRequest, circleLabel, formatDate, RANKS, timeAgo } from '../lib/form
 import { displaySealSvg, sealGlyphs } from '../lib/sealDesign';
 import { sanitizeSvg } from '../lib/markdown';
 import { useBrushFont } from '../lib/useBrushFont';
+import { readDraft, useDraft, type Draft } from '../lib/draft';
 import Markdown from '../components/Markdown';
 import SealCreator from '../components/SealCreator';
 import { Empty, ErrorState, Loader, useConfirm, useToast } from '../components/ui';
@@ -32,18 +33,75 @@ export function RequestSeal({ svg, kanji, size = 'md' }: { svg: string | null; k
   return <div className={`seal-icon seal-icon--${size}`} dangerouslySetInnerHTML={{ __html: html || '<span>封</span>' }} />;
 }
 
-function RequestForm({ onSent }: { onSent: () => void }) {
+interface RequestDraft {
+  title: string;
+  circle: number | null;
+  kanji: string;
+  description: string;
+  content: string;
+  icon: string | null;
+}
+
+const text = (v: unknown, fallback = '') => (typeof v === 'string' ? v : fallback);
+
+// brouillon relu avec prudence : il vient du navigateur et peut dater d'une ancienne version du site
+function readRequestDraft(key: string): Draft<RequestDraft> | null {
+  const d = readDraft<Partial<RequestDraft>>(key);
+  const v = d?.value;
+  if (!d || !v || typeof v !== 'object') return null;
+  return {
+    at: d.at,
+    value: {
+      title: text(v.title),
+      circle: typeof v.circle === 'number' && (RANKS as readonly number[]).includes(v.circle) ? v.circle : null,
+      kanji: text(v.kanji),
+      description: text(v.description),
+      content: text(v.content, TEMPLATE),
+      icon: text(v.icon) || null,
+    },
+  };
+}
+
+function RequestForm({ onSent, draftKey }: { onSent: () => void; draftKey: string }) {
   const toast = useToast();
-  const [title, setTitle] = useState('');
-  const [circle, setCircle] = useState<number | null>(null);
-  const [kanji, setKanji] = useState('');
-  const [description, setDescription] = useState('');
-  const [content, setContent] = useState(TEMPLATE);
-  const [icon, setIcon] = useState<string | null>(null);
+  const confirm = useConfirm();
+  const [restored, setRestored] = useState(() => readRequestDraft(draftKey));
+  const init = restored?.value;
+  const [title, setTitle] = useState(init?.title ?? '');
+  const [circle, setCircle] = useState<number | null>(init?.circle ?? null);
+  const [kanji, setKanji] = useState(init?.kanji ?? '');
+  const [description, setDescription] = useState(init?.description ?? '');
+  const [content, setContent] = useState(init?.content ?? TEMPLATE);
+  const [icon, setIcon] = useState<string | null>(init?.icon ?? null);
   const [preview, setPreview] = useState(false);
   const [creator, setCreator] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // tout ce qui est écrit part en brouillon : changer de page ou d'onglet ne fait rien perdre
+  const draft = useMemo<RequestDraft | null>(() => {
+    const blank = !title.trim() && circle === null && !kanji.trim() && !description.trim() && content.trim() === TEMPLATE.trim() && !icon;
+    return blank ? null : { title, circle, kanji, description, content, icon };
+  }, [title, circle, kanji, description, content, icon]);
+  const discard = useDraft(draftKey, draft);
+
+  const reset = () => {
+    discard();
+    setRestored(null);
+    setTitle('');
+    setCircle(null);
+    setKanji('');
+    setDescription('');
+    setContent(TEMPLATE);
+    setIcon(null);
+    setPreview(false);
+  };
+
+  const dropDraft = async () => {
+    if (!(await confirm({ title: 'Effacer le brouillon ?', text: 'Le formulaire sera vidé, visuel compris.', confirm: 'Effacer', danger: true }))) return;
+    reset();
+    toast('Brouillon effacé');
+  };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -52,12 +110,7 @@ function RequestForm({ onSent }: { onSent: () => void }) {
     try {
       await api.requestSubmit({ title, circle, kanji, description, content_md: content, icon_svg: icon });
       toast('Demande envoyée au Conclave');
-      setTitle('');
-      setCircle(null);
-      setKanji('');
-      setDescription('');
-      setContent(TEMPLATE);
-      setIcon(null);
+      reset();
       onSent();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -73,6 +126,16 @@ function RequestForm({ onSent }: { onSent: () => void }) {
         Décris ton sceau et compose son visuel. La demande part en attente de validation : le Conclave l’accepte, ou la refuse en
         t’expliquant pourquoi.
       </p>
+      {restored && draft && (
+        <div className="draft-banner">
+          <span>
+            <b>Brouillon repris</b> · tu avais commencé cette demande {timeAgo(restored.at)}
+          </span>
+          <button type="button" className="btn btn--ghost btn--sm" onClick={() => void dropDraft()}>
+            Effacer le brouillon
+          </button>
+        </div>
+      )}
       <form className="form request-form" onSubmit={submit}>
         <div className="request-form__grid">
           <div className="request-form__fields">
@@ -136,6 +199,12 @@ function RequestForm({ onSent }: { onSent: () => void }) {
 
         {error && <p className="form-error">{error}</p>}
         <div className="form-actions">
+          {draft && <span className="draft-note">Brouillon gardé dans ce navigateur</span>}
+          {draft && !restored && (
+            <button type="button" className="btn btn--ghost" onClick={() => void dropDraft()}>
+              Effacer le brouillon
+            </button>
+          )}
           <button type="submit" className="btn btn--red" disabled={busy}>
             {busy ? 'Envoi…' : 'Envoyer au Conclave'}
           </button>
@@ -150,6 +219,7 @@ function RequestForm({ onSent }: { onSent: () => void }) {
         fileName={title || 'mon-sceau'}
         kicker="Visuel proposé"
         useLabel="Garder ce visuel"
+        draftKey={`${draftKey}.visuel`}
       />
     </section>
   );
@@ -265,7 +335,7 @@ export default function Requests() {
         </p>
       </header>
 
-      <RequestForm onSent={load} />
+      <RequestForm onSent={load} draftKey={`demande.${member?.id ?? 'invite'}`} />
 
       <section className="panel">
         <h2 className="panel__title">Mes demandes</h2>
