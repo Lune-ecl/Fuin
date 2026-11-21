@@ -221,6 +221,34 @@ export interface SealRequest {
   member: { id: string; name: string; rank: number; is_conclave: boolean } | null;
 }
 
+export interface MasteryPage {
+  id: number;
+  slug: string;
+  title: string;
+  kanji: string | null;
+  icon_svg: string | null;
+  badge: 'mj' | null;
+  mastered: boolean;
+}
+
+export interface MasteryGroup {
+  id: number;
+  slug: string;
+  name: string;
+  glyph: string;
+  pages: MasteryPage[];
+}
+
+export interface MemberMastery {
+  id: number;
+  slug: string;
+  title: string;
+  kanji: string | null;
+  category: string;
+  glyph: string;
+  since: string;
+}
+
 export interface SealRequestInput {
   title: string;
   circle: number | null;
@@ -292,9 +320,13 @@ export interface PageData {
     hidden: boolean;
     min_rank: number;
     updated_at: string;
+    /** le shinobi connecté a coché ce sceau comme maîtrisé */
+    mastered?: boolean;
     category: { slug: string; name: string; glyph: string; index_slug: string | null };
   };
   slot: SlotInfo | null;
+  /** qui maîtrise ce sceau (Conclave seulement) */
+  masters?: { id: string; name: string; rank: number }[] | null;
   children: {
     slug: string;
     title: string;
@@ -304,6 +336,7 @@ export interface PageData {
     icon_svg: string | null;
     slotted: boolean;
     hidden: boolean;
+    mastered?: boolean;
   }[] | null;
   related: { slug: string; title: string; kanji: string | null }[];
 }
@@ -314,6 +347,8 @@ export interface AdminMember extends Member {
   last_login_at: string | null;
   created_at: string;
   slots: number;
+  /** nombre de sceaux maîtrisés */
+  masteries?: number;
   is_me: boolean;
 }
 
@@ -555,6 +590,9 @@ export const api = {
 
   // Demandes de création de sceau
   myRequests: () => rpc<SealRequest[]>('fuin_requests_mine'),
+  masteries: () => rpc<MasteryGroup[]>('fuin_masteries_mine'),
+  masterySet: (pageId: number, on: boolean) => rpc<{ ok: boolean; mastered: boolean; total: number }>('fuin_mastery_set', { p_page_id: pageId, p_on: on }),
+  memberMasteries: (memberId: string) => rpc<MemberMastery[]>('fuin_admin_member_masteries', { p_member_id: memberId }),
   requestSubmit: (req: SealRequestInput) => rpc<{ id: number }>('fuin_request_submit', { p_req: req }),
   requestWithdraw: (id: number) => rpc<{ ok: boolean }>('fuin_request_withdraw', { p_id: id }),
   requestUpdate: (id: number, req: SealRequestInput) => rpc<{ ok: boolean; status: RequestStatus }>('fuin_request_update', { p_id: id, p_req: req }),

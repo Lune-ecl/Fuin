@@ -60,7 +60,7 @@ function ReviewModal({
           rows={5}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder={refuse ? 'Ex. trop proche du Sceau de silence, effet trop puissant pour le 4ème cercle…' : 'Ex. validé, la fiche sera ajoutée au 4ème cercle.'}
+          placeholder={refuse ? 'Ex. trop proche du Sceau de silence, effet trop puissant pour le 3ème cercle…' : 'Ex. validé, la fiche sera ajoutée au 3ème cercle.'}
           autoFocus
         />
       </label>
@@ -158,7 +158,7 @@ export default function ConclaveRequests() {
       <header className="page-head">
         <p className="kicker">Console du Conclave</p>
         <h1>Demandes de création</h1>
-        <p className="muted">Les sceaux proposés par les shinobi du 4ème cercle et plus. Un refus doit toujours être expliqué.</p>
+        <p className="muted">Les sceaux proposés par les shinobi du 3ème cercle et plus. Un refus doit toujours être expliqué.</p>
       </header>
 
       <div className="chips">

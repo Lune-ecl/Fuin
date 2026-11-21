@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useSession } from '../lib/session';
 import { circleLabel, initials, rankTitle, RANK_KANJI } from '../lib/format';
@@ -59,6 +60,17 @@ export default function Account() {
           {RANK_KANJI[member.rank]}
         </span>
       </section>
+
+      <Link to="/mon-compte/sceaux" className="panel account-link">
+        <span className="account-link__glyph" aria-hidden="true">
+          修
+        </span>
+        <span>
+          <b>Mes sceaux maîtrisés</b>
+          <small>Coche les sceaux que ton shinobi maîtrise, cercle par cercle.</small>
+        </span>
+        <i aria-hidden="true">→</i>
+      </Link>
 
       <section className="panel">
         <h2 className="panel__title">Changer mon mot de passe</h2>

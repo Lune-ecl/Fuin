@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
-import { api, ApiError, type AdminMember } from '../../lib/api';
+import { Link } from 'react-router-dom';
+import { api, ApiError, type AdminMember, type MemberMastery } from '../../lib/api';
 import { useSession } from '../../lib/session';
-import { circleLabel, initials, normalize, RANKS, timeAgo } from '../../lib/format';
+import { circleLabel, formatDate, initials, normalize, RANKS, timeAgo } from '../../lib/format';
 import { copyToClipboard, Empty, ErrorState, Loader, Modal, RankPicker, Toggle, useConfirm, useToast } from '../../components/ui';
 
 function generatePassword(): string {
@@ -229,6 +230,64 @@ function EditModal({ member, onClose, onSaved }: { member: AdminMember | null; o
 
 type Filter = 'all' | 'conclave' | 'inactive' | `r${number}`;
 
+/** Sceaux qu'un shinobi a cochés comme maîtrisés. */
+function MasteriesModal({ member, onClose }: { member: AdminMember | null; onClose: () => void }) {
+  const [list, setList] = useState<MemberMastery[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!member) return;
+    setList(null);
+    setError(null);
+    api
+      .memberMasteries(member.id)
+      .then(setList)
+      .catch((e) => setError(e instanceof Error ? e.message : String(e)));
+  }, [member]);
+
+  const groups = (list ?? []).reduce<{ name: string; glyph: string; items: MemberMastery[] }[]>((acc, x) => {
+    const g = acc.find((a) => a.name === x.category);
+    if (g) g.items.push(x);
+    else acc.push({ name: x.category, glyph: x.glyph, items: [x] });
+    return acc;
+  }, []);
+
+  return (
+    <Modal open={!!member} onClose={onClose} title={member ? `Sceaux maîtrisés · ${member.display_name}` : ''} kicker="Membres">
+      {error ? (
+        <p className="form-error">{error}</p>
+      ) : !list ? (
+        <Loader label="Lecture des sceaux…" />
+      ) : list.length === 0 ? (
+        <Empty glyph="修">Ce shinobi n’a encore coché aucun sceau.</Empty>
+      ) : (
+        <div className="masteries-list">
+          {groups.map((g) => (
+            <section key={g.name}>
+              <h3>
+                <span aria-hidden="true">{g.glyph}</span> {g.name} <small>{g.items.length}</small>
+              </h3>
+              <ul>
+                {g.items.map((x) => (
+                  <li key={x.id}>
+                    <Link to={`/${x.slug}`}>{x.title}</Link>
+                    {x.kanji && (
+                      <span lang="ja" className="masteries-list__kanji">
+                        {x.kanji}
+                      </span>
+                    )}
+                    <small>depuis {formatDate(x.since)}</small>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 export default function Members() {
   const toast = useToast();
   const confirm = useConfirm();
@@ -239,6 +298,7 @@ export default function Members() {
   const [filter, setFilter] = useState<Filter>('all');
   const [creds, setCreds] = useState<Credentials | null>(null);
   const [editing, setEditing] = useState<AdminMember | null>(null);
+  const [mastery, setMastery] = useState<AdminMember | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -386,6 +446,11 @@ export default function Members() {
                       <span>Connexion : {timeAgo(m.last_login_at)}</span>
                     )}
                     {m.slots > 0 && <span>· {m.slots} slot(s)</span>}
+                    {m.masteries !== undefined && (
+                      <button type="button" className="member__masteries" onClick={() => setMastery(m)}>
+                        · {m.masteries} sceau{m.masteries > 1 ? 'x' : ''} maîtrisé{m.masteries > 1 ? 's' : ''}
+                      </button>
+                    )}
                   </small>
                 </div>
                 <div className="member__rank">
@@ -421,6 +486,7 @@ export default function Members() {
       </section>
 
       <CredentialsModal creds={creds} onClose={() => setCreds(null)} />
+      <MasteriesModal member={mastery} onClose={() => setMastery(null)} />
       <EditModal
         member={editing}
         onClose={() => setEditing(null)}

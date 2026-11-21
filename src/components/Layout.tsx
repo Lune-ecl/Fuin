@@ -57,6 +57,14 @@ function GrimoireNav() {
         </p>
       </div>
 
+      <NavLink to="/mon-compte/sceaux" className={({ isActive }) => `atelier-link atelier-link--mastery${isActive ? ' is-active' : ''}`}>
+        <span className="atelier-link__glyph">修</span>
+        <span>
+          <b>Mes sceaux maîtrisés</b>
+          <small>Cocher les sceaux que je connais</small>
+        </span>
+      </NavLink>
+
       {canRequest(member) && (
         <NavLink to="/demandes" className={({ isActive }) => `atelier-link${isActive ? ' is-active' : ''}`}>
           <span className="atelier-link__glyph">願</span>
@@ -198,6 +206,9 @@ function AccountMenu() {
               <span>願</span> Demande de création de sceau
             </Link>
           )}
+          <Link role="menuitem" to="/mon-compte/sceaux" onClick={() => setOpen(false)}>
+            <span>修</span> Mes sceaux maîtrisés
+          </Link>
           <Link role="menuitem" to="/mon-compte" onClick={() => setOpen(false)}>
             <span>鍵</span> Mon compte
           </Link>

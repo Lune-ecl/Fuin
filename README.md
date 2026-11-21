@@ -126,6 +126,7 @@ fois, mais le relancer ne casse rien).
 - `007_memorial.sql` : page **Mémorial des maîtres** dans Fondations (Grands Maîtres et Maîtres avec portrait, titre, statut et histoire), gérée par le Conclave directement sur la page.
 - `008_trames_reservees.sql` : trames réservées à des shinobi choisis (eux seuls et le Conclave les voient) et réussite critique qui brise deux verrous au désenclavement.
 - `009_demandes_et_fiches_des_maitres.sql` : demandes de création de sceau modifiables, annulables (elles redeviennent des brouillons, invisibles du Conclave) et renvoyables ; au mémorial, chaque fiche peut être liée à un shinobi qui modifie lui-même son portrait, son titre et son histoire (liaison automatique par le nom).
+- `010_sceaux_maitrises.sql` : les demandes de création de sceau s'ouvrent au 3ème cercle ; chaque shinobi coche les sceaux qu'il maîtrise (sur la fiche ou dans « Mes sceaux maîtrisés »), le Conclave voit qui maîtrise quoi.
 
 ### 5. Base toujours éveillée
 

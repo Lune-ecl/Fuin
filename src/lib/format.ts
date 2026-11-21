@@ -85,8 +85,14 @@ export const AUDIT_LABELS: Record<string, string> = {
   'trame.end': 'a terminé la trame',
   'trame.reset': 'a remis à zéro la trame',
   'trame.delete': 'a supprimé la trame',
+  'request.draft': 'a gardé en brouillon le sceau',
+  'request.update': 'a modifié sa demande',
+  'request.cancel': 'a annulé sa demande',
+  'memorial.own_update': 'a modifié sa fiche du mémorial',
+  'mastery.add': 'maîtrise désormais',
+  'mastery.remove': 'ne coche plus',
 };
 
 export function canRequest(m: { rank: number; is_conclave: boolean } | null): boolean {
-  return !!m && (m.is_conclave || m.rank >= 4);
+  return !!m && (m.is_conclave || m.rank >= 3);
 }

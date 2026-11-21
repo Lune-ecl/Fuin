@@ -1791,3 +1791,384 @@
   color: #f2b33d;
   font-weight: 600;
 }
+
+/* ---------------------------------------------------------------------------
+   Sceaux maîtrisés
+   --------------------------------------------------------------------------- */
+.atelier-link--mastery {
+  margin-bottom: 12px;
+}
+
+.atelier-link--mastery + .atelier-link {
+  margin-top: 0;
+}
+
+.mastery-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 16px;
+}
+
+.mastery {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px 9px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: 13.5px;
+  font-weight: 600;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+
+.mastery:hover {
+  border-color: var(--line-red);
+  color: var(--ink);
+}
+
+.mastery.is-on {
+  border-color: var(--red);
+  background: var(--red-wash);
+  color: var(--ink);
+}
+
+.mastery__box {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: 7px;
+  border: 1.5px solid var(--line-2);
+  background: var(--bg-2);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s var(--ease);
+}
+
+.is-on > .mastery__box,
+.is-on .mastery-card__check .mastery__box {
+  border-color: var(--red-hot);
+  background: var(--red);
+  box-shadow: 0 0 12px var(--red-glow);
+}
+
+.mastery-row__link {
+  color: var(--mut);
+  font-size: 12.5px;
+}
+
+.mastery-row__link:hover {
+  color: var(--red-soft);
+}
+
+.talisman__mastered {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--red);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  box-shadow: 0 0 10px var(--red-glow);
+}
+
+.conclave-bar__masters {
+  flex-basis: 100%;
+  margin: 2px 0 0;
+  color: var(--ink-2);
+  font-size: 12.5px;
+  text-align: center;
+}
+
+.conclave-bar__masters b {
+  color: var(--red-soft);
+  font-weight: 700;
+}
+
+/* Page « Mes sceaux maîtrisés » */
+.mastery-total {
+  display: grid;
+  justify-items: end;
+  gap: 4px;
+  min-width: 170px;
+}
+
+.mastery-total b {
+  font: 600 38px/1 var(--display);
+  color: var(--ink);
+}
+
+.mastery-total b small {
+  font-size: 18px;
+  color: var(--mut);
+}
+
+.mastery-total > span:not(.mastery-progress) {
+  color: var(--mut);
+  font-size: 12.5px;
+}
+
+.mastery-progress {
+  display: block;
+  width: 100%;
+  height: 5px;
+  border-radius: 99px;
+  background: rgba(255, 236, 230, 0.08);
+  overflow: hidden;
+}
+
+.mastery-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--red-deep), var(--red-hot));
+  box-shadow: 0 0 10px var(--red-glow);
+  transition: width 0.4s var(--ease);
+}
+
+.mastery-group {
+  margin-top: 22px;
+}
+
+.mastery-group__head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 12px;
+  margin-bottom: 12px;
+}
+
+.mastery-group__glyph {
+  font: 400 22px/1 var(--brush);
+  color: var(--red-hot);
+}
+
+.mastery-group__head h2 {
+  margin: 0;
+  font: 700 17px var(--display);
+}
+
+.mastery-group__count {
+  color: var(--mut);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.mastery-group__head .mastery-progress {
+  grid-column: 1 / -1;
+}
+
+.mastery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr));
+  gap: 10px;
+}
+
+.mastery-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  transition: border-color 0.2s, background 0.2s, transform 0.2s var(--ease);
+}
+
+.mastery-card:hover {
+  border-color: var(--line-red);
+}
+
+.mastery-card.is-on {
+  border-color: var(--red);
+  background: linear-gradient(160deg, rgba(216, 30, 48, 0.14), var(--bg-2) 60%);
+}
+
+.mastery-card__check {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 12px 10px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.mastery-card__check input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mastery-card__check .mastery__box {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+}
+
+.mastery-card__check input:focus-visible + .mastery__box {
+  outline: 2px solid var(--red-hot);
+  outline-offset: 2px;
+}
+
+.mastery-card__seal.seal-icon {
+  --size: 70px;
+}
+
+.mastery-card:not(.is-on) .mastery-card__seal {
+  opacity: 0.55;
+  filter: saturate(0.4);
+  transition: opacity 0.2s, filter 0.2s;
+}
+
+.mastery-card:hover .mastery-card__seal {
+  opacity: 1;
+  filter: none;
+}
+
+.mastery-card__text {
+  display: grid;
+  gap: 2px;
+}
+
+.mastery-card__text b {
+  font-size: 13.5px;
+  line-height: 1.3;
+}
+
+.mastery-card__kanji {
+  font: 400 14px var(--brush);
+  color: var(--red-soft);
+  letter-spacing: 0.08em;
+}
+
+.mastery-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 12px 10px;
+}
+
+.mastery-card__read {
+  margin-left: auto;
+  color: var(--mut);
+  font-size: 12px;
+}
+
+.mastery-card__read:hover {
+  color: var(--red-soft);
+}
+
+/* Mon compte → Mes sceaux */
+.account-link {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: border-color 0.2s;
+}
+
+.account-link:hover {
+  border-color: var(--line-red);
+}
+
+.account-link__glyph {
+  font: 400 30px/1 var(--brush);
+  color: var(--red-hot);
+}
+
+.account-link b {
+  display: block;
+  font-size: 15px;
+}
+
+.account-link small {
+  color: var(--mut);
+  font-size: 12.5px;
+}
+
+.account-link i {
+  margin-left: auto;
+  color: var(--red-soft);
+  font-style: normal;
+}
+
+/* Conclave : sceaux maîtrisés d'un membre */
+.member__masteries {
+  color: var(--red-soft);
+  font: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.masteries-list {
+  display: grid;
+  gap: 16px;
+}
+
+.masteries-list h3 {
+  margin: 0 0 6px;
+  font: 700 14px var(--display);
+  color: var(--ink-2);
+}
+
+.masteries-list h3 span {
+  font-family: var(--brush);
+  color: var(--red-hot);
+}
+
+.masteries-list h3 small {
+  color: var(--mut);
+  font: 600 12px var(--sans);
+}
+
+.masteries-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.masteries-list li {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 7px 10px;
+  border-radius: 9px;
+  background: var(--bg-2);
+}
+
+.masteries-list li small {
+  margin-left: auto;
+  color: var(--mut-2);
+  font-size: 11.5px;
+}
+
+.masteries-list__kanji {
+  font: 400 14px var(--brush);
+  color: var(--red-soft);
+}
+
+@media (max-width: 760px) {
+  .mastery-total {
+    justify-items: start;
+    width: 100%;
+  }
+
+  .mastery-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

@@ -9,6 +9,7 @@ import Login from './pages/Login';
 import Home from './pages/Home';
 import PageView from './pages/PageView';
 import Account from './pages/Account';
+import MySeals from './pages/MySeals';
 import Dashboard from './pages/conclave/Dashboard';
 import Members from './pages/conclave/Members';
 import Slots from './pages/conclave/Slots';
@@ -75,6 +76,7 @@ export default function App() {
               >
                 <Route index element={<Home />} />
                 <Route path="mon-compte" element={<Account />} />
+                <Route path="mon-compte/sceaux" element={<MySeals />} />
                 <Route path="demandes" element={<Requests />} />
                 <Route path="trame/:id" element={<Trame />} />
                 <Route

@@ -450,10 +450,10 @@ export default function Requests() {
     return (
       <div className="locked">
         <div className="locked__seal" aria-hidden="true">
-          <span>四</span>
+          <span>三</span>
         </div>
         <p className="kicker">Atelier du Maître Fuin</p>
-        <h1>Les demandes de création s’ouvrent au 4ème cercle.</h1>
+        <h1>Les demandes de création s’ouvrent au 3ème cercle.</h1>
         <Link to="/" className="btn btn--ghost">
           ← Retour au Conclave
         </Link>
@@ -519,8 +519,7 @@ export default function Requests() {
         <p className="kicker">Atelier du Maître Fuin</p>
         <h1>Demande de création de sceau</h1>
         <p className="muted">
-          Tu as atteint le cercle des Maîtres : tu peux proposer tes propres sceaux au Conclave, avec leur formule, leurs règles et
-          leur visuel.
+          Dès le 3ème cercle, tu peux proposer tes propres sceaux au Conclave, avec leur formule, leurs règles et leur visuel.
         </p>
       </header>
 

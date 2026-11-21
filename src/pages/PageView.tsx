@@ -11,6 +11,44 @@ import { displaySealSvg, sealGlyphs } from '../lib/sealDesign';
 import { useBrushFont } from '../lib/useBrushFont';
 import { copyToClipboard, ErrorState, Loader, SealBadge, useToast } from '../components/ui';
 
+/** Case « Je maîtrise ce sceau » : le shinobi coche lui-même les sceaux qu'il connaît. */
+function MasteryToggle({ pageId, initial }: { pageId: number; initial: boolean }) {
+  const toast = useToast();
+  const [on, setOn] = useState(initial);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => setOn(initial), [initial, pageId]);
+
+  const flip = async () => {
+    const next = !on;
+    setOn(next);
+    setBusy(true);
+    try {
+      const r = await api.masterySet(pageId, next);
+      toast(next ? `Sceau maîtrisé · ${r.total} au total` : 'Sceau retiré de tes sceaux maîtrisés');
+    } catch (e) {
+      setOn(!next);
+      toast(e instanceof Error ? e.message : String(e), 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="mastery-row">
+      <button type="button" className={`mastery${on ? ' is-on' : ''}`} role="checkbox" aria-checked={on} onClick={() => void flip()} disabled={busy}>
+        <span className="mastery__box" aria-hidden="true">
+          {on ? '✓' : ''}
+        </span>
+        {on ? 'Je maîtrise ce sceau' : 'Cocher si je maîtrise ce sceau'}
+      </button>
+      <Link to="/mon-compte/sceaux" className="mastery-row__link">
+        Mes sceaux maîtrisés →
+      </Link>
+    </div>
+  );
+}
+
 function KanjiBanner({ kanji }: { kanji: string }) {
   const toast = useToast();
   return (
@@ -180,7 +218,7 @@ export default function PageView() {
   }
   if (!data) return <Loader />;
 
-  const { page, slot, children, related } = data;
+  const { page, slot, children, related, masters } = data;
   const icon = sanitizeSvg(page.icon_svg);
   // chaque sceau a un visuel : celui du créateur, l'icône importée, ou un sceau dessiné avec sa formule
   const emblem = page.kind === 'seal' && font.ready ? displaySealSvg(page.icon_svg, page.kanji) : null;
@@ -228,8 +266,15 @@ export default function PageView() {
                 {slot ? 'Gérer les slots' : 'Sloter ce sceau'}
               </Link>
             )}
+            {masters && (
+              <p className="conclave-bar__masters">
+                <b>Maîtrisé par</b>{' '}
+                {masters.length ? masters.map((x) => x.name).join(', ') : <span className="muted">personne n’a encore coché ce sceau</span>}
+              </p>
+            )}
           </div>
         )}
+        {page.kind === 'seal' && page.mastered !== undefined && <MasteryToggle pageId={page.id} initial={page.mastered} />}
       </header>
 
       <div className="archive__grid">
@@ -259,6 +304,11 @@ export default function PageView() {
                     <span className="talisman__badge">
                       <SealBadge badge={c.badge} slotted={c.slotted} />
                     </span>
+                    {c.mastered && (
+                      <span className="talisman__mastered" title="Tu maîtrises ce sceau">
+                        ✓ Maîtrisé
+                      </span>
+                    )}
                     <span
                       className="talisman__seal seal-icon"
                       dangerouslySetInnerHTML={{

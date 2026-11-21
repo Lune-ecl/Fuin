@@ -166,7 +166,7 @@ alter table fuin.slot_assignments enable row level security;
 alter table fuin.audit_log        enable row level security;
 alter table fuin.keepalive        enable row level security;
 
--- Demandes de création de sceau (4e cercle et plus)
+-- Demandes de création de sceau (3e cercle et plus)
 create table if not exists fuin.seal_requests (
   id          serial primary key,
   member_id   uuid not null references fuin.members(id) on delete cascade,
@@ -267,6 +267,16 @@ create table if not exists fuin.memorial (
   updated_by uuid references fuin.members(id) on delete set null
 );
 create index if not exists memorial_rank_idx on fuin.memorial(rank, position);
+
+-- Sceaux qu'un shinobi déclare maîtriser (il coche lui-même, parmi ceux qu'il peut lire)
+create table if not exists fuin.masteries (
+  member_id  uuid not null references fuin.members(id) on delete cascade,
+  page_id    integer not null references fuin.pages(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (member_id, page_id)
+);
+create index if not exists masteries_page_idx on fuin.masteries(page_id);
+alter table fuin.masteries enable row level security;
 alter table fuin.memorial enable row level security;
 -- le maître lié à une fiche peut la modifier lui-même (bases existantes)
 alter table fuin.memorial add column if not exists member_id uuid references fuin.members(id) on delete set null;
@@ -624,14 +634,21 @@ begin
       'kind', p.kind, 'badge', p.badge, 'kanji', p.kanji, 'icon_svg', p.icon_svg,
       'description', p.description, 'content_md', fuin.strip_secret(m, p.content_md), 'hidden', p.hidden,
       'min_rank', greatest(c.min_rank, coalesce(p.min_rank, 1)), 'updated_at', p.updated_at,
+      'mastered', exists (select 1 from fuin.masteries w where w.member_id = m.id and w.page_id = p.id),
       'category', json_build_object('slug', c.slug, 'name', c.name, 'glyph', c.glyph,
         'index_slug', (select q.slug from fuin.pages q where q.category_id = c.id and q.kind = 'index' order by q.position limit 1))
     ),
     'slot', fuin.slot_json(p.id, m.is_conclave),
+    -- le Conclave voit qui maîtrise ce sceau
+    'masters', case when m.is_conclave and p.kind = 'seal' then coalesce((
+        select json_agg(json_build_object('id', x.id, 'name', x.display_name, 'rank', x.rank) order by x.rank desc, x.display_name)
+          from fuin.masteries w join fuin.members x on x.id = w.member_id
+         where w.page_id = p.id), '[]'::json) else null end,
     'children', case when p.kind = 'index' then coalesce((
         select json_agg(json_build_object(
           'slug', q.slug, 'title', q.title, 'description', q.description, 'badge', q.badge,
-          'kanji', q.kanji, 'icon_svg', q.icon_svg, 'slotted', fuin.is_slotted(q.id), 'hidden', q.hidden
+          'kanji', q.kanji, 'icon_svg', q.icon_svg, 'slotted', fuin.is_slotted(q.id), 'hidden', q.hidden,
+          'mastered', exists (select 1 from fuin.masteries w where w.member_id = m.id and w.page_id = q.id)
         ) order by q.position, q.title)
         from fuin.pages q
         where q.category_id = c.id and q.kind = 'seal' and fuin.can_view_page(m, c, q)
@@ -647,6 +664,76 @@ begin
         ) r
       ), '[]'::json)
   );
+end $$;
+
+-- =====================================================================
+--  Sceaux maîtrisés
+-- =====================================================================
+-- Tous les sceaux que le shinobi peut lire, rangés par catégorie, avec ceux qu'il maîtrise
+create or replace function public.fuin_masteries_mine(p_token text)
+returns json language plpgsql volatile security definer set search_path = '' as $$
+declare m fuin.members;
+begin
+  m := fuin.session_member(p_token);
+  return coalesce((
+    select json_agg(json_build_object(
+      'id', c.id, 'slug', c.slug, 'name', c.name, 'glyph', c.glyph,
+      'pages', (select json_agg(json_build_object(
+                  'id', p.id, 'slug', p.slug, 'title', p.title, 'kanji', p.kanji, 'icon_svg', p.icon_svg, 'badge', p.badge,
+                  'mastered', exists (select 1 from fuin.masteries w where w.member_id = m.id and w.page_id = p.id)
+                ) order by p.position, p.title)
+                  from fuin.pages p
+                 where p.category_id = c.id and p.kind = 'seal' and fuin.can_view_page(m, c, p))
+    ) order by c.position)
+      from fuin.categories c
+     where exists (select 1 from fuin.pages p where p.category_id = c.id and p.kind = 'seal' and fuin.can_view_page(m, c, p))
+  ), '[]'::json);
+end $$;
+
+-- Cocher ou décocher un sceau maîtrisé (seulement un sceau que le shinobi peut lire)
+create or replace function public.fuin_mastery_set(p_token text, p_page_id integer, p_on boolean)
+returns json language plpgsql volatile security definer set search_path = '' as $$
+declare
+  m fuin.members;
+  p fuin.pages;
+  c fuin.categories;
+  v_on boolean := coalesce(p_on, false);
+  v_changed integer;
+begin
+  m := fuin.session_member(p_token);
+  select * into p from fuin.pages where id = p_page_id;
+  if not found or p.kind <> 'seal' then perform fuin.fail('FU404', 'Sceau introuvable.'); end if;
+  select * into c from fuin.categories where id = p.category_id;
+  if not fuin.can_view_page(m, c, p) then perform fuin.fail('FU404', 'Sceau introuvable.'); end if;
+  if v_on then
+    insert into fuin.masteries(member_id, page_id) values (m.id, p.id) on conflict do nothing;
+  else
+    delete from fuin.masteries where member_id = m.id and page_id = p.id;
+  end if;
+  get diagnostics v_changed = row_count;
+  if v_changed > 0 then
+    perform fuin.log(m, case when v_on then 'mastery.add' else 'mastery.remove' end, p.title);
+  end if;
+  return json_build_object('ok', true, 'mastered', v_on,
+                           'total', (select count(*) from fuin.masteries where member_id = m.id));
+end $$;
+
+-- Le Conclave consulte les sceaux maîtrisés d'un shinobi
+create or replace function public.fuin_admin_member_masteries(p_token text, p_member_id uuid)
+returns json language plpgsql volatile security definer set search_path = '' as $$
+declare m fuin.members;
+begin
+  m := fuin.require_conclave(p_token);
+  return coalesce((
+    select json_agg(json_build_object(
+      'id', p.id, 'slug', p.slug, 'title', p.title, 'kanji', p.kanji,
+      'category', c.name, 'glyph', c.glyph, 'since', w.created_at
+    ) order by c.position, p.position, p.title)
+      from fuin.masteries w
+      join fuin.pages p on p.id = w.page_id
+      join fuin.categories c on c.id = p.category_id
+     where w.member_id = p_member_id
+  ), '[]'::json);
 end $$;
 
 -- Changer son propre mot de passe
@@ -722,6 +809,7 @@ begin
       'locked', x.locked_until is not null and x.locked_until > now(),
       'last_login_at', x.last_login_at, 'created_at', x.created_at,
       'slots', (select count(*) from fuin.slot_assignments a where a.member_id = x.id),
+      'masteries', (select count(*) from fuin.masteries w where w.member_id = x.id),
       'is_me', x.id = m.id
     ) order by x.is_conclave desc, x.rank desc, x.display_name)
     from fuin.members x
@@ -1208,7 +1296,7 @@ end $$;
 -- =====================================================================
 create or replace function fuin.can_request(m fuin.members) returns boolean
 language sql stable set search_path = '' as $$
-  select m.is_conclave or m.rank >= 4
+  select m.is_conclave or m.rank >= 3
 $$;
 
 -- Champs d'une demande, vérifiés (création comme modification)
@@ -1267,7 +1355,7 @@ declare
 begin
   m := fuin.session_member(p_token);
   if not fuin.can_request(m) then
-    perform fuin.fail('FU403', 'Les demandes de création de sceau s''ouvrent au 4ème cercle.');
+    perform fuin.fail('FU403', 'Les demandes de création de sceau s''ouvrent au 3ème cercle.');
   end if;
   f := fuin.request_fields(p_req);
   if (select count(*) from fuin.seal_requests where member_id = m.id and status in ('pending', 'draft')) >= 20 then
@@ -1292,7 +1380,7 @@ declare
 begin
   m := fuin.session_member(p_token);
   if not fuin.can_request(m) then
-    perform fuin.fail('FU403', 'Les demandes de création de sceau s''ouvrent au 4ème cercle.');
+    perform fuin.fail('FU403', 'Les demandes de création de sceau s''ouvrent au 3ème cercle.');
   end if;
   f := fuin.request_fields(p_req);
   update fuin.seal_requests
@@ -1330,7 +1418,7 @@ declare
 begin
   m := fuin.session_member(p_token);
   if not fuin.can_request(m) then
-    perform fuin.fail('FU403', 'Les demandes de création de sceau s''ouvrent au 4ème cercle.');
+    perform fuin.fail('FU403', 'Les demandes de création de sceau s''ouvrent au 3ème cercle.');
   end if;
   perform fuin.request_check_pending(m.id);
   update fuin.seal_requests set status = 'pending', created_at = now(), updated_at = now()
@@ -1373,7 +1461,7 @@ declare m fuin.members;
 begin
   m := fuin.session_member(p_token);
   if not fuin.can_request(m) then
-    perform fuin.fail('FU403', 'Les demandes de création de sceau s''ouvrent au 4ème cercle.');
+    perform fuin.fail('FU403', 'Les demandes de création de sceau s''ouvrent au 3ème cercle.');
   end if;
   return coalesce((select json_agg(fuin.request_json(r, false) order by r.created_at desc)
                      from fuin.seal_requests r where r.member_id = m.id), '[]'::json);
