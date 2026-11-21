@@ -19,10 +19,72 @@ const KIND_LABEL: Record<EditablePage['kind'], string> = {
 // ---------------------------------------------------------------------------
 // Liste des fiches
 // ---------------------------------------------------------------------------
+type KindFilter = 'all' | 'seal' | 'page' | 'hidden';
+
+const KIND_FILTERS: { key: KindFilter; label: string }[] = [
+  { key: 'all', label: 'Tout' },
+  { key: 'seal', label: 'Sceaux' },
+  { key: 'page', label: 'Pages et dossiers' },
+  { key: 'hidden', label: 'Brouillons' },
+];
+
+const LIST_KEY = 'fuin.editeur.liste';
+
+interface ListPrefs {
+  picked: number[];
+  kind: KindFilter;
+  open: number[];
+}
+
+// filtres et catégories dépliées : un confort propre à ce navigateur
+function readPrefs(): ListPrefs {
+  try {
+    const raw = JSON.parse(localStorage.getItem(LIST_KEY) ?? 'null') as Partial<ListPrefs> | null;
+    const nums = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is number => typeof x === 'number') : []);
+    return {
+      picked: nums(raw?.picked),
+      kind: KIND_FILTERS.some((k) => k.key === raw?.kind) ? (raw?.kind as KindFilter) : 'all',
+      open: nums(raw?.open),
+    };
+  } catch {
+    return { picked: [], kind: 'all', open: [] };
+  }
+}
+
+const rowGlyph = (r: AdminPageRow) =>
+  r.kanji?.split(' ').slice(0, 2).join('') || (r.kind === 'index' ? '総' : r.kind === 'doc' ? '典' : r.kind === 'memorial' ? '記' : '封');
+
+function EditorRow({ r }: { r: AdminPageRow }) {
+  return (
+    <li>
+      <Link to={`/conclave/sceaux/${r.id}`} className={`editor-row${r.hidden ? ' is-hidden' : ''}`}>
+        <span className="editor-row__kanji" lang="ja">
+          {rowGlyph(r)}
+        </span>
+        <span className="editor-row__main">
+          <b>{r.title}</b>
+          <small>/{r.slug}</small>
+        </span>
+        <span className="editor-row__tags">
+          {r.kind !== 'seal' && <span className="tag tag--ghost">{r.kind === 'index' ? 'index' : r.kind === 'memorial' ? 'mémorial' : 'dossier'}</span>}
+          {r.hidden && <span className="badge badge--draft">brouillon</span>}
+          {r.min_rank && <span className="tag tag--ghost">{circleLabel(r.min_rank)}+</span>}
+          <SealBadge badge={r.badge} slotted={r.slotted} />
+        </span>
+        <span className="editor-row__date" title={r.updated_by ? `par ${r.updated_by}` : undefined}>
+          {timeAgo(r.updated_at)}
+        </span>
+      </Link>
+    </li>
+  );
+}
+
 export function EditorList() {
   const [rows, setRows] = useState<AdminPageRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState('');
+  const [prefs, setPrefs] = useState<ListPrefs>(readPrefs);
+  const { picked, kind, open } = prefs;
 
   const load = useCallback(async () => {
     setError(null);
@@ -36,17 +98,50 @@ export function EditorList() {
     void load();
   }, [load]);
 
-  const groups = useMemo(() => {
-    const nq = normalize(q.trim());
-    const m = new Map<string, AdminPageRow[]>();
-    (rows ?? [])
-      .filter((r) => !nq || normalize(`${r.title} ${r.slug} ${r.kanji ?? ''}`).includes(nq) || (r.kanji ?? '').includes(q.trim()))
-      .forEach((r) => {
-        const k = `${r.category_glyph} ${r.category_name}`;
-        m.set(k, [...(m.get(k) ?? []), r]);
-      });
-    return [...m.entries()];
-  }, [rows, q]);
+  useEffect(() => {
+    try {
+      localStorage.setItem(LIST_KEY, JSON.stringify(prefs));
+    } catch {
+      /* stockage indisponible : les filtres repartent à zéro au prochain passage */
+    }
+  }, [prefs]);
+
+  const update = (patch: Partial<ListPrefs>) => setPrefs((p) => ({ ...p, ...patch }));
+  const toggle = (list: number[], id: number) => (list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
+
+  // catégories dans l'ordre du grimoire, avec leurs compteurs
+  const categories = useMemo(() => {
+    const m = new Map<number, { id: number; name: string; glyph: string; total: number; hidden: number }>();
+    (rows ?? []).forEach((r) => {
+      const c = m.get(r.category_id) ?? { id: r.category_id, name: r.category_name, glyph: r.category_glyph, total: 0, hidden: 0 };
+      c.total += 1;
+      if (r.hidden) c.hidden += 1;
+      m.set(r.category_id, c);
+    });
+    return [...m.values()];
+  }, [rows]);
+
+  const recent = useMemo(() => [...(rows ?? [])].sort((a, b) => b.updated_at.localeCompare(a.updated_at)).slice(0, 6), [rows]);
+
+  const nq = normalize(q.trim());
+  const searching = nq.length > 0;
+  const filtered = useMemo(
+    () =>
+      (rows ?? []).filter(
+        (r) =>
+          (!picked.length || picked.includes(r.category_id)) &&
+          (kind === 'all' || (kind === 'seal' ? r.kind === 'seal' : kind === 'page' ? r.kind !== 'seal' : r.hidden)) &&
+          (!nq || normalize(`${r.title} ${r.slug} ${r.kanji ?? ''}`).includes(nq) || (r.kanji ?? '').includes(q.trim())),
+      ),
+    [rows, picked, kind, nq, q],
+  );
+  const groups = categories.map((c) => ({ ...c, items: filtered.filter((r) => r.category_id === c.id) })).filter((g) => g.items.length > 0);
+
+  // une recherche, un cercle coché ou un filtre de type déplie d'office les catégories concernées
+  const forced = searching || picked.length > 0 || kind !== 'all';
+  const isOpen = (id: number) => forced || open.includes(id);
+  const allOpen = groups.every((g) => open.includes(g.id));
+  const filtering = searching || picked.length > 0 || kind !== 'all';
 
   if (error) return <ErrorState text={error} onRetry={load} />;
   if (!rows) return <Loader label="Déroulement des parchemins…" />;
@@ -63,41 +158,113 @@ export function EditorList() {
           + Nouvelle fiche
         </Link>
       </header>
+
+      {!filtering && recent.length > 0 && (
+        <section className="editor-recent" aria-label="Fiches modifiées récemment">
+          <span className="editor-recent__label">Modifiées récemment</span>
+          <div className="editor-recent__list">
+            {recent.map((r) => (
+              <Link key={r.id} to={`/conclave/sceaux/${r.id}`} className="editor-recent__item">
+                <span lang="ja">{rowGlyph(r)}</span>
+                <b>{r.title}</b>
+                <small>{timeAgo(r.updated_at)}</small>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="panel">
         <div className="toolbar">
           <input className="input-search" type="search" placeholder="Rechercher un sceau, un kanji, une URL…" value={q} onChange={(e) => setQ(e.target.value)} />
-          <span className="muted small">{rows.length} fiches</span>
+          <span className="muted small">{filtering ? `${filtered.length} / ${rows.length} fiches` : `${rows.length} fiches`}</span>
         </div>
-        {groups.length === 0 && <Empty glyph="巻">Aucune fiche trouvée.</Empty>}
-        {groups.map(([name, list]) => (
-          <div key={name} className="editor-group">
-            <h3 className="editor-group__title">{name}</h3>
-            <ul className="editor-list">
-              {list.map((r) => (
-                <li key={r.id}>
-                  <Link to={`/conclave/sceaux/${r.id}`} className={`editor-row${r.hidden ? ' is-hidden' : ''}`}>
-                    <span className="editor-row__kanji" lang="ja">
-                      {r.kanji?.split(' ').slice(0, 2).join('') || (r.kind === 'index' ? '総' : r.kind === 'doc' ? '典' : r.kind === 'memorial' ? '記' : '封')}
-                    </span>
-                    <span className="editor-row__main">
-                      <b>{r.title}</b>
-                      <small>/{r.slug}</small>
-                    </span>
-                    <span className="editor-row__tags">
-                      {r.kind !== 'seal' && <span className="tag tag--ghost">{r.kind === 'index' ? 'index' : r.kind === 'memorial' ? 'mémorial' : 'dossier'}</span>}
-                      {r.hidden && <span className="badge badge--draft">brouillon</span>}
-                      {r.min_rank && <span className="tag tag--ghost">{circleLabel(r.min_rank)}+</span>}
-                      <SealBadge badge={r.badge} slotted={r.slotted} />
-                    </span>
-                    <span className="editor-row__date" title={r.updated_by ? `par ${r.updated_by}` : undefined}>
-                      {timeAgo(r.updated_at)}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+
+        <div className="editor-filters">
+          <div className="editor-filters__row editor-filters__row--chips" role="group" aria-label="Cercles et catégories">
+            <button type="button" className={`chip${picked.length === 0 ? ' is-on' : ''}`} aria-pressed={picked.length === 0} onClick={() => update({ picked: [] })}>
+              Tout
+            </button>
+            {categories.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                className={`chip editor-chip${picked.includes(c.id) ? ' is-on' : ''}`}
+                aria-pressed={picked.includes(c.id)}
+                onClick={() => update({ picked: toggle(picked, c.id) })}
+              >
+                <i aria-hidden="true">{picked.includes(c.id) ? '✓' : c.glyph}</i> {c.name} <span>{c.total}</span>
+              </button>
+            ))}
           </div>
-        ))}
+          <div className="editor-filters__row">
+            <div className="segmented segmented--small" role="radiogroup" aria-label="Type de fiche">
+              {KIND_FILTERS.map((k) => (
+                <button key={k.key} type="button" role="radio" aria-checked={kind === k.key} className={kind === k.key ? 'is-on' : ''} onClick={() => update({ kind: k.key })}>
+                  {k.label}
+                </button>
+              ))}
+            </div>
+            {filtering ? (
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm"
+                onClick={() => {
+                  setQ('');
+                  update({ picked: [], kind: 'all' });
+                }}
+              >
+                Effacer les filtres
+              </button>
+            ) : (
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => update({ open: allOpen ? [] : groups.map((g) => g.id) })}>
+                {allOpen ? 'Tout replier' : 'Tout déplier'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {groups.length === 0 && <Empty glyph="巻">Aucune fiche ne correspond.</Empty>}
+        {groups.map((g) => {
+          const on = isOpen(g.id);
+          return (
+            <div key={g.id} className={`editor-group${on ? ' is-open' : ''}`}>
+              <div className="editor-group__head">
+                <button
+                  type="button"
+                  className="editor-group__toggle"
+                  aria-expanded={on}
+                  disabled={forced}
+                  onClick={() => update({ open: toggle(open, g.id) })}
+                >
+                  <span className="editor-group__glyph" aria-hidden="true">
+                    {g.glyph}
+                  </span>
+                  <span className="editor-group__title">{g.name}</span>
+                  <span className="editor-group__count">
+                    {filtering ? `${g.items.length} / ${g.total}` : g.total} fiche{g.total > 1 ? 's' : ''}
+                    {g.hidden > 0 && !filtering && <em> · {g.hidden} brouillon{g.hidden > 1 ? 's' : ''}</em>}
+                  </span>
+                  {!forced && (
+                    <span className="editor-group__chevron" aria-hidden="true">
+                      ▾
+                    </span>
+                  )}
+                </button>
+                <Link to={`/conclave/sceaux/nouveau?categorie=${g.id}`} className="icon-btn" title={`Nouvelle fiche dans ${g.name}`} aria-label={`Nouvelle fiche dans ${g.name}`}>
+                  +
+                </Link>
+              </div>
+              {on && (
+                <ul className="editor-list">
+                  {g.items.map((r) => (
+                    <EditorRow key={r.id} r={r} />
+                  ))}
+                </ul>
+              )}
+            </div>
+          );
+        })}
       </section>
     </div>
   );

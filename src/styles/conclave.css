@@ -723,14 +723,206 @@
 }
 
 /* éditeur */
+.editor-recent {
+  display: flex;
+  align-items: center;
+  gap: 10px 14px;
+  margin-bottom: 14px;
+  min-width: 0;
+}
+
+.editor-recent__label {
+  flex: none;
+  font: 700 11px/1 var(--sans);
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--mut);
+}
+
+.editor-recent__list {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 2px 2px 6px;
+  scrollbar-width: thin;
+}
+
+.editor-recent__item {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 260px;
+  padding: 7px 12px 7px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.editor-recent__item:hover {
+  border-color: var(--line-red);
+  background: var(--surface-2);
+}
+
+.editor-recent__item span {
+  font: 400 16px/1 var(--brush);
+  color: var(--red-hot);
+}
+
+.editor-recent__item b {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.editor-recent__item small {
+  color: var(--mut-2);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.editor-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.editor-filters__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.editor-filters__row:last-child {
+  justify-content: space-between;
+}
+
+.editor-chip i {
+  font: 400 13px var(--brush);
+  font-style: normal;
+  margin-right: 2px;
+}
+
+.editor-chip span {
+  margin-left: 4px;
+  padding: 1px 6px;
+  border-radius: 99px;
+  background: rgba(255, 236, 230, 0.07);
+  font-size: 11px;
+}
+
+.editor-chip.is-on span {
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.segmented.segmented--small {
+  flex: none;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 3px;
+  gap: 4px;
+  scrollbar-width: none;
+}
+
+.segmented.segmented--small button {
+  flex: none;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
 .editor-group {
-  margin-top: 18px;
+  margin-top: 6px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+  transition: border-color 0.2s;
+}
+
+.editor-group.is-open {
+  border-color: var(--line-2);
+}
+
+.editor-group__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 10px;
+}
+
+.editor-group__toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  text-align: left;
+  border-radius: 14px;
+}
+
+.editor-group__toggle:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.editor-group__toggle:not(:disabled):hover .editor-group__title {
+  color: var(--ink);
+}
+
+.editor-group__glyph {
+  width: 30px;
+  flex: none;
+  text-align: center;
+  font: 400 18px/1 var(--brush);
+  color: var(--red-hot);
 }
 
 .editor-group__title {
-  font: 700 15px var(--display);
+  font: 700 15.5px var(--display);
   color: var(--ink-2);
-  margin-bottom: 8px;
+  transition: color 0.15s;
+}
+
+.editor-group__count {
+  margin-left: auto;
+  color: var(--mut);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+.editor-group__count em {
+  font-style: normal;
+  color: var(--mut-2);
+}
+
+.editor-group__chevron {
+  color: var(--mut);
+  font-size: 13px;
+  transition: transform 0.2s var(--ease);
+}
+
+.editor-group.is-open .editor-group__chevron {
+  transform: rotate(180deg);
+}
+
+.editor-group__head .icon-btn {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  font-size: 17px;
+}
+
+.editor-group .editor-list {
+  padding: 0 8px 8px;
+  border-top: 1px solid var(--line);
+  padding-top: 6px;
 }
 
 .editor-list {
@@ -1081,6 +1273,34 @@
 
   .editor-row {
     grid-template-columns: 40px minmax(0, 1fr);
+  }
+
+  .editor-recent {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .editor-group__toggle {
+    gap: 10px;
+    padding: 12px 10px;
+  }
+
+  .editor-group__count em {
+    display: none;
+  }
+
+  /* cercles sur une seule ligne qui défile, plutôt qu'une colonne de boutons */
+  .editor-filters__row--chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin: 0 -4px;
+    padding: 2px 4px 6px;
+    scrollbar-width: none;
+  }
+
+  .editor-filters__row--chips .chip {
+    flex: none;
+    white-space: nowrap;
   }
 
   .editor-row__tags,
