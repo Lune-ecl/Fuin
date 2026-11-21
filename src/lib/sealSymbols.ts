@@ -7,16 +7,22 @@ export interface SealSymbol {
   label: string;
   cat: SymbolCategory;
   svg: (color: string) => string;
+  /** autres mots qui retrouvent le symbole à la recherche */
+  tags?: string;
 }
 
-export type SymbolCategory = 'corps' | 'elements' | 'astres' | 'armes' | 'nature' | 'mystique';
+export type SymbolCategory = 'corps' | 'coeurs' | 'visages' | 'esprits' | 'elements' | 'astres' | 'armes' | 'nature' | 'reperes' | 'mystique';
 
 export const SYMBOL_CATEGORIES: { key: SymbolCategory; label: string }[] = [
   { key: 'corps', label: 'Corps & esprit' },
+  { key: 'coeurs', label: 'Cœurs' },
+  { key: 'visages', label: 'Visages & masques' },
+  { key: 'esprits', label: 'Esprits & défunts' },
   { key: 'elements', label: 'Éléments' },
   { key: 'astres', label: 'Astres' },
   { key: 'armes', label: 'Armes & liens' },
   { key: 'nature', label: 'Nature & bêtes' },
+  { key: 'reperes', label: 'Repères & signes' },
   { key: 'mystique', label: 'Sacré & mystique' },
 ];
 
@@ -127,6 +133,56 @@ function rays(cx: number, cy: number, r1: number, r2: number, from: number, to: 
   }).join('');
 }
 
+
+// ---------------------------------------------------------------- formes réutilisables
+/** cœur centré en (cx, cy), à l'échelle k (k = 1 : le grand cœur) */
+function heart(cx: number, cy: number, k: number): string {
+  const P = (x: number, y: number) => `${n(cx + (x - 50) * k)} ${n(cy + (y - 52) * k)}`;
+  return `<path d="M${P(50, 86)} C${P(20, 64)} ${P(10, 48)} ${P(14, 32)} C${P(18, 18)} ${P(38, 14)} ${P(50, 30)} C${P(62, 14)} ${P(82, 18)} ${P(86, 32)} C${P(90, 48)} ${P(80, 64)} ${P(50, 86)} Z"/>`;
+}
+
+/** goutte pointe en haut, ventre centré en (cx, cy) */
+function drop(cx: number, cy: number, r: number, fill = 'none'): string {
+  return `<path d="M${n(cx)} ${n(cy - 2.2 * r)} C${n(cx + 0.6 * r)} ${n(cy - r)} ${n(cx + r)} ${n(cy - 0.3 * r)} ${n(cx + r)} ${n(cy + 0.2 * r)} A${r} ${r} 0 0 1 ${n(cx - r)} ${n(cy + 0.2 * r)} C${n(cx - r)} ${n(cy - 0.3 * r)} ${n(cx - 0.6 * r)} ${n(cy - r)} ${n(cx)} ${n(cy - 2.2 * r)} Z"${fill !== 'none' ? ` fill="${fill}" stroke="none"` : ''}/>`;
+}
+
+/** repère de carte : tête ronde en (cx, cy), pointe vers le bas */
+function pin(cx: number, cy: number, r: number): string {
+  return `<path d="M${n(cx)} ${n(cy + 2.3 * r)} C${n(cx - 0.35 * r)} ${n(cy + 1.6 * r)} ${n(cx - r)} ${n(cy + 0.9 * r)} ${n(cx - r)} ${n(cy)} A${r} ${r} 0 0 1 ${n(cx + r)} ${n(cy)} C${n(cx + r)} ${n(cy + 0.9 * r)} ${n(cx + 0.35 * r)} ${n(cy + 1.6 * r)} ${n(cx)} ${n(cy + 2.3 * r)} Z"/>`;
+}
+
+/** petit fantôme : tête en (cx, cy), demi-largeur s */
+function ghost(cx: number, cy: number, s: number, c: string): string {
+  const L = (x: number, y: number) => `L${n(cx + x * s)} ${n(cy + y * s)}`;
+  return (
+    `<path d="M${n(cx - s)} ${n(cy + 2 * s)} V${n(cy)} A${s} ${s} 0 0 1 ${n(cx + s)} ${n(cy)} V${n(cy + 2 * s)} ${L(2 / 3, 1.6)} ${L(1 / 3, 2)} ${L(0, 1.6)} ${L(-1 / 3, 2)} ${L(-2 / 3, 1.6)} Z"/>` +
+    dot(n(cx - 0.38 * s), n(cy + 0.05 * s), n(0.17 * s), c) +
+    dot(n(cx + 0.38 * s), n(cy + 0.05 * s), n(0.17 * s), c)
+  );
+}
+
+/** petite flamme : base ronde en (cx, cy), hauteur ~3s */
+function flameAt(cx: number, cy: number, s: number): string {
+  return `<path d="M${n(cx)} ${n(cy - 2.2 * s)} C${n(cx + 0.9 * s)} ${n(cy - s)} ${n(cx + 1.1 * s)} ${n(cy - 0.2 * s)} ${n(cx + s)} ${n(cy + 0.2 * s)} A${s} ${s} 0 0 1 ${n(cx - s)} ${n(cy + 0.2 * s)} C${n(cx - 1.1 * s)} ${n(cy - 0.2 * s)} ${n(cx - 0.9 * s)} ${n(cy - s)} ${n(cx)} ${n(cy - 2.2 * s)} Z"/>`;
+}
+
+/** arc de cercle (sens horaire) terminé par une pointe de flèche */
+function arcArrow(r: number, a0: number, a1: number): string {
+  const large = (((a1 - a0) % 360) + 360) % 360 > 180 ? 1 : 0;
+  const [ex, ey] = pt(r, a1).split(' ').map(Number);
+  const head = (da: number) => `M${n(ex)} ${n(ey)} L${n(ex + 9 * Math.cos(rad(a1 - 90 + da)))} ${n(ey + 9 * Math.sin(rad(a1 - 90 + da)))}`;
+  return `<path d="M${pt(r, a0)} A${r} ${r} 0 ${large} 1 ${pt(r, a1)}"/><path d="${head(35)} ${head(-35)}"/>`;
+}
+
+/** étoile en polygone étoilé {count/step} inscrite dans un cercle de rayon r */
+function starPolygon(count: number, step: number, r: number, start = -90): string {
+  const pts = Array.from({ length: count }, (_, i) => pt(r, start + ((i * step) % count) * (360 / count)));
+  return `<path d="M${pts.join(' L')} Z"/>`;
+}
+
+/** nuage posé sur une ligne horizontale à la hauteur y */
+const CLOUD = 'M24 54 A14 14 0 0 1 28 27 A19 19 0 0 1 64 22 A15 15 0 0 1 78 54 Z';
+
 export const SYMBOLS: SealSymbol[] = [
   // ---------------------------------------------------------------- Corps & esprit
   {
@@ -179,11 +235,11 @@ export const SYMBOLS: SealSymbol[] = [
     svg: (c) =>
       `<path d="M30 50 V30 M40 46 V16 M50 44 V10 M60 46 V16 M70 50 V28"/><path d="M28 48 C24 76 34 92 50 92 C66 92 76 76 72 48"/><path d="M36 68 Q50 56 64 68 Q50 80 36 68 Z"/>${dot(50, 68, 3.5, c)}`,
   },
-  { key: 'heart', label: 'Cœur', cat: 'corps', svg: () => `<path d="${HEART}"/>` },
+  { key: 'heart', label: 'Cœur', cat: 'coeurs', svg: () => `<path d="${HEART}"/>` },
   {
     key: 'heart-pierced',
     label: 'Cœur transpercé',
-    cat: 'corps',
+    cat: 'coeurs',
     svg: () => `<path d="${HEART}"/><path d="M8 82 L92 18 M92 18 L78 19 M92 18 L89 31 M8 82 L10 72 M8 82 L18 81"/>`,
   },
   {
@@ -196,21 +252,21 @@ export const SYMBOLS: SealSymbol[] = [
   {
     key: 'skull',
     label: 'Crâne',
-    cat: 'corps',
+    cat: 'esprits',
     svg: (c) =>
       `<path d="M26 54 A24 24 0 1 1 74 54 V66 H64 V78 H36 V66 H26 Z"/>${dot(40, 50, 7, c)}${dot(60, 50, 7, c)}<path d="M47 64 L50 58 L53 64 Z M44 70 V78 M50 70 V78 M56 70 V78"/>`,
   },
   {
     key: 'mask',
     label: 'Masque',
-    cat: 'corps',
+    cat: 'visages',
     svg: () =>
       `<path d="M20 20 Q50 4 80 20 V52 Q80 84 50 92 Q20 84 20 52 Z"/><path d="M28 44 Q37 34 46 44 Q37 50 28 44 Z M54 44 Q63 34 72 44 Q63 50 54 44 Z"/><path d="M40 72 Q50 66 60 72"/><path d="M26 56 L34 62 M74 56 L66 62"/>`,
   },
   {
     key: 'kitsune',
     label: 'Masque de renard',
-    cat: 'corps',
+    cat: 'visages',
     svg: (c) =>
       `<path d="M16 10 L36 32 Q50 26 64 32 L84 10 L82 50 Q74 76 50 92 Q26 76 18 50 Z"/><path d="M30 50 L44 56 M70 50 L56 56"/><path d="M28 22 L34 34 M72 22 L66 34"/>${dot(50, 80, 4, c)}`,
   },
@@ -560,7 +616,7 @@ export const SYMBOLS: SealSymbol[] = [
   {
     key: 'target',
     label: 'Cible',
-    cat: 'mystique',
+    cat: 'reperes',
     svg: (c) => `<circle cx="50" cy="50" r="40"/><circle cx="50" cy="50" r="27"/><circle cx="50" cy="50" r="14"/>${dot(50, 50, 4, c)}`,
   },
   { key: 'hexagon', label: 'Hexagone', cat: 'mystique', svg: () => poly(6, 42, -90) + poly(6, 24, -60) },
@@ -657,7 +713,7 @@ export const SYMBOLS: SealSymbol[] = [
   {
     key: 'oni',
     label: 'Masque d’oni',
-    cat: 'corps',
+    cat: 'visages',
     svg: () =>
       `<path d="M24 34 Q50 20 76 34 V58 Q76 86 50 92 Q24 86 24 58 Z"/><path d="M28 34 L16 6 L38 28 M72 34 L84 6 L62 28"/><path d="M31 46 L45 53 M69 46 L55 53"/><path d="M34 72 H66 M39 72 L42 79 L45 72 M55 72 L58 79 L61 72"/>`,
   },
@@ -712,7 +768,7 @@ export const SYMBOLS: SealSymbol[] = [
   {
     key: 'wisp',
     label: 'Feu follet',
-    cat: 'elements',
+    cat: 'esprits',
     svg: () => `<path d="M50 26 C58 40 66 48 64 62 A14 14 0 0 1 36 62 C34 48 42 40 50 26 Z"/><circle cx="50" cy="56" r="38" stroke-dasharray="3 7"/>`,
   },
 
@@ -907,5 +963,697 @@ export const SYMBOLS: SealSymbol[] = [
     label: 'Vortex',
     cat: 'mystique',
     svg: () => around(6, '<path d="M50 50 Q70 42 76 18"/>') + '<circle cx="50" cy="50" r="44"/><circle cx="50" cy="50" r="5"/>',
+  },
+
+  // ---------------------------------------------------------------- Cœurs
+  {
+    key: 'heart-broken',
+    label: 'Cœur brisé',
+    cat: 'coeurs',
+    tags: 'coeur rupture chagrin',
+    svg: () =>
+      `<g transform="translate(-4 0)"><path d="M50 30 C38 14 18 18 14 32 C10 48 20 64 50 86 L45 72 L54 60 L45 46 Z"/></g><g transform="translate(4 0)"><path d="M50 30 C62 14 82 18 86 32 C90 48 80 64 50 86 L45 72 L54 60 L45 46 Z"/></g>`,
+  },
+  {
+    key: 'heart-lock',
+    label: 'Cœur verrouillé',
+    cat: 'coeurs',
+    tags: 'coeur serrure cadenas',
+    svg: (c) => `<path d="${HEART}"/>${dot(50, 46, 6.5, c)}<path d="M46.5 50 L43 66 H57 L53.5 50 Z" fill="${c}" stroke="none"/>`,
+  },
+  {
+    key: 'heart-flame',
+    label: 'Cœur ardent',
+    cat: 'coeurs',
+    tags: 'coeur feu passion flamme',
+    svg: () => `${heart(50, 62, 0.74)}<path d="M44 44 Q36 28 50 8 Q64 28 56 44"/><path d="M30 40 Q22 28 28 16 Q38 26 37 36"/><path d="M70 40 Q78 28 72 16 Q62 26 63 36"/>`,
+  },
+  {
+    key: 'heart-wings',
+    label: 'Cœur ailé',
+    cat: 'coeurs',
+    tags: 'coeur ailes envol',
+    svg: () =>
+      `${heart(50, 54, 0.52)}<path d="M32 46 C24 32 14 28 4 30 C8 40 14 46 22 50 C14 51 10 55 7 60 C17 62 25 59 32 55"/><path d="M68 46 C76 32 86 28 96 30 C92 40 86 46 78 50 C86 51 90 55 93 60 C83 62 75 59 68 55"/><path d="M12 36 L24 44 M14 56 L26 54 M88 36 L76 44 M86 56 L74 54"/>`,
+  },
+  { key: 'heart-twin', label: 'Cœurs liés', cat: 'coeurs', tags: 'coeur deux couple', svg: () => `${heart(37, 54, 0.6)}${heart(63, 48, 0.6)}` },
+  {
+    key: 'heart-crown',
+    label: 'Cœur couronné',
+    cat: 'coeurs',
+    tags: 'coeur couronne roi reine',
+    svg: () => `${heart(50, 62, 0.72)}<path d="M30 30 L33 10 L42 21 L50 6 L58 21 L67 10 L70 30 Z"/>`,
+  },
+  {
+    key: 'heart-eye',
+    label: 'Cœur clairvoyant',
+    cat: 'coeurs',
+    tags: 'coeur oeil',
+    svg: (c) => `<path d="${HEART}"/><path d="M30 50 Q50 34 70 50 Q50 66 30 50 Z"/>${dot(50, 50, 5, c)}`,
+  },
+  {
+    key: 'heart-chained',
+    label: 'Cœur enchaîné',
+    cat: 'coeurs',
+    tags: 'coeur chaine prison',
+    svg: () =>
+      `<path d="${HEART}"/>` +
+      [10, 23, 36, 49, 62, 75, 88].map((x, i) => (i % 2 ? `<path d="M${x - 6} 50 H${x + 6}"/>` : `<ellipse cx="${x}" cy="50" rx="7" ry="4.5"/>`)).join(''),
+  },
+  {
+    key: 'heart-stitched',
+    label: 'Cœur recousu',
+    cat: 'coeurs',
+    tags: 'coeur couture cicatrice',
+    svg: () =>
+      `<path d="${HEART}"/><path d="M50 30 Q45 46 52 58 Q57 70 50 86"/><path d="M42 36 L54 40 M43 46 L55 50 M46 56 L58 59 M47 66 L59 68 M44 75 L56 78"/>`,
+  },
+  { key: 'heart-nested', label: 'Cœur gigogne', cat: 'coeurs', tags: 'coeur double', svg: (c) => `<path d="${HEART}"/>${heart(50, 54, 0.55)}${dot(50, 52, 3.5, c)}` },
+  {
+    key: 'heart-bleeding',
+    label: 'Cœur saignant',
+    cat: 'coeurs',
+    tags: 'coeur sang goutte',
+    svg: (c) => `${heart(50, 42, 0.8)}${drop(50, 86, 4.5, c)}${drop(35, 80, 3.2, c)}${drop(65, 82, 3.2, c)}`,
+  },
+  {
+    key: 'heart-dagger',
+    label: 'Cœur et dague',
+    cat: 'coeurs',
+    tags: 'coeur poignard lame',
+    svg: () => `<path d="${HEART}"/><circle cx="50" cy="7" r="3"/><path d="M50 10 V22 M38 24 H62"/><path d="M46 24 L50 82 L54 24"/>`,
+  },
+  {
+    key: 'heart-beat',
+    label: 'Battement',
+    cat: 'coeurs',
+    tags: 'coeur pouls vie',
+    svg: () => `<path d="${HEART}"/><path d="M4 54 H30 L36 44 L42 66 L50 30 L56 62 L62 54 H96"/>`,
+  },
+
+  // ---------------------------------------------------------------- Repères & signes
+  { key: 'pin', label: 'Repère', cat: 'reperes', tags: 'localisation position carte marqueur lieu gps', svg: () => `${pin(50, 36, 24)}<circle cx="50" cy="36" r="9"/>` },
+  {
+    key: 'pin-meet',
+    label: 'Point de rendez-vous',
+    cat: 'reperes',
+    tags: 'localisation position carte marqueur lieu',
+    svg: (c) => `<ellipse cx="50" cy="88" rx="22" ry="6"/>${pin(50, 32, 22)}${dot(50, 32, 7, c)}`,
+  },
+  { key: 'pin-x', label: 'Repère marqué', cat: 'reperes', tags: 'localisation position carte croix lieu', svg: () => `${pin(50, 36, 24)}<path d="M42 28 L58 44 M58 28 L42 44"/>` },
+  {
+    key: 'pin-route',
+    label: 'Itinéraire',
+    cat: 'reperes',
+    tags: 'localisation chemin trajet carte voyage',
+    svg: (c) => `${pin(24, 20, 11)}${pin(76, 56, 11)}${dot(24, 20, 3.5, c)}${dot(76, 56, 3.5, c)}<path d="M24 50 C24 80 62 58 70 84" stroke-dasharray="4 5"/>`,
+  },
+  {
+    key: 'crosshair',
+    label: 'Viseur',
+    cat: 'reperes',
+    tags: 'cible visee localisation',
+    svg: (c) => `<circle cx="50" cy="50" r="30"/><path d="M50 6 V36 M50 64 V94 M6 50 H36 M64 50 H94"/>${dot(50, 50, 3.5, c)}`,
+  },
+  {
+    key: 'compass-rose',
+    label: 'Rose des vents',
+    cat: 'reperes',
+    tags: 'boussole nord direction orientation',
+    svg: (c) => `<circle cx="50" cy="50" r="30"/>${poly(4, 26, -45, 6)}<path d="M50 4 L57 43 L96 50 L57 57 L50 96 L43 57 L4 50 L43 43 Z"/>${dot(50, 50, 3.5, c)}`,
+  },
+  {
+    key: 'compass',
+    label: 'Boussole',
+    cat: 'reperes',
+    tags: 'nord direction orientation aiguille',
+    svg: (c) =>
+      `<circle cx="50" cy="50" r="42"/>${rays(50, 50, 36, 42, -90, 225, 8)}<path d="M50 16 L58 50 H42 Z" fill="${c}" stroke="none"/><path d="M42 50 L50 84 L58 50"/><circle cx="50" cy="50" r="3"/>`,
+  },
+  {
+    key: 'treasure',
+    label: 'Croix du trésor',
+    cat: 'reperes',
+    tags: 'carte tresor localisation chemin',
+    svg: () => `<path d="M8 90 C30 88 20 64 40 62 C60 60 48 44 62 42" stroke-dasharray="4 5"/><path d="M64 18 L86 40 M86 18 L64 40"/>`,
+  },
+  {
+    key: 'signal',
+    label: 'Signal',
+    cat: 'reperes',
+    tags: 'onde appel localisation emission',
+    svg: (c) =>
+      dot(50, 76, 5, c) +
+      [16, 30, 44].map((r) => `<path d="M${pt(r, -135, 50, 76)} A${r} ${r} 0 0 1 ${pt(r, -45, 50, 76)}"/>`).join(''),
+  },
+  {
+    key: 'ripple',
+    label: 'Point repéré',
+    cat: 'reperes',
+    tags: 'localisation onde detection position',
+    svg: (c) => `${dot(50, 50, 6, c)}<circle cx="50" cy="50" r="16"/><circle cx="50" cy="50" r="30" stroke-dasharray="5 4"/><circle cx="50" cy="50" r="44" stroke-dasharray="2 6"/>`,
+  },
+  {
+    key: 'flag',
+    label: 'Étendard',
+    cat: 'reperes',
+    tags: 'drapeau banniere clan',
+    svg: (c) => `${dot(24, 7, 3.5, c)}<path d="M24 10 V94"/><path d="M24 14 C40 6 52 22 78 14 V50 C52 58 40 42 24 50"/>`,
+  },
+  {
+    key: 'converge',
+    label: 'Convergence',
+    cat: 'reperes',
+    tags: 'fleches centre attraction',
+    svg: (c) => `${around(4, '<path d="M50 6 V33 M41 24 L50 33 L59 24"/>')}${dot(50, 50, 6, c)}`,
+  },
+  {
+    key: 'diverge',
+    label: 'Expansion',
+    cat: 'reperes',
+    tags: 'fleches dehors repulsion explosion',
+    svg: () => `${around(4, '<path d="M50 34 V7 M41 16 L50 7 L59 16"/>')}<circle cx="50" cy="50" r="9"/>`,
+  },
+  {
+    key: 'dial',
+    label: 'Cadran',
+    cat: 'reperes',
+    tags: 'octogone horloge mecanisme',
+    svg: () => `${poly(8, 42, -90 + 22.5)}${around(8, '<path d="M50 20 V29"/>')}<circle cx="50" cy="50" r="6"/>`,
+  },
+  { key: 'cycle', label: 'Cycle', cat: 'reperes', tags: 'fleches retour boucle renouveau', svg: () => `${arcArrow(32, -80, 70)}${arcArrow(32, 100, 250)}` },
+  {
+    key: 'signpost',
+    label: 'Croisée des chemins',
+    cat: 'reperes',
+    tags: 'panneau direction chemin carrefour',
+    svg: () => `<path d="M50 94 V8 M38 94 H62"/><path d="M50 16 H80 L88 25 L80 34 H50"/><path d="M50 44 H20 L12 53 L20 62 H50"/>`,
+  },
+  {
+    key: 'map',
+    label: 'Carte',
+    cat: 'reperes',
+    tags: 'localisation voyage plan territoire',
+    svg: (c) => `<path d="M8 24 L36 14 L64 24 L92 14 V76 L64 86 L36 76 L8 86 Z"/><path d="M36 14 V76 M64 24 V86"/><path d="M18 66 Q30 48 46 54 Q58 58 70 40" stroke-dasharray="3 4"/>${dot(72, 37, 3.5, c)}`,
+  },
+  {
+    key: 'footsteps',
+    label: 'Traces de pas',
+    cat: 'reperes',
+    tags: 'empreintes pieds pistage chemin',
+    svg: (c) =>
+      `<ellipse cx="34" cy="70" rx="9" ry="14" transform="rotate(-8 34 70)"/>${[[25, 52], [30, 49], [36, 49], [41, 51]].map(([x, y]) => dot(x, y, 2.6, c)).join('')}` +
+      `<ellipse cx="66" cy="40" rx="9" ry="14" transform="rotate(8 66 40)"/>${[[59, 21], [64, 19], [70, 19], [75, 22]].map(([x, y]) => dot(x, y, 2.6, c)).join('')}`,
+  },
+
+  // ---------------------------------------------------------------- Esprits & défunts
+  {
+    key: 'ghost',
+    label: 'Fantôme',
+    cat: 'esprits',
+    tags: 'spectre esprit revenant yokai hante',
+    svg: (c) =>
+      `<path d="M26 88 V46 A24 24 0 0 1 74 46 V88 L66 80 L58 88 L50 80 L42 88 L34 80 Z"/><ellipse cx="41" cy="46" rx="4" ry="6" fill="${c}" stroke="none"/><ellipse cx="59" cy="46" rx="4" ry="6" fill="${c}" stroke="none"/><ellipse cx="50" cy="63" rx="4" ry="5"/>`,
+  },
+  {
+    key: 'ghost-wail',
+    label: 'Spectre hurlant',
+    cat: 'esprits',
+    tags: 'fantome esprit cri revenant',
+    svg: (c) =>
+      `<path d="M30 46 A20 20 0 0 1 70 46 C70 64 66 76 76 92 Q62 84 52 90 Q42 82 30 88 C34 72 30 60 30 46 Z"/><path d="M31 54 Q18 46 12 30 M69 54 Q82 46 88 30"/>${dot(42, 42, 3.5, c)}${dot(58, 42, 3.5, c)}<ellipse cx="50" cy="58" rx="5" ry="8"/>`,
+  },
+  {
+    key: 'yurei',
+    label: 'Yūrei',
+    cat: 'esprits',
+    tags: 'fantome japonais spectre esprit revenant',
+    svg: () =>
+      `<circle cx="50" cy="24" r="11"/><path d="M45 14 L50 7 L55 14 Z"/><path d="M39 21 Q33 40 36 58 M61 21 Q67 40 64 58"/><path d="M41 35 Q30 58 34 80 Q44 92 50 84 Q58 94 68 80 Q72 58 59 35"/><path d="M42 45 Q28 46 24 56 M58 45 Q72 46 76 56"/><path d="M24 56 L21 63 M24 56 L27 64 M76 56 L73 64 M76 56 L79 63"/>`,
+  },
+  {
+    key: 'hitodama',
+    label: 'Hitodama',
+    cat: 'esprits',
+    tags: 'ame feu follet esprit flamme',
+    svg: (c) => `<circle cx="52" cy="70" r="16"/><path d="M37 64 C26 42 48 34 40 8 C58 22 68 40 68 66"/>${dot(52, 70, 5, c)}`,
+  },
+  {
+    key: 'onibi',
+    label: 'Onibi',
+    cat: 'esprits',
+    tags: 'feux follets esprits flammes',
+    svg: () => `${around(3, flameAt(50, 26, 7))}<circle cx="50" cy="50" r="42" stroke-dasharray="2 8"/><circle cx="50" cy="50" r="6"/>`,
+  },
+  { key: 'ghost-trio', label: 'Cortège d’esprits', cat: 'esprits', tags: 'fantomes spectres parade', svg: (c) => `${ghost(50, 26, 13, c)}${ghost(25, 54, 12, c)}${ghost(75, 54, 12, c)}` },
+  {
+    key: 'tomb',
+    label: 'Tombe',
+    cat: 'esprits',
+    tags: 'mort cimetiere sepulture defunt',
+    svg: () => `<path d="M26 86 V42 A24 24 0 0 1 74 42 V86"/><path d="M12 86 H88"/><path d="M50 32 V70 M40 45 H60"/><path d="M18 86 L15 78 M22 86 L23 78 M78 86 L77 78 M82 86 L85 78"/>`,
+  },
+  {
+    key: 'tombstone',
+    label: 'Pierre tombale',
+    cat: 'esprits',
+    tags: 'tombe mort cimetiere stele',
+    svg: () => `<path d="M28 88 V36 Q28 14 50 14 Q72 14 72 36 V88"/><path d="M16 88 H84"/><path d="M38 40 H62 M40 52 H60 M42 63 H58"/><path d="M62 18 L57 28 L63 34"/>`,
+  },
+  {
+    key: 'haka',
+    label: 'Tombe japonaise',
+    cat: 'esprits',
+    tags: 'haka tombe mort cimetiere stele',
+    svg: () => `<path d="M14 90 H86 V80 H14 Z"/><path d="M24 80 V70 H76 V80"/><path d="M36 70 V22 L40 16 H60 L64 22 V70"/><path d="M46 26 V62 M54 26 V52"/>`,
+  },
+  {
+    key: 'sotoba',
+    label: 'Sotoba',
+    cat: 'esprits',
+    tags: 'tablettes tombe cimetiere bois',
+    svg: () =>
+      [
+        [18, 22],
+        [34, 14],
+        [50, 18],
+        [66, 24],
+      ]
+        .map(([x, top]) => `<path d="M${x} 92 V${top + 8} L${x + 6} ${top} L${x + 12} ${top + 8} V92"/><path d="M${x} ${top + 14} H${x + 12} M${x} ${top + 19} H${x + 12}"/>`)
+        .join(''),
+  },
+  { key: 'coffin', label: 'Cercueil', cat: 'esprits', tags: 'mort defunt', svg: () => `<path d="M38 6 H62 L76 30 L64 94 H36 L24 30 Z"/><path d="M50 26 V60 M40 38 H60"/>` },
+  {
+    key: 'celtic-cross',
+    label: 'Croix celtique',
+    cat: 'esprits',
+    tags: 'croix tombe cimetiere',
+    svg: () => `<path d="M44 94 V54 H16 V42 H44 V8 H56 V42 H84 V54 H56 V94 Z"/><circle cx="50" cy="48" r="17"/>`,
+  },
+  {
+    key: 'urn',
+    label: 'Urne funéraire',
+    cat: 'esprits',
+    tags: 'cendres mort vase',
+    svg: (c) => `${dot(50, 11, 3, c)}<path d="M40 22 Q50 12 60 22 Z"/><path d="M42 22 V30 Q22 40 26 62 Q30 84 50 86 Q70 84 74 62 Q78 40 58 30 V22"/><path d="M40 86 L38 92 H62 L60 86"/><path d="M30 52 H70"/>`,
+  },
+  {
+    key: 'skull-bones',
+    label: 'Crâne et os',
+    cat: 'esprits',
+    tags: 'tete de mort pirate danger poison',
+    svg: (c) =>
+      `<path d="M33 50 A17 17 0 1 1 67 50 V59 H60 V68 H40 V59 H33 Z"/>${dot(44, 46, 5, c)}${dot(56, 46, 5, c)}<path d="M48 56 L50 52 L52 56 Z"/><path d="M20 92 L80 72 M20 72 L80 92"/>` +
+      [[18, 72], [18, 92], [82, 72], [82, 92]].map(([x, y]) => `<circle cx="${x}" cy="${y - 3}" r="3"/><circle cx="${x}" cy="${y + 3}" r="3"/>`).join(''),
+  },
+  {
+    key: 'candle',
+    label: 'Bougie funéraire',
+    cat: 'esprits',
+    tags: 'cierge flamme veillee deuil',
+    svg: () => `<path d="M38 92 V40 H62 V92 M30 92 H70"/><path d="M38 46 Q41 56 44 46 Q48 62 52 46"/><path d="M50 40 V33"/><path d="M50 8 C58 18 58 26 50 32 C42 26 42 18 50 8 Z"/><circle cx="50" cy="22" r="17" stroke-dasharray="2 5"/>`,
+  },
+  {
+    key: 'incense',
+    label: 'Encens',
+    cat: 'esprits',
+    tags: 'baton fumee priere offrande',
+    svg: () => `<path d="M22 66 H78 Q76 90 50 90 Q24 90 22 66 Z"/><path d="M42 66 L38 32 M50 66 V28 M58 66 L62 32"/><path d="M38 28 C32 22 42 18 36 10 M50 22 C44 16 54 12 48 4 M62 28 C68 22 58 18 64 10"/>`,
+  },
+  {
+    key: 'graveyard',
+    label: 'Cimetière',
+    cat: 'esprits',
+    tags: 'tombes nuit lune mort',
+    svg: () =>
+      `<path d="M14 88 V50 A14 14 0 0 1 42 50 V88"/><path d="M28 46 V68 M21 54 H35"/><path d="M54 88 V60 A12 12 0 0 1 78 60 V88"/><path d="M4 88 H96"/><path d="M84 8 A14 14 0 1 0 94 30 A11 11 0 1 1 84 8 Z"/>`,
+  },
+  {
+    key: 'hooded',
+    label: 'Spectre encapuchonné',
+    cat: 'esprits',
+    tags: 'faucheuse capuche ombre mort',
+    svg: (c) => `<path d="M50 8 C30 8 22 28 24 50 L14 92 H86 L76 50 C78 28 70 8 50 8 Z"/><path d="M36 42 Q50 24 64 42 Q62 58 50 60 Q38 58 36 42 Z"/>${dot(44, 44, 3, c)}${dot(56, 44, 3, c)}`,
+  },
+
+  // ---------------------------------------------------------------- Visages
+  {
+    key: 'glasses-sad',
+    label: 'Lunettes tristes',
+    cat: 'visages',
+    tags: 'visage triste lunettes',
+    svg: () => `<circle cx="32" cy="42" r="12"/><circle cx="68" cy="42" r="12"/><circle cx="50" cy="42" r="3.5"/><path d="M44 42 H46.5 M53.5 42 H56 M20 40 L12 36 M80 40 L88 36"/><path d="M22 74 Q32 62 42 74 M58 74 Q68 62 78 74"/>`,
+  },
+  {
+    key: 'face-sad',
+    label: 'Visage triste',
+    cat: 'visages',
+    tags: 'tristesse chagrin',
+    svg: (c) => `<circle cx="50" cy="50" r="42"/>${dot(36, 44, 4, c)}${dot(64, 44, 4, c)}<path d="M26 32 L40 27 M74 32 L60 27"/><path d="M34 72 Q50 58 66 72"/>`,
+  },
+  {
+    key: 'face-serene',
+    label: 'Visage serein',
+    cat: 'visages',
+    tags: 'paix sourire calme',
+    svg: () => `<circle cx="50" cy="50" r="42"/><path d="M27 44 Q35 51 43 44 M57 44 Q65 51 73 44"/><path d="M36 64 Q50 75 64 64"/>`,
+  },
+  {
+    key: 'face-angry',
+    label: 'Visage furieux',
+    cat: 'visages',
+    tags: 'colere rage',
+    svg: (c) => `<circle cx="50" cy="50" r="42"/><path d="M25 30 L44 40 M75 30 L56 40"/>${dot(37, 47, 4, c)}${dot(63, 47, 4, c)}<path d="M30 72 L39 64 L50 70 L61 64 L70 72"/>`,
+  },
+  {
+    key: 'face-tears',
+    label: 'Visage en larmes',
+    cat: 'visages',
+    tags: 'pleurs larmes tristesse',
+    svg: (c) => `<circle cx="50" cy="50" r="42"/><path d="M27 42 Q35 36 43 42 M57 42 Q65 36 73 42"/>${drop(35, 58, 3, c)}${drop(65, 58, 3, c)}<path d="M40 75 Q50 67 60 75"/>`,
+  },
+  {
+    key: 'face-stitched',
+    label: 'Visage cousu',
+    cat: 'visages',
+    tags: 'poupee couture silence',
+    svg: () => `<circle cx="50" cy="50" r="42"/><path d="M30 34 L42 46 M42 34 L30 46 M58 34 L70 46 M70 34 L58 46"/><path d="M30 68 H70"/><path d="M37 62 V74 M45 62 V74 M53 62 V74 M61 62 V74"/>`,
+  },
+  {
+    key: 'face-surprised',
+    label: 'Visage stupéfait',
+    cat: 'visages',
+    tags: 'surprise peur effroi',
+    svg: (c) => `<circle cx="50" cy="50" r="42"/><circle cx="36" cy="42" r="7"/><circle cx="64" cy="42" r="7"/>${dot(36, 42, 2.5, c)}${dot(64, 42, 2.5, c)}<circle cx="50" cy="68" r="8"/>`,
+  },
+  {
+    key: 'face-sleep',
+    label: 'Visage endormi',
+    cat: 'visages',
+    tags: 'sommeil reve repos',
+    svg: () => `<circle cx="50" cy="54" r="38"/><path d="M30 54 H44 M56 54 H70"/><circle cx="50" cy="72" r="4"/><path d="M66 8 H78 L66 20 H78 M82 24 H90 L82 32 H90"/>`,
+  },
+  {
+    key: 'noh',
+    label: 'Masque de nô',
+    cat: 'visages',
+    tags: 'masque theatre japonais',
+    svg: (c) =>
+      `<path d="M50 8 C74 8 82 30 80 52 C78 76 64 92 50 92 C36 92 22 76 20 52 C18 30 26 8 50 8 Z"/><path d="M50 8 Q44 15 34 15 M50 8 Q56 15 66 15"/>${dot(36, 26, 3.5, c)}${dot(64, 26, 3.5, c)}<path d="M29 45 Q37 40 44 46 M56 46 Q63 40 71 45"/><path d="M43 71 Q50 66 57 71 Q50 75 43 71 Z"/>`,
+  },
+  {
+    key: 'tengu',
+    label: 'Tengu',
+    cat: 'visages',
+    tags: 'masque yokai long nez demon',
+    svg: (c) =>
+      `<path d="M42 20 L50 8 L58 20"/><path d="M28 30 Q50 16 72 30 V60 Q72 84 50 88 Q28 84 28 60 Z"/><path d="M32 36 L46 42 M68 36 L54 42"/>${dot(40, 47, 3.5, c)}${dot(60, 47, 3.5, c)}<path d="M50 50 L86 62 L52 62"/><path d="M40 76 Q50 72 58 78"/>`,
+  },
+  {
+    key: 'hannya',
+    label: 'Hannya',
+    cat: 'visages',
+    tags: 'masque demon jalousie cornes',
+    svg: (c) =>
+      `<path d="M30 28 Q18 16 22 4 M70 28 Q82 16 78 4"/><path d="M24 30 Q50 18 76 30 L72 62 Q62 90 50 90 Q38 90 28 62 Z"/><path d="M32 42 L46 48 L34 51 Z M68 42 L54 48 L66 51 Z" fill="${c}" stroke="none"/><path d="M32 66 Q50 82 68 66 M36 68 L38 77 M64 68 L62 77"/>`,
+  },
+  {
+    key: 'noppera',
+    label: 'Noppera-bō',
+    cat: 'visages',
+    tags: 'sans visage yokai fantome',
+    svg: () => `<path d="M50 10 C72 10 80 30 78 52 C76 76 64 90 50 90 C36 90 24 76 22 52 C20 30 28 10 50 10 Z"/><path d="M24 40 Q30 18 50 16 Q70 18 76 40"/>`,
+  },
+  {
+    key: 'daruma',
+    label: 'Daruma',
+    cat: 'visages',
+    tags: 'voeu chance poupee',
+    svg: (c) =>
+      `<path d="M50 8 C76 8 88 30 88 54 C88 78 72 92 50 92 C28 92 12 78 12 54 C12 30 24 8 50 8 Z"/><path d="M30 48 C30 34 40 26 50 26 C60 26 70 34 70 48 C70 62 62 68 50 68 C38 68 30 62 30 48 Z"/>${dot(41, 44, 5, c)}<circle cx="59" cy="44" r="5"/><path d="M33 34 Q40 29 46 35 M54 35 Q60 29 67 34 M42 58 Q50 54 58 58 M40 80 H60"/>`,
+  },
+
+  // ---------------------------------------------------------------- Ajouts : nature & bêtes
+  {
+    key: 'moth',
+    label: 'Papillon de nuit',
+    cat: 'nature',
+    tags: 'phalene insecte nuit',
+    svg: () =>
+      `<path d="M50 28 V78"/><path d="M50 36 C34 16 10 22 12 40 C14 54 34 52 50 50 M50 36 C66 16 90 22 88 40 C86 54 66 52 50 50"/><path d="M50 54 C38 60 26 74 34 82 C42 88 48 70 50 62 M50 54 C62 60 74 74 66 82 C58 88 52 70 50 62"/><circle cx="30" cy="38" r="5"/><circle cx="70" cy="38" r="5"/><path d="M48 29 Q40 15 33 12 M52 29 Q60 15 67 12"/>`,
+  },
+  {
+    key: 'dragonfly',
+    label: 'Libellule',
+    cat: 'nature',
+    tags: 'insecte',
+    svg: () =>
+      `<circle cx="50" cy="16" r="5"/><path d="M50 21 V92"/><ellipse cx="30" cy="32" rx="21" ry="6" transform="rotate(-10 30 32)"/><ellipse cx="70" cy="32" rx="21" ry="6" transform="rotate(10 70 32)"/><ellipse cx="32" cy="46" rx="18" ry="5" transform="rotate(12 32 46)"/><ellipse cx="68" cy="46" rx="18" ry="5" transform="rotate(-12 68 46)"/>`,
+  },
+  {
+    key: 'owl',
+    label: 'Hibou',
+    cat: 'nature',
+    tags: 'chouette oiseau nuit sagesse',
+    svg: (c) =>
+      `<path d="M24 30 Q50 18 76 30 C82 56 72 86 50 90 C28 86 18 56 24 30 Z"/><path d="M24 30 L20 12 L36 24 M76 30 L80 12 L64 24"/><circle cx="38" cy="44" r="10"/><circle cx="62" cy="44" r="10"/>${dot(38, 44, 4, c)}${dot(62, 44, 4, c)}<path d="M46 54 L50 62 L54 54 M40 72 L44 76 L48 72 M52 72 L56 76 L60 72"/>`,
+  },
+  {
+    key: 'bat',
+    label: 'Chauve-souris',
+    cat: 'nature',
+    tags: 'nuit vampire',
+    svg: () =>
+      `<ellipse cx="50" cy="52" rx="7" ry="13"/><path d="M45 40 L44 32 L49 37 M55 40 L56 32 L51 37"/><path d="M43 46 C34 32 18 32 4 42 C11 46 13 52 13 58 C20 54 26 56 28 62 C32 56 38 56 43 60 M57 46 C66 32 82 32 96 42 C89 46 87 52 87 58 C80 54 74 56 72 62 C68 56 62 56 57 60"/>`,
+  },
+  {
+    key: 'cat',
+    label: 'Chat',
+    cat: 'nature',
+    tags: 'nekomata bakeneko felin',
+    svg: (c) =>
+      `<path d="M24 42 L22 12 L40 28 Q50 24 60 28 L78 12 L76 42 C82 66 68 86 50 86 C32 86 18 66 24 42 Z"/><path d="M34 50 Q39 43 44 50 Q39 57 34 50 Z M56 50 Q61 43 66 50 Q61 57 56 50 Z" fill="${c}" stroke="none"/><path d="M47 62 H53 L50 66 Z M50 66 Q46 72 42 70 M50 66 Q54 72 58 70"/><path d="M30 63 L10 59 M30 68 L10 72 M70 63 L90 59 M70 68 L90 72"/>`,
+  },
+  {
+    key: 'mushroom',
+    label: 'Champignon',
+    cat: 'nature',
+    tags: 'foret poison',
+    svg: () => `<path d="M10 52 C10 26 30 12 50 12 C70 12 90 26 90 52 Z"/><path d="M38 52 C36 70 34 82 32 90 H68 C66 82 64 70 62 52"/><circle cx="34" cy="32" r="5"/><circle cx="56" cy="24" r="4"/><circle cx="70" cy="40" r="4.5"/><circle cx="48" cy="42" r="3.5"/>`,
+  },
+  {
+    key: 'maple',
+    label: 'Feuille d’érable',
+    cat: 'nature',
+    tags: 'momiji automne arbre',
+    svg: () =>
+      `<path d="M50 6 L57 26 L70 18 L66 36 L86 33 L75 49 L86 56 L65 60 L67 73 L53 66 H47 L33 73 L35 60 L14 56 L25 49 L14 33 L34 36 L30 18 L43 26 Z"/><path d="M50 66 V94 M50 64 V22 M50 58 L72 38 M50 58 L28 38"/>`,
+  },
+  { key: 'clover', label: 'Trèfle', cat: 'nature', tags: 'chance quatre feuilles', svg: () => `${around(4, heart(50, 30, 0.4))}<path d="M50 56 Q56 78 72 92"/>` },
+  {
+    key: 'rose',
+    label: 'Rose',
+    cat: 'nature',
+    tags: 'fleur amour epines',
+    svg: () => `${spiralAt(50, 38, 2.2, 1.9)}<path d="M26 36 C22 60 38 70 50 70 C62 70 78 60 74 36"/><path d="M50 70 V94 M50 82 Q36 74 30 82 Q40 90 50 86"/>`,
+  },
+  {
+    key: 'thorns',
+    label: 'Ronces',
+    cat: 'nature',
+    tags: 'epines couronne piege',
+    svg: () => `<circle cx="50" cy="50" r="34"/>${around(10, '<path d="M46 16.5 L50 6 L54 16.5"/>')}${around(10, '<path d="M46 16.5 L50 25 L54 16.5"/>', 18)}`,
+  },
+  {
+    key: 'jellyfish',
+    label: 'Méduse',
+    cat: 'nature',
+    tags: 'mer ocean poison',
+    svg: () =>
+      `<path d="M18 48 C18 24 32 10 50 10 C68 10 82 24 82 48 Q74 44 66 48 Q58 44 50 48 Q42 44 34 48 Q26 44 18 48 Z"/><path d="M30 50 Q26 64 32 76 Q36 86 30 94 M44 50 Q40 66 46 78 Q50 88 44 94 M56 50 Q60 66 54 78 Q50 88 56 94 M70 50 Q74 64 68 76 Q64 86 70 94"/>`,
+  },
+  { key: 'pine', label: 'Pin', cat: 'nature', tags: 'arbre foret sapin', svg: () => `<path d="M50 6 L68 32 H58 L76 56 H62 L84 82 H16 L38 56 H24 L42 32 H32 Z"/><path d="M45 82 V94 H55 V82"/>` },
+
+  // ---------------------------------------------------------------- Ajouts : éléments
+  { key: 'rain', label: 'Pluie', cat: 'elements', tags: 'nuage averse eau', svg: () => `<path d="${CLOUD}"/><path d="M32 64 L26 80 M48 64 L42 82 M64 64 L58 80 M40 86 L37 94 M56 86 L53 94"/>` },
+  { key: 'storm', label: 'Orage', cat: 'elements', tags: 'nuage foudre eclair tonnerre', svg: () => `<path d="${CLOUD}"/><path d="M54 54 L42 74 H54 L46 94 L68 66 H56 L62 54"/>` },
+  {
+    key: 'tide',
+    label: 'Marée',
+    cat: 'elements',
+    tags: 'lune vagues mer ocean',
+    svg: () =>
+      `<path d="M58 8 A20 20 0 1 0 72 40 A15 15 0 1 1 58 8 Z"/><path d="M6 62 Q17 54 28 62 T50 62 T72 62 T94 62 M6 76 Q17 68 28 76 T50 76 T72 76 T94 76 M6 90 Q17 82 28 90 T50 90 T72 90 T94 90"/>`,
+  },
+  {
+    key: 'thunder-drums',
+    label: 'Tambours du tonnerre',
+    cat: 'elements',
+    tags: 'raijin foudre tambour',
+    svg: () => `${around(8, '<circle cx="50" cy="13" r="7"/>')}<path d="M54 30 L42 52 H54 L46 72 L60 48 H50 L58 30"/>`,
+  },
+
+  // ---------------------------------------------------------------- Ajouts : astres
+  {
+    key: 'eclipse',
+    label: 'Éclipse',
+    cat: 'astres',
+    tags: 'soleil lune ombre',
+    svg: () => `<circle cx="50" cy="50" r="24"/><circle cx="57" cy="45" r="21"/>${around(16, '<path d="M50 18 V8"/>')}`,
+  },
+  {
+    key: 'galaxy',
+    label: 'Galaxie',
+    cat: 'astres',
+    tags: 'spirale etoiles cosmos',
+    svg: (c) =>
+      `${spiralAt(50, 50, 1.6, 3.6)}<g transform="rotate(180 50 50)">${spiralAt(50, 50, 1.6, 3.6)}</g>${[[18, 22], [84, 30], [80, 80], [16, 76], [50, 8]].map(([x, y]) => dot(x, y, 2, c)).join('')}`,
+  },
+  {
+    key: 'moon-phases',
+    label: 'Phases de lune',
+    cat: 'astres',
+    tags: 'lune cycle croissant',
+    svg: (c) => {
+      const y = 50;
+      const r = 7;
+      const f = `fill="${c}" stroke="none"`;
+      const cell = (x: number, inner: string) => `<circle cx="${x}" cy="${y}" r="${r}"/>${inner}`;
+      return (
+        cell(14, '') +
+        cell(32, `<path d="M32 ${y - r} A${r} ${r} 0 0 1 32 ${y + r} A4 ${r} 0 0 0 32 ${y - r} Z" ${f}/>`) +
+        cell(50, `<path d="M50 ${y - r} A${r} ${r} 0 0 1 50 ${y + r} Z" ${f}/>`) +
+        cell(68, `<path d="M68 ${y - r} A${r} ${r} 0 0 1 68 ${y + r} A4 ${r} 0 0 1 68 ${y - r} Z" ${f}/>`) +
+        dot(86, y, r, c) +
+        `<path d="M10 70 Q50 86 90 70" stroke-dasharray="2 5"/>`
+      );
+    },
+  },
+  {
+    key: 'sun-eye',
+    label: 'Soleil à l’œil',
+    cat: 'astres',
+    tags: 'soleil oeil divin',
+    svg: (c) => `${around(12, '<path d="M50 14 V4"/>')}<circle cx="50" cy="50" r="32"/><path d="M28 50 Q50 32 72 50 Q50 68 28 50 Z"/>${dot(50, 50, 5, c)}`,
+  },
+
+  // ---------------------------------------------------------------- Ajouts : armes & liens
+  {
+    key: 'trident',
+    label: 'Trident',
+    cat: 'armes',
+    tags: 'fourche lance mer',
+    svg: () => `<path d="M50 94 V8 M30 14 V30 Q30 40 50 40 Q70 40 70 30 V14"/><path d="M25 21 L30 12 L35 21 M45 15 L50 6 L55 15 M65 21 L70 12 L75 21"/><path d="M44 72 H56 M44 78 H56"/>`,
+  },
+  { key: 'axe', label: 'Hache', cat: 'armes', tags: 'bucheron arme', svg: () => `<path d="M44 94 V8"/><path d="M44 20 L66 12 C88 24 88 52 66 64 L44 54 Z"/><path d="M66 12 Q74 38 66 64"/>` },
+  { key: 'hammer', label: 'Marteau', cat: 'armes', tags: 'masse forge', svg: () => `<path d="M50 94 V36"/><path d="M24 14 H76 V36 H24 Z"/><path d="M38 14 V36 M62 14 V36"/>` },
+  {
+    key: 'anchor',
+    label: 'Ancre',
+    cat: 'armes',
+    tags: 'bateau mer port',
+    svg: () => `<circle cx="50" cy="13" r="7"/><path d="M50 20 V88 M34 32 H66"/><path d="M18 62 Q22 86 50 88 Q78 86 82 62"/><path d="M18 62 L12 71 M18 62 L27 67 M82 62 L88 71 M82 62 L73 67"/>`,
+  },
+  {
+    key: 'kusarigama',
+    label: 'Kusarigama',
+    cat: 'armes',
+    tags: 'faucille chaine arme ninja',
+    svg: (c) => `<path d="M30 94 V40"/><path d="M30 40 C34 16 62 8 86 22 C64 20 46 28 34 48"/><path d="M26 40 H34"/><path d="M30 94 Q62 98 80 74" stroke-dasharray="6 3"/>${dot(82, 70, 5, c)}`,
+  },
+  {
+    key: 'yari',
+    label: 'Lance (yari)',
+    cat: 'armes',
+    tags: 'lance pique',
+    svg: () => `<path d="M50 94 V28"/><path d="M50 4 L58 20 L54 26 H46 L42 20 Z"/><path d="M42 32 H58 M50 26 V32"/><path d="M50 36 Q40 46 44 58 M50 36 Q60 46 56 58"/>`,
+  },
+  {
+    key: 'kunai-crossed',
+    label: 'Kunais croisés',
+    cat: 'armes',
+    tags: 'kunai couteau ninja',
+    svg: () => {
+      const k = `<path d="M50 6 L57 32 L50 40 L43 32 Z"/><path d="M50 40 V78"/><circle cx="50" cy="84" r="5"/><path d="M45 50 H55 M45 58 H55"/>`;
+      return `<g transform="rotate(-38 50 50)">${k}</g><g transform="rotate(38 50 50)">${k}</g>`;
+    },
+  },
+  {
+    key: 'smoke-bomb',
+    label: 'Bombe fumigène',
+    cat: 'armes',
+    tags: 'bombe explosif fumee ninja',
+    svg: () => `<circle cx="46" cy="60" r="28"/><path d="M60 36 Q68 22 80 22"/><path d="M84 14 L86 8 M90 22 L96 22 M88 28 L93 32 M80 14 L78 8"/><path d="M30 52 Q36 42 46 40"/>`,
+  },
+  {
+    key: 'makibishi',
+    label: 'Makibishi',
+    cat: 'armes',
+    tags: 'chausse trappe piege pointes',
+    svg: () => `<path d="M50 50 L50 12 M50 50 L18 76 M50 50 L82 76 M50 50 L54 66"/><path d="M46 20 L50 10 L54 20 M22 69 L14 79 L26 79 M78 69 L86 79 L74 79"/><circle cx="50" cy="50" r="5"/>`,
+  },
+
+  // ---------------------------------------------------------------- Ajouts : sacré & mystique
+  {
+    key: 'tri-dots',
+    label: 'Trois points',
+    cat: 'mystique',
+    tags: 'triangle trinite',
+    svg: (c) => `<circle cx="50" cy="50" r="44"/>${[-90, 30, 150].map((a) => { const [x, y] = pt(20, a).split(' ').map(Number); return dot(x, y, 8, c); }).join('')}${dot(50, 50, 3.5, c)}`,
+  },
+  {
+    key: 'hooks',
+    label: 'Sceau des crochets',
+    cat: 'mystique',
+    tags: 'crochets spirale sigil',
+    svg: (c) => `<path d="M${pt(14, 0)} A14 14 0 1 1 ${pt(14, -90)}"/>${dot(50, 50, 4, c)}<path d="M34 12 C20 30 20 70 34 88 M66 12 C80 30 80 70 66 88"/><path d="M18 22 L30 27 M18 78 L30 73 M82 22 L70 27 M82 78 L70 73"/>`,
+  },
+  { key: 'heptagram', label: 'Heptagramme', cat: 'mystique', tags: 'etoile sept branches', svg: () => `<circle cx="50" cy="50" r="44"/>${starPolygon(7, 3, 42)}` },
+  {
+    key: 'enneagram',
+    label: 'Ennéagramme',
+    cat: 'mystique',
+    tags: 'neuf points etoile',
+    svg: () => {
+      const v = (i: number) => pt(42, -90 + i * 40);
+      return `<circle cx="50" cy="50" r="42"/><path d="M${v(0)} L${v(3)} L${v(6)} Z"/><path d="M${[1, 4, 2, 8, 5, 7, 1].map(v).join(' L')}"/>`;
+    },
+  },
+  { key: 'vesica', label: 'Vesica piscis', cat: 'mystique', tags: 'deux cercles amande', svg: () => `<circle cx="38" cy="50" r="28"/><circle cx="62" cy="50" r="28"/><path d="M50 8 V92"/>` },
+  {
+    key: 'seed-of-life',
+    label: 'Graine de vie',
+    cat: 'mystique',
+    tags: 'cercles fleur geometrie sacree',
+    svg: () => `<circle cx="50" cy="50" r="32"/><circle cx="50" cy="50" r="16"/>${around(6, '<circle cx="50" cy="34" r="16"/>')}`,
+  },
+  {
+    key: 'enso',
+    label: 'Ensō',
+    cat: 'mystique',
+    tags: 'cercle zen pinceau',
+    svg: () => `<path d="M${pt(38, -64)} A38 38 0 1 1 ${pt(38, -112)}"/><path d="M${pt(38, -64)} Q64 12 70 8"/>`,
+  },
+  { key: 'triangles', label: 'Triangles imbriqués', cat: 'mystique', tags: 'triangle', svg: () => poly(3, 44, -90) + poly(3, 28, 90) + poly(3, 14, -90) },
+  {
+    key: 'keyhole',
+    label: 'Serrure scellée',
+    cat: 'mystique',
+    tags: 'serrure cle verrou',
+    svg: (c) => `<circle cx="50" cy="50" r="42"/><circle cx="50" cy="50" r="34" stroke-dasharray="3 5"/>${dot(50, 40, 10, c)}<path d="M43 46 L38 74 H62 L57 46 Z" fill="${c}" stroke="none"/>`,
+  },
+  {
+    key: 'chakra-wheel',
+    label: 'Roue du chakra',
+    cat: 'mystique',
+    tags: 'roue dharma',
+    svg: (c) => `<circle cx="50" cy="50" r="36"/><circle cx="50" cy="50" r="10"/>${around(8, '<path d="M50 40 V14"/>')}${around(8, dot(50, 8, 3.5, c))}`,
+  },
+  {
+    key: 'asanoha',
+    label: 'Asanoha',
+    cat: 'mystique',
+    tags: 'chanvre motif japonais etoile',
+    svg: () => `${poly(6, 42, -90)}${around(6, '<path d="M50 50 L50 8"/>')}${around(6, `<path d="M50 50 L${pt(36.4, -60)}"/>`)}${around(6, `<path d="M50 8 L${pt(21, -60)}"/>`)}`,
   },
 ];

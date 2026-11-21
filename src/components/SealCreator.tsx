@@ -154,7 +154,7 @@ export function SealWorkbench({
 
   // symboles visibles : résultats de recherche ou famille ouverte
   const q = norm(query.trim());
-  const visibleSymbols = q ? SYMBOLS.filter((s) => norm(s.label).includes(q)) : family ? SYMBOLS.filter((s) => s.cat === family) : [];
+  const visibleSymbols = q ? SYMBOLS.filter((s) => norm(`${s.label} ${s.tags ?? ''}`).includes(q)) : family ? SYMBOLS.filter((s) => s.cat === family) : [];
   const symbolPreviews = useMemo(
     () => (section === 'symbol' ? Object.fromEntries(visibleSymbols.map((s) => [s.key, mk({ symbol: s.key, symbolScale: 1.5 })])) : {}),
     [section, mk, q, family],

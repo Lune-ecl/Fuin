@@ -590,17 +590,19 @@
 
 .family__covers {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 2px;
   width: 100%;
   margin-bottom: 6px;
 }
 
 .family__covers span {
+  min-width: 0;
   aspect-ratio: 1;
 }
 
 .family__covers svg {
+  display: block;
   width: 100%;
   height: 100%;
 }
