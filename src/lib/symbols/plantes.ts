@@ -1,0 +1,31 @@
+import { around, ci, dot, el, petal, type SealSymbol } from '../symbolKit';
+
+const v = (key: string, label: string, svg: (c: string) => string, tags = ''): SealSymbol => ({ key, label, cat: 'nature', tags: `nature plante ${tags}`, svg });
+
+export const PLANTES: SealSymbol[] = [
+  v('chrysanthemum', 'Chrysanthème en fleur', (c) => `${around(12, petal(14, 44, 6))}${around(12, petal(8, 28, 5), 15)}${ci(50, 50, 8)}${dot(50, 50, 3, c)}`, 'chrysantheme kiku fleur'),
+  v('plum-blossom', 'Fleur de prunier', (c) => `${around(5, '<path d="M50 46 C38 40 36 22 50 18 C64 22 62 40 50 46 Z"/>')}${around(10, '<path d="M50 50 L50 38"/>', 18)}${around(10, ci(50, 37, 1.6), 18)}${dot(50, 50, 3, c)}`, 'prunier ume fleur'),
+  v('iris', 'Iris', () => `<path d="M50 44 C40 30 42 14 50 8 C58 14 60 30 50 44 Z M50 44 C38 42 24 50 22 64 C34 64 44 58 50 48 M50 44 C62 42 76 50 78 64 C66 64 56 58 50 48 M50 48 V94 M50 76 C40 70 32 72 26 80 M50 70 C60 64 68 66 74 72"/>`, 'iris ayame fleur'),
+  v('wisteria', 'Glycine', () => `<path d="M14 14 Q50 22 86 14 M30 17 V24 M50 20 V26 M70 17 V24"/>${[[30, 28], [26, 38], [32, 46], [28, 56], [32, 64], [50, 30], [46, 40], [54, 48], [48, 58], [52, 68], [50, 78], [70, 28], [74, 38], [68, 46], [72, 56], [68, 64]].map(([x, y]) => el(x, y, 4, 3.4)).join('')}`, 'glycine fuji fleur grappe'),
+  v('camellia', 'Camélia', (c) => `${around(5, '<path d="M50 50 C36 46 32 22 50 16 C68 22 64 46 50 50 Z"/>')}${ci(50, 50, 10)}${around(8, '<path d="M50 50 L50 42"/>')}${dot(50, 50, 3, c)}`, 'camelia tsubaki fleur'),
+  v('peony', 'Pivoine', () => `${ci(50, 48, 10)}<path d="M38 40 C30 26 44 18 50 24 C56 18 70 26 62 40 M34 54 C18 52 18 32 34 32 M66 54 C82 52 82 32 66 32 M36 60 C28 76 46 82 50 72 C54 82 72 76 64 60 M30 44 C14 46 12 66 28 68 M70 44 C86 46 88 66 72 68"/>`, 'pivoine botan fleur'),
+  v('tulip', 'Tulipe', () => `<path d="M32 22 L40 32 L50 18 L60 32 L68 22 C70 40 64 52 50 54 C36 52 30 40 32 22 Z M50 54 V92 M50 78 C40 68 30 70 26 60 C36 60 46 66 50 74"/>`, 'tulipe fleur'),
+  v('sunflower', 'Tournesol', (c) => `${around(16, petal(22, 44, 5))}${ci(50, 50, 20)}${[[44, 44], [56, 44], [50, 54], [42, 56], [58, 56], [50, 40]].map(([x, y]) => dot(x, y, 2, c)).join('')}`, 'tournesol himawari fleur soleil'),
+  v('dandelion', 'Pissenlit', (c) => `<path d="M50 52 V94"/>${around(14, '<path d="M50 34 V14 M46 16 L50 12 L54 16"/>')}${dot(50, 34, 4, c)}`, 'pissenlit graines souffle'),
+  v('oak-leaf', 'Feuille de chêne', () => `<path d="M50 90 V14 M50 14 C56 16 60 22 56 28 C64 28 68 34 62 40 C70 42 72 50 64 54 C70 60 68 68 60 68 C62 76 56 80 50 80 C44 80 38 76 40 68 C32 68 30 60 36 54 C28 50 30 42 38 40 C32 34 36 28 44 28 C40 22 44 16 50 14 Z M50 36 L60 32 M50 50 L62 46 M50 64 L58 62 M50 36 L40 32 M50 50 L38 46 M50 64 L42 62"/>`, 'feuille chene arbre'),
+  v('acorn', 'Gland', () => `<path d="M30 44 C30 30 70 30 70 44 Z M30 44 C30 66 40 80 50 86 C60 80 70 66 70 44 M50 32 V20 Q56 14 62 16 M34 40 L66 40"/>`, 'gland chene'),
+  v('pinecone', 'Pomme de pin', () => `${el(50, 54, 20, 30)}<path d="M50 24 V14 M36 36 L50 44 L64 36 M32 50 L50 58 L68 50 M34 64 L50 72 L66 64 M40 76 L50 82 L60 76"/>`, 'pomme pin conifere'),
+  v('cactus', 'Cactus', () => `<path d="M42 90 V24 C42 14 58 14 58 24 V90 M42 56 H32 C26 56 24 50 24 44 V36 C24 30 32 30 32 36 V46 H42 M58 48 H68 V30 C68 24 76 24 76 30 V48 C76 56 72 60 66 60 H58 M30 90 H70"/>`, 'cactus desert'),
+  v('palm', 'Palmier', () => `<path d="M50 92 C50 70 48 52 52 34"/><path d="M52 34 C40 24 26 26 16 36 M52 34 C46 20 34 14 22 16 M52 34 C60 20 72 14 84 18 M52 34 C64 24 78 28 86 40 M52 34 C54 22 50 12 44 8 M38 92 H64"/>`, 'palmier ile'),
+  v('willow', 'Saule pleureur', () => `<path d="M50 92 V40 M50 40 C40 30 30 30 22 36 M50 40 C60 30 70 30 78 36 M50 40 V24 M22 36 Q18 56 20 76 M30 32 Q26 54 28 72 M40 30 Q38 52 40 66 M60 30 Q62 52 60 66 M70 32 Q74 54 72 72 M78 36 Q82 56 80 76 M36 92 H64"/>`, 'saule yanagi arbre fantome'),
+  v('sprout', 'Pousse', () => `<path d="M50 92 V44 M50 60 C40 42 24 42 18 50 C26 62 40 62 50 60 M50 50 C58 30 76 28 84 36 C78 50 62 52 50 50 M30 92 H70"/>`, 'pousse germe graine'),
+  v('wheat', 'Épi de blé', () => `<path d="M50 94 V20"/>${[24, 36, 48, 60].map((y) => `${el(42, y, 5, 9, -30)}${el(58, y, 5, 9, 30)}`).join('')}${el(50, 14, 4, 8)}`, 'ble epi cereale'),
+  v('rice', 'Plant de riz', () => `<path d="M50 94 C50 60 54 36 70 18 M50 94 C50 66 44 46 28 30 M50 94 C52 70 60 56 78 48"/>${[[66, 24], [62, 30], [58, 36], [32, 34], [36, 40], [40, 46], [72, 50], [66, 54]].map(([x, y]) => el(x, y, 2.6, 4.5, 20)).join('')}`, 'riz ine recolte'),
+  v('peach', 'Pêche', () => `<path d="M50 30 C30 22 14 40 20 62 C26 80 42 86 50 82 C58 86 74 80 80 62 C86 40 70 22 50 30 Z M50 30 C46 44 46 62 50 82"/><path d="M50 30 V20 M50 22 C58 12 70 14 72 20 C64 26 56 26 50 22"/>`, 'peche momo fruit'),
+  v('cherries', 'Cerises', (c) => `${ci(32, 70, 14)}${ci(66, 72, 14)}<path d="M32 56 C36 36 50 24 58 14 M66 58 C64 40 60 26 58 14 M58 14 C66 10 76 12 80 18 C72 22 64 20 58 14"/>${dot(27, 65, 2.4, c)}${dot(61, 67, 2.4, c)}`, 'cerises sakuranbo fruit'),
+  v('grapes', 'Grappe de raisin', () => `${[[40, 34], [52, 34], [64, 34], [34, 46], [46, 46], [58, 46], [70, 46], [40, 58], [52, 58], [64, 58], [46, 70], [58, 70], [52, 82]].map(([x, y]) => ci(x, y, 6)).join('')}<path d="M52 28 V14 M52 18 C60 10 70 12 72 18"/>`, 'raisin vigne fruit'),
+  v('waterfall', 'Cascade', () => `<path d="M14 20 H40 V30 M60 30 V20 H86 M14 20 V90 M86 20 V90 M44 30 V80 M50 30 V86 M56 30 V80 M40 30 Q50 26 60 30"/><path d="M30 88 Q38 82 44 88 M56 88 Q62 82 70 88 M36 94 Q50 88 64 94"/>`, 'cascade chute eau taki'),
+  v('river', 'Rivière', () => `<path d="M34 6 C14 26 54 40 30 58 C14 70 30 86 40 94 M62 6 C42 26 82 40 58 58 C42 70 58 86 68 94"/><path d="M44 30 Q50 26 56 30 M40 52 Q46 48 52 52 M44 76 Q50 72 56 76"/>`, 'riviere fleuve courant'),
+  v('island', 'Île', () => `<path d="M14 72 C26 60 74 60 86 72 M50 64 C50 52 50 42 56 30"/><path d="M56 30 C46 22 34 24 28 32 M56 30 C62 20 74 18 82 24 M56 30 C66 28 76 32 80 40"/><path d="M6 82 Q16 78 26 82 T46 82 T66 82 T86 82 T96 82 M16 92 Q26 88 36 92 T56 92 T76 92"/>`, 'ile mer palmier'),
+  v('cave', 'Grotte', () => `<path d="M8 86 C12 50 24 20 50 16 C76 20 88 50 92 86 Z M30 86 C30 64 38 50 50 50 C62 50 70 64 70 86"/><path d="M40 16 L44 26 L46 18 M58 18 L60 28 L64 20"/>`, 'grotte caverne refuge'),
+];

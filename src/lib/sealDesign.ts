@@ -20,6 +20,10 @@ export interface SealDesign {
   glyphScale: number;
   glyphLayout?: GlyphLayout;
   color: string;
+  /** couleur propre aux kanjis du centre (vide : celle de l'encre) */
+  glyphColor?: string | null;
+  /** couleur propre au symbole central (vide : celle de l'encre) */
+  symbolColor?: string | null;
   stroke: number;
   rotation: number;
 }
@@ -57,6 +61,9 @@ export const COLORS = [
 ];
 
 export const BRUSH_FONT = 'Yuji Syuku';
+
+/** Seules les couleurs hexadécimales passent : la description vient parfois d'un ancien sceau ou d'un brouillon. */
+export const safeColor = (c: string | null | undefined): string | null => (c && /^#[0-9a-f]{3,8}$/i.test(c.trim()) ? c.trim() : null);
 
 // Centre optiquement un kanji : on mesure son encre réelle (canvas) au lieu de se fier
 // aux métriques de la police, qui décalent le caractère vers le bas ou sur le côté.
@@ -574,7 +581,9 @@ const FONT = "Yuji Syuku, Shippori Mincho B1, Hiragino Mincho ProN, serif";
 
 export function buildSealSvg(d: SealDesign, { embed = true }: { embed?: boolean } = {}): string {
   const sw = Math.max(0.6, Math.min(5, d.stroke || 2));
-  const color = d.color || '#ff3445';
+  const color = safeColor(d.color) ?? '#ff3445';
+  const glyphColor = safeColor(d.glyphColor) ?? color;
+  const symbolColor = safeColor(d.symbolColor) ?? color;
   const json = JSON.stringify(d);
   const id = `fs-${hash(json)}`;
   const frame = FRAMES.find((f) => f.key === d.frame) ?? FRAMES[0];
@@ -605,7 +614,7 @@ export function buildSealSvg(d: SealDesign, { embed = true }: { embed?: boolean 
   const sym = d.symbol ? SYMBOLS.find((s) => s.key === d.symbol) : null;
   if (sym) {
     const s = 0.88 * Math.max(0.3, Math.min(1.6, d.symbolScale || 1));
-    symbol = `<g transform="translate(${n(C - 50 * s)} ${n(C - 50 * s)}) scale(${n(s)})" stroke-width="${n(sw / s)}">${sym.svg(color)}</g>`;
+    symbol = `<g transform="translate(${n(C - 50 * s)} ${n(C - 50 * s)}) scale(${n(s)})" stroke="${symbolColor}" stroke-width="${n(sw / s)}">${sym.svg(symbolColor)}</g>`;
   }
 
   // kanjis du centre : chacun est centré sur sa case d'après son encre réelle
@@ -615,7 +624,7 @@ export function buildSealSvg(d: SealDesign, { embed = true }: { embed?: boolean 
     .map((slot, i) => {
       const size = slot.size * scale;
       const off = glyphOffset(chars[i], size);
-      return `<text x="${n(C + slot.x * scale + off.dx)}" y="${n(C + slot.y * scale + off.dy)}" text-anchor="middle" font-family="${FONT}" font-size="${n(size)}" fill="${color}" stroke="none">${esc(chars[i])}</text>`;
+      return `<text x="${n(C + slot.x * scale + off.dx)}" y="${n(C + slot.y * scale + off.dy)}" text-anchor="middle" font-family="${FONT}" font-size="${n(size)}" fill="${glyphColor}" stroke="none">${esc(chars[i])}</text>`;
     })
     .join('');
 

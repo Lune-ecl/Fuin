@@ -254,6 +254,24 @@ create table if not exists fuin.trame_solves (
 );
 alter table fuin.trame_solves enable row level security;
 
+-- Rolls d'étude : comprendre le sens d'un kanji ou gagner un indice (propres à chaque étape)
+create table if not exists fuin.trame_studies (
+  id         bigserial primary key,
+  trame_id   integer not null references fuin.trames(id) on delete cascade,
+  step_index integer not null,
+  member_id  uuid not null references fuin.members(id) on delete cascade,
+  target     integer not null default -1,   -- position du kanji étudié, -1 pour un indice
+  roll       integer not null,
+  label      text,
+  tone       text,
+  effect     text,
+  success    boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create index if not exists trame_studies_idx on fuin.trame_studies(trame_id, step_index, member_id);
+alter table fuin.trame_studies enable row level security;
+
+
 -- Mémorial des Grands Maîtres et des Maîtres (page « memorial » de Fondations)
 create table if not exists fuin.memorial (
   id         serial primary key,
@@ -1735,6 +1753,105 @@ language sql immutable set search_path = '' as $$
   select case when r = 1 then '1er cercle' else r || 'ème cercle' end
 $$;
 
+-- Kanjis étudiables d'une étape : l'inscription à déchiffrer ou la formule du sceau incomplet
+create or replace function fuin.trame_study_chars(s jsonb) returns text[]
+language sql immutable set search_path = '' as $$
+  select case s ->> 'kind'
+           when 'cipher' then fuin.kanji_chars(s ->> 'cipher_text')
+           when 'missing' then fuin.kanji_chars(s ->> 'formula')
+           else '{}'::text[] end
+$$;
+
+-- Ce que le joueur a découvert par ses rolls d'étude (jamais un kanji manquant lui-même)
+create or replace function fuin.trame_study_json(t fuin.trames, p_step integer, s jsonb, m fuin.members, p_solved boolean)
+returns jsonb language sql stable security definer set search_path = '' as $$
+  with st as (
+    select * from fuin.trame_studies x where x.trame_id = t.id and x.step_index = p_step and x.member_id = m.id
+  ), chars as (
+    select u.ch, (u.idx - 1)::integer as i from unnest(fuin.trame_study_chars(s)) with ordinality u(ch, idx)
+  ), hints as (
+    select coalesce(array_agg(h order by o), '{}') as list
+      from jsonb_array_elements_text(case when jsonb_typeof(s -> 'hints') = 'array' then s -> 'hints' else '[]'::jsonb end) with ordinality e(h, o)
+     where btrim(h) <> ''
+  ), won as (
+    select count(*) filter (where (st.target = -1 and st.success) or st.tone = 'crit-success')::integer as n from st
+  )
+  select jsonb_build_object(
+    'rolls_used', (select count(*) from st),
+    'rolls_max', coalesce(nullif(s ->> 'study_rolls', '')::integer, 0),
+    'chars', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'i', c.i,
+        'kanji', case when not p_solved and s ->> 'kind' = 'missing' and c.i = any(fuin.int_list(s -> 'missing')) then null else c.ch end,
+        'studiable', btrim(coalesce(s -> 'meanings' ->> c.i, '')) <> '',
+        'meaning', case when exists (select 1 from st where st.target = c.i and st.success) then nullif(btrim(coalesce(s -> 'meanings' ->> c.i, '')), '') end,
+        'misread', exists (select 1 from st where st.target = c.i and st.tone = 'crit-fail')
+              and not exists (select 1 from st where st.target = c.i and st.success)
+      ) order by c.i) from chars c), '[]'::jsonb),
+    'hints', to_jsonb((select list[1:least(cardinality(list), (select n from won))] from hints)),
+    'hints_total', (select cardinality(list) from hints),
+    'log', coalesce((select jsonb_agg(jsonb_build_object('target', st.target, 'roll', st.roll, 'label', st.label, 'tone', st.tone, 'effect', st.effect)
+                                      order by st.created_at) from st), '[]'::jsonb))
+$$;
+
+create or replace function public.fuin_trame_study(p_token text, p_id integer, p_step integer, p_target integer)
+returns json language plpgsql volatile security definer set search_path = '' as $$
+declare
+  m fuin.members;
+  t fuin.trames;
+  s jsonb;
+  maxr integer;
+  used integer;
+  chars text[];
+  hints text[];
+  before integer;
+  after integer;
+  v_roll integer;
+  tier jsonb;
+  ok boolean;
+  v_target integer := coalesce(p_target, -1);
+begin
+  m := fuin.session_member(p_token);
+  select * into t from fuin.trames where id = p_id for update;
+  if not found or not fuin.trame_visible(t, m) then
+    perform fuin.fail('FU404', 'Cette trame n''est pas ou plus accessible.');
+  end if;
+  if fuin.trame_current(t, m) <> p_step then
+    perform fuin.fail('FU409', 'Cette étape est déjà franchie ou pas encore ouverte. Recharge la page.');
+  end if;
+  s := t.steps -> p_step;
+  maxr := coalesce(nullif(s ->> 'study_rolls', '')::integer, 0);
+  if maxr <= 0 then perform fuin.fail('FU422', 'Cette étape ne permet pas de roll d''étude.'); end if;
+  select count(*) into used from fuin.trame_studies where trame_id = t.id and step_index = p_step and member_id = m.id;
+  if used >= maxr then perform fuin.fail('FU422', 'Tu as utilisé tous tes rolls d''étude pour cette étape.'); end if;
+  chars := fuin.trame_study_chars(s);
+  hints := array(select h from jsonb_array_elements_text(case when jsonb_typeof(s -> 'hints') = 'array' then s -> 'hints' else '[]'::jsonb end) h where btrim(h) <> '');
+  select count(*) filter (where (target = -1 and success) or tone = 'crit-success') into before
+    from fuin.trame_studies where trame_id = t.id and step_index = p_step and member_id = m.id;
+  if v_target >= 0 then
+    if v_target >= cardinality(chars) or btrim(coalesce(s -> 'meanings' ->> v_target, '')) = '' then
+      perform fuin.fail('FU422', 'Le Conclave n''a pas laissé de sens à découvrir pour ce kanji.');
+    end if;
+    if exists (select 1 from fuin.trame_studies where trame_id = t.id and step_index = p_step and member_id = m.id and target = v_target and success) then
+      perform fuin.fail('FU409', 'Tu connais déjà le sens de ce kanji.');
+    end if;
+  elsif before >= cardinality(hints) then
+    perform fuin.fail('FU422', 'Il n''y a plus d''indice à découvrir.');
+  end if;
+
+  v_roll := floor(random() * 100)::integer + 1;
+  tier := fuin.roll_tier(coalesce(nullif(s ->> 'study_table', ''), 'dechiffrement'), v_roll);
+  ok := (tier ->> 'tone') in ('success', 'crit-success');
+  insert into fuin.trame_studies(trame_id, step_index, member_id, target, roll, label, tone, effect, success)
+  values (t.id, p_step, m.id, v_target, v_roll, tier ->> 'label', tier ->> 'tone', tier ->> 'effect', ok);
+  after := least(cardinality(hints), before + case when (v_target = -1 and ok) or tier ->> 'tone' = 'crit-success' then 1 else 0 end);
+  return json_build_object(
+    'roll', v_roll, 'label', tier ->> 'label', 'tone', tier ->> 'tone', 'effect', tier ->> 'effect', 'success', ok,
+    'meaning', case when ok and v_target >= 0 then btrim(s -> 'meanings' ->> v_target) end,
+    'hint', case when after > least(before, cardinality(hints)) then hints[after] end,
+    'rolls_left', maxr - used - 1);
+end $$;
+
 -- Vue joueur : les étapes déjà franchies et l'étape en cours, jamais les réponses
 create or replace function public.fuin_trame_view(p_token text, p_id integer)
 returns json language plpgsql volatile security definer set search_path = '' as $$
@@ -1863,6 +1980,11 @@ begin
           'pending', exists (select 1 from fuin.trame_attempts a
                               where a.trame_id = t.id and a.step_index = i and a.member_id = m.id and a.label = 'pending'));
       end if;
+    end if;
+
+    -- rolls d'étude : sens des kanjis et indices
+    if coalesce(nullif(s ->> 'study_rolls', '')::integer, 0) > 0 then
+      st := st || jsonb_build_object('study', fuin.trame_study_json(t, i, s, m, solved));
     end if;
 
     if solved then
@@ -2143,6 +2265,13 @@ begin
         'text', a.answer, 'created_at', a.created_at) order by a.created_at)
         from fuin.trame_attempts a join fuin.members mm on mm.id = a.member_id
        where a.trame_id = t.id and a.kind = 'review' and a.label = 'pending'), '[]'::json),
+    'studies', coalesce((select json_agg(x) from (
+        select st.id, st.step_index, st.target, st.roll, st.label, st.tone, st.success, st.created_at,
+               mm.display_name as member, mm.rank
+          from fuin.trame_studies st join fuin.members mm on mm.id = st.member_id
+         where st.trame_id = t.id
+         order by st.created_at desc
+         limit 100) x), '[]'::json),
     'log', coalesce((select json_agg(x) from (
         select a.id, a.step_index, a.kind, a.answer, a.roll, a.label, a.tone, a.effect, a.success, a.created_at,
                mm.display_name as member, mm.rank
@@ -2217,6 +2346,17 @@ begin
     end if;
     if k not in ('text', 'unseal') and fuin.trame_max(s) not between 1 and 20 then
       perform fuin.fail('FU422', format('Étape %s : nombre d''essais entre 1 et 20.', pos));
+    end if;
+    if coalesce(nullif(s ->> 'study_rolls', '')::integer, 0) not between 0 and 10 then
+      perform fuin.fail('FU422', format('Étape %s : entre 0 et 10 rolls d''étude.', pos));
+    end if;
+    if jsonb_typeof(s -> 'hints') = 'array' and (jsonb_array_length(s -> 'hints') > 10
+       or exists (select 1 from jsonb_array_elements_text(s -> 'hints') h where length(h) > 500)) then
+      perform fuin.fail('FU422', format('Étape %s : 10 indices au maximum, de 500 caractères chacun.', pos));
+    end if;
+    if jsonb_typeof(s -> 'meanings') = 'array'
+       and exists (select 1 from jsonb_array_elements(s -> 'meanings') h where length(h #>> '{}') > 200) then
+      perform fuin.fail('FU422', format('Étape %s : le sens d''un kanji tient en 200 caractères.', pos));
     end if;
     if k in ('cipher', 'riddle') then
       if jsonb_typeof(s -> 'answers') <> 'array'
@@ -2337,6 +2477,7 @@ begin
   elsif p_action = 'reset' then
     delete from fuin.trame_attempts where trame_id = p_id;
     delete from fuin.trame_solves where trame_id = p_id;
+    delete from fuin.trame_studies where trame_id = p_id;
     update fuin.trames set status = case when status = 'active' then 'active' else 'draft' end, updated_at = now() where id = p_id;
     perform fuin.log(m, 'trame.reset', t.title);
   else

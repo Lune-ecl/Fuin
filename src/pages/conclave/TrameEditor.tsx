@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, type AdminMember, type AdminPageRow, type RollTable, type TrameAdmin, type TrameDef, type TrameStepDef, type TrameStepKind } from '../../lib/api';
-import { AttemptsField, ChoiceFields, MatchFields, MissingFields, OrderFields, ReviewFields, SituationFields, UnsealFields } from './TrameStepFields';
+import { AttemptsField, ChoiceFields, MatchFields, MissingFields, OrderFields, ReviewFields, SituationFields, StudyFields, UnsealFields } from './TrameStepFields';
 import { useSession } from '../../lib/session';
 import { circleLabel, formatDate, timeAgo } from '../../lib/format';
 import Markdown from '../../components/Markdown';
@@ -135,7 +135,7 @@ function newStep(kind: TrameStepKind): TrameStepDef {
   const base = { kind, title: KIND[kind].label, prompt_md: '', success_md: '' };
   switch (kind) {
     case 'cipher':
-      return { ...base, title: 'L’inscription', prompt_md: 'Une inscription est gravée sur la pierre. Que dit-elle ?', cipher_text: '', answers: [], max_attempts: 2 };
+      return { ...base, title: 'L’inscription', prompt_md: 'Une inscription est gravée sur la pierre. Que dit-elle ?', cipher_text: '', answers: [], max_attempts: 2, study_rolls: 3 };
     case 'riddle':
       return { ...base, title: 'L’énigme', prompt_md: 'Le gardien pose sa question…', answers: [], max_attempts: 2 };
     case 'unseal':
@@ -149,7 +149,7 @@ function newStep(kind: TrameStepKind): TrameStepDef {
         roll_table: 'desenclavement',
       };
     case 'missing':
-      return { ...base, title: 'Le sceau incomplet', prompt_md: 'Des kanjis ont été effacés du sceau. Retrouve-les pour le reconstruire et l’activer.', formula: '', missing: [], decoys: '', max_attempts: 3, reveal: true };
+      return { ...base, title: 'Le sceau incomplet', prompt_md: 'Des kanjis ont été effacés du sceau. Retrouve-les pour le reconstruire et l’activer.', formula: '', missing: [], decoys: '', max_attempts: 3, reveal: true, study_rolls: 3 };
     case 'situation':
       return { ...base, title: 'Sur le terrain', prompt_md: 'Pour chaque situation, choisis le sceau qu’il faut adapter.', situations: [{ text: '', answers: [] }], choices: [], max_attempts: 3, reveal: true };
     case 'order':
@@ -308,6 +308,7 @@ function StepEditor({
       {step.kind === 'choice' && <ChoiceFields step={step} patch={patch} />}
       {step.kind === 'situation' && <SituationFields step={step} patch={patch} seals={seals} />}
       {step.kind === 'review' && <ReviewFields step={step} patch={patch} />}
+      {['cipher', 'riddle', 'missing', 'situation', 'choice', 'order', 'match'].includes(step.kind) && <StudyFields step={step} patch={patch} tables={tables} />}
 
       {step.kind !== 'text' && (
         <label className="field">
@@ -443,6 +444,25 @@ function Tracking({ data, onRefresh }: { data: TrameAdmin; onRefresh: () => void
           })}
         </ol>
       </section>
+      {(data.studies?.length ?? 0) > 0 && (
+        <section className="panel">
+          <h2 className="panel__title">Rolls d’étude</h2>
+          <ul className="roll-list">
+            {data.studies!.map((r) => (
+              <li key={r.id} className={`roll roll--${r.tone}`}>
+                <span className="roll__index">{timeAgo(r.created_at)}</span>
+                <span className="roll__who">
+                  {r.member} <small>C{r.rank}</small>
+                </span>
+                <span className={`tone tone--${r.tone}`}>
+                  Étape {r.step_index + 1} · roll {r.roll} · {r.label}
+                </span>
+                <span className="roll__text">{r.target < 0 ? 'indice' : `kanji n°${r.target + 1}`}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <section className="panel">
         <h2 className="panel__title">Journal des tentatives</h2>
         {data.log.length === 0 ? (
@@ -555,6 +575,8 @@ export default function TrameEditor() {
           answers: s.answers?.map((a) => a.trim()).filter(Boolean),
           options: s.options?.map((o) => o.trim()),
           pairs: s.pairs?.map((p) => ({ left: p.left.trim(), right: p.right.trim() })),
+          hints: s.hints?.map((h) => h.trim()).filter(Boolean),
+          meanings: s.meanings?.map((m) => m.trim()),
         })),
       };
       const r = await api.trameSave(clean);

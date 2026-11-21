@@ -131,6 +131,7 @@ fois, mais le relancer ne casse rien).
 - `009_demandes_et_fiches_des_maitres.sql` : demandes de création de sceau modifiables, annulables (elles redeviennent des brouillons, invisibles du Conclave) et renvoyables ; au mémorial, chaque fiche peut être liée à un shinobi qui modifie lui-même son portrait, son titre et son histoire (liaison automatique par le nom).
 - `010_sceaux_maitrises.sql` : les demandes de création de sceau s'ouvrent au 3ème cercle ; chaque shinobi coche les sceaux qu'il maîtrise (sur la fiche ou dans « Mes sceaux maîtrisés »), le Conclave voit qui maîtrise quoi.
 - `011_trames_epreuves.sql` : trames plus complètes. Chaque étape a ses propres essais ; au désenclavement, le Conclave choisit le nombre de cercles à désenclaver (1 à 10) et le nombre d'essais (fixe ou selon le cercle). Nouvelles épreuves : kanjis manquants, mise en situation, énigme, question à choix, ordre des kanjis, associations et épreuve validée par le Conclave. Trames de test visibles du Conclave seulement.
+- `012_rolls_d_etude.sql` : rolls d'étude dans les trames. Le joueur lance un roll (table de déchiffrement) pour comprendre le sens d'un kanji (même d'un kanji manquant, sans le voir) ou découvrir l'indice suivant ; le Conclave écrit les sens et les indices, et choisit le nombre de rolls par étape.
 
 ### 5. Base toujours éveillée
 

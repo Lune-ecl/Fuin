@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { api, type TramePlayerStep, type TrameSubmitResult } from '../lib/api';
+import { api, type TramePlayerStep, type TrameStudyResult, type TrameSubmitResult } from '../lib/api';
 import { buildSealSvg, defaultDesign } from '../lib/sealDesign';
 import { sanitizeSvg } from '../lib/markdown';
 import { useBrushFont } from '../lib/useBrushFont';
@@ -77,10 +77,13 @@ function FormulaSeal({ chars, active }: { chars: (string | null)[]; active: bool
   const font = useBrushFont(text.join(''));
   const svg = useMemo(() => {
     if (!font.ready) return '';
-    const ring = text.join(' ');
+    // chaque kanji n'apparaît qu'une fois, au centre ; au-delà de six, ils restent dans les cases
     const d = {
-      ...defaultDesign(ring),
-      glyph: text.length <= 6 ? text.join('') : text.filter((_, i) => chars[i] === null).join('').slice(0, 6) || '？',
+      ...defaultDesign(''),
+      ring: 'ticks',
+      ringText: '',
+      glyph: text.length <= 6 ? text.join('') : '',
+      symbol: text.length <= 6 ? null : 'keyhole',
       glyphLayout: 'auto' as const,
       ornaments: ['inner'],
     };
@@ -473,4 +476,89 @@ export function SolvedChallenge({ step }: { step: TramePlayerStep }): ReactNode 
     );
   if (step.kind === 'review' && step.submissions) return <ReviewHistory subs={step.submissions.filter((s) => s.status === 'approved')} />;
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// Rolls d'étude : comprendre un kanji, trouver un indice
+// ---------------------------------------------------------------------------
+export function StudyPanel({ step, trameId, onDone }: { step: TramePlayerStep; trameId: number; onDone: () => void }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState<number | null>(null);
+  const [last, setLast] = useState<(TrameStudyResult & { target: number }) | null>(null);
+  const study = step.study;
+  if (!study) return null;
+  const left = Math.max(0, study.rolls_max - study.rolls_used);
+  const hintsLeft = study.hints_total - study.hints.length;
+  const roll = async (target: number) => {
+    setBusy(target);
+    try {
+      const r = await api.trameStudy(trameId, step.index, target);
+      setLast({ ...r, target });
+      if (r.meaning) toast(`Sens découvert : ${r.meaning}`);
+      else if (r.hint) toast('Un indice se révèle');
+      else if (r.tone === 'crit-fail') toast('Contresens : tu lui prêtes un faux sens…', 'error');
+      else toast('Le sens t’échappe encore.', 'error');
+    } catch (err) {
+      toast(err instanceof Error ? err.message : String(err), 'error');
+    } finally {
+      setBusy(null);
+      onDone();
+    }
+  };
+  const label = (target: number) => {
+    if (target < 0) return 'un indice';
+    const ch = study.chars.find((c) => c.i === target);
+    return ch?.kanji ? `le kanji ${ch.kanji}` : `le kanji manquant n°${study.chars.filter((c) => !c.kanji && c.i <= target).length}`;
+  };
+  return (
+    <details className="study" open>
+      <summary>
+        <span className="study__glyph" aria-hidden="true">
+          読
+        </span>
+        <b>Étude des kanjis</b>
+        <small>
+          {left} roll{left > 1 ? 's' : ''} d’étude restant{left > 1 ? 's' : ''} sur {study.rolls_max}
+        </small>
+      </summary>
+      <p className="muted small">
+        Lance un roll de déchiffrement sur un kanji pour en comprendre le sens{study.hints_total ? ', ou cherche un indice' : ''}. Une réussite critique donne en plus un
+        indice. Ces rolls ne retirent aucun essai de réponse.
+      </p>
+      {study.chars.length > 0 && (
+        <div className="study__chars">
+          {study.chars.map((c) => {
+            const can = c.studiable && !c.meaning && left > 0;
+            return (
+              <button key={c.i} type="button" className={`study-char${c.meaning ? ' is-known' : ''}${c.misread ? ' is-misread' : ''}`} disabled={!can || busy !== null} onClick={() => void roll(c.i)} title={can ? 'Étudier ce kanji' : undefined}>
+                <span className="study-char__k" lang="ja">
+                  {c.kanji ?? '？'}
+                </span>
+                <span className="study-char__m">{c.meaning ?? (c.misread ? 'mal lu…' : c.studiable ? (busy === c.i ? '…' : 'étudier') : '—')}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {study.hints.length > 0 && (
+        <ol className="study__hints">
+          {study.hints.map((h, i) => (
+            <li key={i}>{h}</li>
+          ))}
+        </ol>
+      )}
+      {hintsLeft > 0 && left > 0 && (
+        <button type="button" className="btn btn--ghost btn--sm" disabled={busy !== null} onClick={() => void roll(-1)}>
+          {busy === -1 ? 'Recherche…' : `Chercher un indice (${hintsLeft} à découvrir)`}
+        </button>
+      )}
+      {last && (
+        <p className={`study__last roll--${last.tone}`}>
+          <span className="roll__value">{last.roll}</span>
+          <span className={`tone tone--${last.tone}`}>{last.label}</span> sur {label(last.target)}
+          {last.effect && <span className="muted"> · {last.effect}</span>}
+        </p>
+      )}
+    </details>
+  );
 }

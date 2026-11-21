@@ -123,6 +123,33 @@ export interface TrameStepDef {
   situations?: { text: string; answers: number[] }[];
   /** mise en situation : sceaux proposés (vide : tous ceux que le joueur peut lire) */
   choices?: number[];
+  /** rolls d'étude : sens de chaque kanji (inscription ou formule), dans l'ordre */
+  meanings?: string[];
+  /** indices révélés un à un par les rolls d'étude */
+  hints?: string[];
+  /** nombre de rolls d'étude par joueur (0 : désactivé) */
+  study_rolls?: number;
+  study_table?: string;
+}
+
+export interface TrameStudy {
+  rolls_used: number;
+  rolls_max: number;
+  chars: { i: number; kanji: string | null; studiable: boolean; meaning: string | null; misread: boolean }[];
+  hints: string[];
+  hints_total: number;
+  log: { target: number; roll: number; label: string; tone: string; effect: string }[];
+}
+
+export interface TrameStudyResult {
+  roll: number;
+  label: string;
+  tone: string;
+  effect: string;
+  success: boolean;
+  meaning: string | null;
+  hint: string | null;
+  rolls_left: number;
 }
 
 export interface TrameDef {
@@ -163,6 +190,7 @@ export interface TrameRow {
 export interface TrameAdmin {
   trame: TrameDef;
   progress: { index: number; attempts: number; participants: number; solvers: { name: string; at: string }[] }[];
+  studies?: { id: number; step_index: number; target: number; roll: number; label: string; tone: string; success: boolean; created_at: string; member: string; rank: number }[];
   /** réponses libres en attente de validation */
   reviews?: { id: number; step_index: number; member: string; rank: number; text: string; created_at: string }[];
   log: {
@@ -224,6 +252,8 @@ export interface TramePlayerStep {
   answers?: string[];
   submissions?: { text: string; status: 'pending' | 'approved' | 'refused'; note: string | null; at: string }[];
   pending?: boolean;
+  /** rolls d'étude de l'étape */
+  study?: TrameStudy;
 }
 
 export interface TrameSubmitResult {
@@ -679,6 +709,8 @@ export const api = {
   trameUnseal: (id: number, step: number) => rpc<UnsealResult>('fuin_trame_unseal', { p_id: id, p_step: step }),
   trameSubmit: (id: number, step: number, payload: Record<string, unknown>) =>
     rpc<TrameSubmitResult>('fuin_trame_submit', { p_id: id, p_step: step, p_payload: payload }),
+  trameStudy: (id: number, step: number, target: number) =>
+    rpc<TrameStudyResult>('fuin_trame_study', { p_id: id, p_step: step, p_target: target }),
   trameReview: (attemptId: number, ok: boolean, note: string) =>
     rpc<{ ok: boolean }>('fuin_admin_trame_review', { p_attempt: attemptId, p_ok: ok, p_note: note }),
   adminTrames: () => rpc<TrameRow[]>('fuin_admin_trames'),

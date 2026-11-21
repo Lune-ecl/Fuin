@@ -5,7 +5,7 @@ import { useSession } from '../lib/session';
 import { circleLabel } from '../lib/format';
 import Markdown from '../components/Markdown';
 import TrameSeal from '../components/TrameSeal';
-import { ChoiceStep, MatchStep, MissingStep, OrderStep, ReviewStep, SituationStep, SolvedChallenge } from '../components/TrameChallenges';
+import { ChoiceStep, MatchStep, MissingStep, OrderStep, ReviewStep, SituationStep, SolvedChallenge, StudyPanel } from '../components/TrameChallenges';
 import { ErrorState, Loader, useToast } from '../components/ui';
 
 const KIND_LABEL: Record<TramePlayerStep['kind'], string> = {
@@ -344,6 +344,7 @@ export default function Trame() {
               {s.state === 'current' && s.kind === 'choice' && <ChoiceStep step={s} trameId={trame.id} shared={trame.shared} onDone={load} />}
               {s.state === 'current' && s.kind === 'situation' && <SituationStep key={s.attempts_used} step={s} trameId={trame.id} shared={trame.shared} onDone={load} />}
               {s.state === 'current' && s.kind === 'review' && <ReviewStep step={s} trameId={trame.id} shared={trame.shared} onDone={load} />}
+              {s.state === 'current' && s.study && <StudyPanel step={s} trameId={trame.id} onDone={load} />}
               {s.state === 'solved' && s.kind !== 'text' && (
                 <>
                   {s.kind === 'unseal' && (

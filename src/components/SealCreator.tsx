@@ -12,6 +12,7 @@ import {
   randomDesign,
   reviveDesign,
   RINGS,
+  safeColor,
   SYMBOL_CATEGORIES,
   SYMBOLS,
   type SealDesign,
@@ -45,6 +46,36 @@ function Tile({ on, label, svg, onClick }: { on: boolean; label: string; svg?: s
       {svg !== undefined && <span className="tile__art" dangerouslySetInnerHTML={{ __html: svg }} />}
       <small>{label}</small>
     </button>
+  );
+}
+
+/** Couleur d'une partie du sceau : celle de l'encre par défaut, ou une couleur à part. */
+function PartColor({ value, ink, label, onChange }: { value: string | null | undefined; ink: string; label: string; onChange: (c: string | null) => void }) {
+  const own = safeColor(value);
+  return (
+    <div className="part-color">
+      <span className="part-color__label">{label}</span>
+      <div className="swatches swatches--small">
+        <button type="button" className={`swatch swatch--ink${own ? '' : ' is-on'}`} style={{ background: ink }} onClick={() => onChange(null)} title="Comme l’encre" aria-label="Comme l’encre">
+          <span aria-hidden="true">∞</span>
+        </button>
+        {COLORS.map((c) => (
+          <button
+            key={c.value}
+            type="button"
+            className={`swatch${own === c.value ? ' is-on' : ''}`}
+            style={{ background: c.value }}
+            onClick={() => onChange(c.value)}
+            title={c.label}
+            aria-label={c.label}
+          />
+        ))}
+        <label className={`swatch swatch--custom${own && !COLORS.some((c) => c.value === own) ? ' is-on' : ''}`} title="Autre couleur" style={own && !COLORS.some((c) => c.value === own) ? { background: own } : undefined}>
+          <input type="color" value={own ?? ink} onChange={(e) => onChange(e.target.value)} aria-label="Autre couleur" />
+          <span aria-hidden="true">+</span>
+        </label>
+      </div>
+    </div>
   );
 }
 
@@ -261,7 +292,13 @@ export function SealWorkbench({
           )}
         </Section>
 
-        <Section title="Symbole central" summary={symbol?.label ?? 'Aucun'} open={section === 'symbol'} onToggle={() => toggle('symbol')}>
+        <Section
+          title="Symbole central"
+          summary={symbol?.label ?? 'Aucun'}
+          dot={d.symbol ? safeColor(d.symbolColor) ?? undefined : undefined}
+          open={section === 'symbol'}
+          onToggle={() => toggle('symbol')}
+        >
           <div className="symbol-bar">
             <input
               className="input-search"
@@ -325,16 +362,20 @@ export function SealWorkbench({
           )}
 
           {d.symbol && (
-            <label className="range">
-              <span>Taille du symbole</span>
-              <Range min={0.4} max={1.6} step={0.05} value={d.symbolScale} onChange={(v) => set('symbolScale', v)} />
-            </label>
+            <>
+              <label className="range">
+                <span>Taille du symbole</span>
+                <Range min={0.4} max={1.6} step={0.05} value={d.symbolScale} onChange={(v) => set('symbolScale', v)} />
+              </label>
+              <PartColor label="Couleur du symbole" value={d.symbolColor} ink={d.color} onChange={(c) => set('symbolColor', c)} />
+            </>
           )}
         </Section>
 
         <Section
           title="Kanjis du centre"
           summary={glyphs.length ? `${glyphs.join('')} · ${glyphs.length}/${MAX_GLYPHS}` : 'Aucun'}
+          dot={glyphs.length ? safeColor(d.glyphColor) ?? undefined : undefined}
           open={section === 'glyph'}
           onToggle={() => toggle('glyph')}
         >
@@ -395,10 +436,13 @@ export function SealWorkbench({
             </div>
           )}
           {glyphs.length > 0 && (
-            <label className="range">
-              <span>Taille des kanjis</span>
-              <Range min={0.3} max={1.8} step={0.05} value={d.glyphScale} onChange={(v) => set('glyphScale', v)} />
-            </label>
+            <>
+              <label className="range">
+                <span>Taille des kanjis</span>
+                <Range min={0.3} max={1.8} step={0.05} value={d.glyphScale} onChange={(v) => set('glyphScale', v)} />
+              </label>
+              <PartColor label="Couleur des kanjis" value={d.glyphColor} ink={d.color} onChange={(c) => set('glyphColor', c)} />
+            </>
           )}
         </Section>
 

@@ -2,27 +2,32 @@
 // Le trait (couleur, épaisseur) vient du groupe parent ; seuls les points pleins
 // reçoivent la couleur `c` en remplissage.
 
-export interface SealSymbol {
-  key: string;
-  label: string;
-  cat: SymbolCategory;
-  svg: (color: string) => string;
-  /** autres mots qui retrouvent le symbole à la recherche */
-  tags?: string;
-}
+import type { SealSymbol, SymbolCategory } from './symbolKit';
+import { RUNES } from './symbols/runes';
+import { GEOMETRIE } from './symbols/geometrie';
+import { KAMON } from './symbols/kamon';
+import { ANIMAUX } from './symbols/animaux';
+import { PLANTES } from './symbols/plantes';
+import { OBJETS } from './symbols/objets';
+import { DIVERS } from './symbols/divers';
 
-export type SymbolCategory = 'corps' | 'coeurs' | 'visages' | 'esprits' | 'elements' | 'astres' | 'armes' | 'nature' | 'reperes' | 'mystique';
+export type { SealSymbol, SymbolCategory } from './symbolKit';
 
 export const SYMBOL_CATEGORIES: { key: SymbolCategory; label: string }[] = [
   { key: 'corps', label: 'Corps & esprit' },
   { key: 'coeurs', label: 'Cœurs' },
   { key: 'visages', label: 'Visages & masques' },
-  { key: 'esprits', label: 'Esprits & défunts' },
-  { key: 'elements', label: 'Éléments' },
+  { key: 'esprits', label: 'Esprits & yōkai' },
+  { key: 'animaux', label: 'Animaux' },
+  { key: 'nature', label: 'Plantes & paysages' },
+  { key: 'elements', label: 'Éléments & météo' },
   { key: 'astres', label: 'Astres' },
   { key: 'armes', label: 'Armes & liens' },
-  { key: 'nature', label: 'Nature & bêtes' },
+  { key: 'objets', label: 'Objets & outils' },
   { key: 'reperes', label: 'Repères & signes' },
+  { key: 'runes', label: 'Runes, zodiaque & alchimie' },
+  { key: 'geometrie', label: 'Géométrie sacrée' },
+  { key: 'kamon', label: 'Kamon (blasons)' },
   { key: 'mystique', label: 'Sacré & mystique' },
 ];
 
@@ -183,7 +188,7 @@ function starPolygon(count: number, step: number, r: number, start = -90): strin
 /** nuage posé sur une ligne horizontale à la hauteur y */
 const CLOUD = 'M24 54 A14 14 0 0 1 28 27 A19 19 0 0 1 64 22 A15 15 0 0 1 78 54 Z';
 
-export const SYMBOLS: SealSymbol[] = [
+const BASE: SealSymbol[] = [
   // ---------------------------------------------------------------- Corps & esprit
   {
     key: 'eye',
@@ -519,21 +524,21 @@ export const SYMBOLS: SealSymbol[] = [
   {
     key: 'snake',
     label: 'Serpent',
-    cat: 'nature',
+    cat: 'animaux',
     svg: (c) =>
       `<path d="M24 86 C70 86 74 62 50 56 C26 50 28 24 64 22"/><path d="M64 22 C72 18 82 20 84 28 C80 34 70 32 64 22 Z"/>${dot(76, 25, 1.8, c)}`,
   },
   {
     key: 'ouroboros',
     label: 'Ouroboros',
-    cat: 'nature',
+    cat: 'animaux',
     svg: (c) =>
       `<path d="M62 12 A40 40 0 1 1 38 12"/><path d="M38 12 C44 4 56 4 62 12 C56 20 44 20 38 12 Z"/>${dot(50, 10, 2, c)}<path d="M62 12 L66 6 M62 12 L68 14"/>`,
   },
   {
     key: 'butterfly',
     label: 'Papillon',
-    cat: 'nature',
+    cat: 'animaux',
     svg: () =>
       `<path d="M50 30 V78"/><path d="M50 40 C38 16 12 16 14 36 C16 50 34 52 50 52 Z"/><path d="M50 40 C62 16 88 16 86 36 C84 50 66 52 50 52 Z"/><path d="M50 54 C36 56 22 66 28 78 C34 86 46 76 50 62 Z"/><path d="M50 54 C64 56 78 66 72 78 C66 86 54 76 50 62 Z"/><path d="M50 30 L42 20 M50 30 L58 20"/>`,
   },
@@ -547,19 +552,19 @@ export const SYMBOLS: SealSymbol[] = [
   {
     key: 'paw',
     label: 'Empreinte',
-    cat: 'nature',
+    cat: 'animaux',
     svg: () => `<ellipse cx="50" cy="66" rx="18" ry="15"/><circle cx="26" cy="42" r="8"/><circle cx="42" cy="26" r="8"/><circle cx="58" cy="26" r="8"/><circle cx="74" cy="42" r="8"/>`,
   },
   {
     key: 'fangs',
     label: 'Crocs',
-    cat: 'nature',
+    cat: 'animaux',
     svg: () => `<path d="M8 26 Q50 50 92 26"/><path d="M26 34 Q32 56 34 78 Q40 58 42 42"/><path d="M58 42 Q60 58 66 78 Q68 56 74 34"/>`,
   },
   {
     key: 'claws',
     label: 'Griffes',
-    cat: 'nature',
+    cat: 'animaux',
     svg: () => `<path d="M32 10 Q30 50 16 90"/><path d="M54 8 Q52 50 38 92"/><path d="M76 10 Q74 50 60 90"/>`,
   },
   {
@@ -860,28 +865,28 @@ export const SYMBOLS: SealSymbol[] = [
   {
     key: 'crow',
     label: 'Corbeau',
-    cat: 'nature',
+    cat: 'animaux',
     svg: (c) =>
       `<path d="M6 46 Q24 30 42 42 Q46 30 58 32 L72 26 L66 38 Q82 38 94 28 Q86 52 62 56 Q54 72 38 74 Q44 62 40 56 Q22 60 6 46 Z"/>${dot(58, 38, 2, c)}`,
   },
   {
     key: 'toad',
     label: 'Crapaud',
-    cat: 'nature',
+    cat: 'animaux',
     svg: (c) =>
       `<path d="M14 70 Q14 42 50 42 Q86 42 86 70 Q86 84 50 84 Q14 84 14 70 Z"/><circle cx="33" cy="40" r="9"/><circle cx="67" cy="40" r="9"/>${dot(33, 40, 3.5, c)}${dot(67, 40, 3.5, c)}<path d="M30 62 Q50 72 70 62"/><path d="M16 74 L4 88 M84 74 L96 88"/>`,
   },
   {
     key: 'koi',
     label: 'Carpe',
-    cat: 'nature',
+    cat: 'animaux',
     svg: (c) =>
       `<path d="M8 50 Q32 22 64 40 L88 26 L82 50 L88 74 L64 60 Q32 78 8 50 Z"/>${dot(24, 46, 2.5, c)}<path d="M40 33 L48 22 L54 36"/><path d="M38 50 Q44 44 50 50 Q56 44 62 50"/>`,
   },
   {
     key: 'spider',
     label: 'Araignée',
-    cat: 'nature',
+    cat: 'animaux',
     svg: () =>
       `<circle cx="50" cy="40" r="9"/><ellipse cx="50" cy="64" rx="12" ry="16"/>` +
       `<path d="M42 40 Q26 30 18 14 M42 46 Q24 44 10 36 M42 56 Q24 60 12 74 M42 62 Q30 74 24 92 M58 40 Q74 30 82 14 M58 46 Q76 44 90 36 M58 56 Q76 60 88 74 M58 62 Q70 74 76 92"/>`,
@@ -895,7 +900,7 @@ export const SYMBOLS: SealSymbol[] = [
   {
     key: 'snail',
     label: 'Escargot',
-    cat: 'nature',
+    cat: 'animaux',
     svg: () => `${spiralAt(58, 46, 2.4, 1.75)}<path d="M8 80 H90"/><path d="M14 80 Q8 64 18 60 L22 50 M18 60 L28 54"/>`,
   },
   {
@@ -1397,7 +1402,7 @@ export const SYMBOLS: SealSymbol[] = [
   {
     key: 'moth',
     label: 'Papillon de nuit',
-    cat: 'nature',
+    cat: 'animaux',
     tags: 'phalene insecte nuit',
     svg: () =>
       `<path d="M50 28 V78"/><path d="M50 36 C34 16 10 22 12 40 C14 54 34 52 50 50 M50 36 C66 16 90 22 88 40 C86 54 66 52 50 50"/><path d="M50 54 C38 60 26 74 34 82 C42 88 48 70 50 62 M50 54 C62 60 74 74 66 82 C58 88 52 70 50 62"/><circle cx="30" cy="38" r="5"/><circle cx="70" cy="38" r="5"/><path d="M48 29 Q40 15 33 12 M52 29 Q60 15 67 12"/>`,
@@ -1405,7 +1410,7 @@ export const SYMBOLS: SealSymbol[] = [
   {
     key: 'dragonfly',
     label: 'Libellule',
-    cat: 'nature',
+    cat: 'animaux',
     tags: 'insecte',
     svg: () =>
       `<circle cx="50" cy="16" r="5"/><path d="M50 21 V92"/><ellipse cx="30" cy="32" rx="21" ry="6" transform="rotate(-10 30 32)"/><ellipse cx="70" cy="32" rx="21" ry="6" transform="rotate(10 70 32)"/><ellipse cx="32" cy="46" rx="18" ry="5" transform="rotate(12 32 46)"/><ellipse cx="68" cy="46" rx="18" ry="5" transform="rotate(-12 68 46)"/>`,
@@ -1413,7 +1418,7 @@ export const SYMBOLS: SealSymbol[] = [
   {
     key: 'owl',
     label: 'Hibou',
-    cat: 'nature',
+    cat: 'animaux',
     tags: 'chouette oiseau nuit sagesse',
     svg: (c) =>
       `<path d="M24 30 Q50 18 76 30 C82 56 72 86 50 90 C28 86 18 56 24 30 Z"/><path d="M24 30 L20 12 L36 24 M76 30 L80 12 L64 24"/><circle cx="38" cy="44" r="10"/><circle cx="62" cy="44" r="10"/>${dot(38, 44, 4, c)}${dot(62, 44, 4, c)}<path d="M46 54 L50 62 L54 54 M40 72 L44 76 L48 72 M52 72 L56 76 L60 72"/>`,
@@ -1421,7 +1426,7 @@ export const SYMBOLS: SealSymbol[] = [
   {
     key: 'bat',
     label: 'Chauve-souris',
-    cat: 'nature',
+    cat: 'animaux',
     tags: 'nuit vampire',
     svg: () =>
       `<ellipse cx="50" cy="52" rx="7" ry="13"/><path d="M45 40 L44 32 L49 37 M55 40 L56 32 L51 37"/><path d="M43 46 C34 32 18 32 4 42 C11 46 13 52 13 58 C20 54 26 56 28 62 C32 56 38 56 43 60 M57 46 C66 32 82 32 96 42 C89 46 87 52 87 58 C80 54 74 56 72 62 C68 56 62 56 57 60"/>`,
@@ -1429,7 +1434,7 @@ export const SYMBOLS: SealSymbol[] = [
   {
     key: 'cat',
     label: 'Chat',
-    cat: 'nature',
+    cat: 'animaux',
     tags: 'nekomata bakeneko felin',
     svg: (c) =>
       `<path d="M24 42 L22 12 L40 28 Q50 24 60 28 L78 12 L76 42 C82 66 68 86 50 86 C32 86 18 66 24 42 Z"/><path d="M34 50 Q39 43 44 50 Q39 57 34 50 Z M56 50 Q61 43 66 50 Q61 57 56 50 Z" fill="${c}" stroke="none"/><path d="M47 62 H53 L50 66 Z M50 66 Q46 72 42 70 M50 66 Q54 72 58 70"/><path d="M30 63 L10 59 M30 68 L10 72 M70 63 L90 59 M70 68 L90 72"/>`,
@@ -1467,7 +1472,7 @@ export const SYMBOLS: SealSymbol[] = [
   {
     key: 'jellyfish',
     label: 'Méduse',
-    cat: 'nature',
+    cat: 'animaux',
     tags: 'mer ocean poison',
     svg: () =>
       `<path d="M18 48 C18 24 32 10 50 10 C68 10 82 24 82 48 Q74 44 66 48 Q58 44 50 48 Q42 44 34 48 Q26 44 18 48 Z"/><path d="M30 50 Q26 64 32 76 Q36 86 30 94 M44 50 Q40 66 46 78 Q50 88 44 94 M56 50 Q60 66 54 78 Q50 88 56 94 M70 50 Q74 64 68 76 Q64 86 70 94"/>`,
@@ -1511,7 +1516,7 @@ export const SYMBOLS: SealSymbol[] = [
   },
   {
     key: 'moon-phases',
-    label: 'Phases de lune',
+    label: 'Cycle lunaire',
     cat: 'astres',
     tags: 'lune cycle croissant',
     svg: (c) => {
@@ -1657,3 +1662,5 @@ export const SYMBOLS: SealSymbol[] = [
     svg: () => `${poly(6, 42, -90)}${around(6, '<path d="M50 50 L50 8"/>')}${around(6, `<path d="M50 50 L${pt(36.4, -60)}"/>`)}${around(6, `<path d="M50 8 L${pt(21, -60)}"/>`)}`,
   },
 ];
+
+export const SYMBOLS: SealSymbol[] = [...BASE, ...ANIMAUX, ...PLANTES, ...OBJETS, ...RUNES, ...GEOMETRIE, ...KAMON, ...DIVERS];

@@ -388,3 +388,67 @@ export function ReviewFields({ step, patch }: { step: TrameStepDef; patch: Patch
     </>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Rolls d'étude : sens des kanjis et indices
+// ---------------------------------------------------------------------------
+export function StudyFields({ step, patch, tables }: { step: TrameStepDef; patch: Patch; tables: RollTable[] }) {
+  const set = setter(patch);
+  const rolls = step.study_rolls ?? 0;
+  const chars = step.kind === 'cipher' ? kanjiOf(step.cipher_text) : step.kind === 'missing' ? kanjiOf(step.formula) : [];
+  const meanings = step.meanings ?? [];
+  const hidden = step.kind === 'missing' ? step.missing ?? [] : [];
+  return (
+    <details className="study-editor" open={rolls > 0}>
+      <summary>
+        <span aria-hidden="true">読</span> Rolls d’étude <small>{rolls ? `${rolls} par joueur` : 'désactivés'}</small>
+      </summary>
+      <p className="muted small">
+        Le joueur lance un roll (table de déchiffrement par défaut) pour comprendre le sens d’un kanji ou découvrir un indice. Une réussite révèle le sens choisi,
+        une réussite critique donne en plus l’indice suivant. Ces rolls ne retirent aucun essai de réponse.
+      </p>
+      <div className="step-card__grid">
+        <label className="field field--narrow">
+          <span>Rolls d’étude par joueur</span>
+          <input type="number" min={0} max={10} value={rolls} onChange={(e) => set('study_rolls', Math.min(10, Math.max(0, Number(e.target.value) || 0)))} />
+          <small className="muted">0 : pas de roll d’étude</small>
+        </label>
+        <label className="field">
+          <span>Table de roll</span>
+          <select value={step.study_table ?? 'dechiffrement'} onChange={(e) => set('study_table', e.target.value)}>
+            {tables.map((t) => (
+              <option key={t.slug} value={t.slug}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      {chars.length > 0 && (
+        <div className="field">
+          <span>Sens de chaque kanji (laisse vide un kanji qu’on ne peut pas étudier)</span>
+          <div className="meaning-list">
+            {chars.map((ch, i) => (
+              <label key={i} className={`meaning-row${hidden.includes(i) ? ' is-hidden' : ''}`}>
+                <b lang="ja">{ch}</b>
+                <input
+                  value={meanings[i] ?? ''}
+                  onChange={(e) => {
+                    const next = chars.map((_, j) => (j === i ? e.target.value : meanings[j] ?? ''));
+                    set('meanings', next);
+                  }}
+                  placeholder={hidden.includes(i) ? 'sens du kanji manquant (gros indice)' : 'sens'}
+                  maxLength={200}
+                />
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+      <label className="field">
+        <span>Indices (un par ligne, révélés dans l’ordre)</span>
+        <textarea rows={3} value={(step.hints ?? []).join('\n')} onChange={(e) => set('hints', e.target.value.split('\n'))} placeholder={'Le premier kanji manquant évoque ce que l’on enferme.\nLe second trace une limite.'} />
+      </label>
+    </details>
+  );
+}
