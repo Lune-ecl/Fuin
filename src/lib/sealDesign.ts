@@ -24,6 +24,8 @@ export interface SealDesign {
   glyphColor?: string | null;
   /** couleur propre au symbole central (vide : celle de l'encre) */
   symbolColor?: string | null;
+  /** couleur propre au texte de l'anneau (vide : celle de l'encre) */
+  ringTextColor?: string | null;
   stroke: number;
   rotation: number;
 }
@@ -61,6 +63,9 @@ export const COLORS = [
 ];
 
 export const BRUSH_FONT = 'Yuji Syuku';
+
+/** Texte de l'anneau écrit en lettres (gardé tel quel) plutôt qu'en kanjis (espacés un à un). */
+export const isFreeText = (s: string) => /[A-Za-zÀ-ÖØ-öø-ÿ0-9]/.test(s);
 
 /** Seules les couleurs hexadécimales passent : la description vient parfois d'un ancien sceau ou d'un brouillon. */
 export const safeColor = (c: string | null | undefined): string | null => (c && /^#[0-9a-f]{3,8}$/i.test(c.trim()) ? c.trim() : null);
@@ -584,6 +589,7 @@ export function buildSealSvg(d: SealDesign, { embed = true }: { embed?: boolean 
   const color = safeColor(d.color) ?? '#ff3445';
   const glyphColor = safeColor(d.glyphColor) ?? color;
   const symbolColor = safeColor(d.symbolColor) ?? color;
+  const ringTextColor = safeColor(d.ringTextColor) ?? color;
   const json = JSON.stringify(d);
   const id = `fs-${hash(json)}`;
   const frame = FRAMES.find((f) => f.key === d.frame) ?? FRAMES[0];
@@ -591,15 +597,25 @@ export function buildSealSvg(d: SealDesign, { embed = true }: { embed?: boolean 
   // Anneau extérieur
   const ringDef = RINGS.find((r) => r.key === d.ring) ?? RINGS[0];
   const text = () => {
-    if (!d.ringText.trim()) return '';
-    const unit = [...d.ringText.replace(/\s+/g, '')].join(' ');
-    const reps = Math.max(1, Math.round(24 / Math.max(1, unit.replace(/\s/g, '').length + 1)));
-    // chaque répétition est suivie d'un point, y compris la dernière : la jonction à gauche
-    // du cercle garde ainsi son séparateur ; l'espace insécable final occupe le reste du tour
-    const t = Array.from({ length: reps }, () => `${unit} ·`).join(' ') + '\u00a0';
+    const raw = d.ringText.trim();
+    if (!raw) return '';
+    let t: string;
+    if (isFreeText(raw)) {
+      // une phrase en lettres est gardée telle quelle, mots et espaces compris
+      const unit = raw.replace(/\s+/g, ' ');
+      const reps = Math.max(1, Math.round(60 / (unit.length + 3)));
+      t = Array.from({ length: reps }, () => `${unit} ·`).join(' ') + '\u00a0';
+    } else {
+      // des kanjis sont espacés régulièrement
+      const unit = [...raw.replace(/\s+/g, '')].join(' ');
+      const reps = Math.max(1, Math.round(24 / Math.max(1, unit.replace(/\s/g, '').length + 1)));
+      // chaque répétition est suivie d'un point, y compris la dernière : la jonction à gauche
+      // du cercle garde ainsi son séparateur ; l'espace insécable final occupe le reste du tour
+      t = Array.from({ length: reps }, () => `${unit} ·`).join(' ') + '\u00a0';
+    }
     return (
       `<path id="${id}" d="M${C} ${C} m-79 0 a79 79 0 1 1 158 0 a79 79 0 1 1 -158 0" fill="none" stroke="none"/>` +
-      `<text font-family="${FONT}" font-size="13" fill="${color}" stroke="none"><textPath href="#${id}" startOffset="0" textLength="494" lengthAdjust="spacing">${esc(t)}</textPath></text>`
+      `<text font-family="${FONT}" font-size="13" fill="${ringTextColor}" stroke="none"><textPath href="#${id}" startOffset="0" textLength="494" lengthAdjust="spacing">${esc(t)}</textPath></text>`
     );
   };
   const ring = ringDef.draw({ sw, color, text });

@@ -938,3 +938,7 @@
   font-size: 13px;
   font-weight: 800;
 }
+
+.part-color + .tiles {
+  margin-top: 16px;
+}

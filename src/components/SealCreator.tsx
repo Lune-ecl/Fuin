@@ -12,6 +12,7 @@ import {
   randomDesign,
   reviveDesign,
   RINGS,
+  isFreeText,
   safeColor,
   SYMBOL_CATEGORIES,
   SYMBOLS,
@@ -250,15 +251,24 @@ export function SealWorkbench({
 
         <Section
           title="Anneau"
-          summary={ring.text && d.ringText.trim() ? `${ring.label} · ${d.ringText.replace(/\s+/g, '')}` : ring.label}
+          summary={ring.text && d.ringText.trim() ? `${ring.label} · ${isFreeText(d.ringText) ? d.ringText.trim() : d.ringText.replace(/\s+/g, '')}` : ring.label}
+          dot={ring.text && d.ringText.trim() ? safeColor(d.ringTextColor) ?? undefined : undefined}
           open={section === 'ring'}
           onToggle={() => toggle('ring')}
         >
-          {ring.text && (
-            <label className="field creator__field creator__field--top">
-              <span>Texte de l’anneau (formule de kanjis)</span>
-              <input className="input-kanji" lang="ja" value={d.ringText} onChange={(e) => set('ringText', e.target.value)} />
-            </label>
+          {ring.text ? (
+            <>
+              <label className="field creator__field creator__field--top">
+                <span>Texte de l’anneau</span>
+                <input className="input-kanji" lang="ja" value={d.ringText} onChange={(e) => set('ringText', e.target.value)} maxLength={80} placeholder="封 印 ou une phrase" />
+                <small className="muted">
+                  Indépendant des kanjis du centre. Des kanjis sont espacés régulièrement ; une phrase en lettres (« Que le sceau tienne ») est gardée telle quelle.
+                </small>
+              </label>
+              <PartColor label="Couleur du texte de l’anneau" value={d.ringTextColor} ink={d.color} onChange={(c) => set('ringTextColor', c)} />
+            </>
+          ) : (
+            <p className="creator__hint">Choisis un anneau « Kanjis… » pour écrire un texte autour du sceau.</p>
           )}
           <div className="tiles">
             {RINGS.map((r) => (
