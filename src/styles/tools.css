@@ -1746,3 +1746,48 @@
   background: var(--red-soft);
   box-shadow: 0 0 6px var(--red-glow);
 }
+
+/* Demandes : brouillons et modification */
+.status--draft {
+  color: var(--ink-2);
+  border-color: var(--line-2);
+  background: rgba(255, 236, 230, 0.04);
+  border-style: dashed;
+}
+
+.request-form__anchor {
+  scroll-margin-top: calc(var(--topbar) + 16px);
+}
+
+.request-form__title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.request-form__title .panel__title {
+  margin-bottom: 0;
+}
+
+.request-form--editing {
+  border-color: var(--red);
+  box-shadow: 0 0 0 1px var(--line-red), 0 18px 50px -30px var(--red-glow);
+}
+
+.request.is-editing {
+  border-color: var(--line-red);
+  background: var(--red-wash);
+}
+
+.request__flag {
+  margin: 8px 0 0;
+  color: var(--red-soft);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.request__edited {
+  color: #f2b33d;
+  font-weight: 600;
+}

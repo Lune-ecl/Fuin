@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react';
-import { api, type MemorialEntry, type MemorialRank, type MemorialStatus } from '../lib/api';
+import { api, type AdminMember, type MemorialEntry, type MemorialRank, type MemorialStatus } from '../lib/api';
 import { useSession } from '../lib/session';
 import { excerpt } from '../lib/markdown';
 import { fileToPortrait } from '../lib/imageResize';
@@ -48,6 +48,7 @@ const blank = (rank: MemorialRank): MemorialEntry => ({
   specialty: '',
   story_md: '',
   image: null,
+  member_id: null,
 });
 
 function initials(name: string): string {
@@ -102,7 +103,7 @@ function Card({
   const meta = [entry.origin, entry.era].filter(Boolean).join(' · ');
   return (
     <article
-      className={`memorial-card memorial-card--${entry.rank}${entry.status ? ` is-${entry.status}` : ''}`}
+      className={`memorial-card memorial-card--${entry.rank}${entry.status ? ` is-${entry.status}` : ''}${entry.mine ? ' is-mine' : ''}`}
       style={{ animationDelay: `${index * 70}ms` }}
     >
       <button type="button" className="memorial-card__open" onClick={onOpen} aria-label={`Ouvrir la fiche de ${entry.name}`}>
@@ -128,6 +129,11 @@ function Card({
           </span>
         </span>
       </button>
+      {!conclave && entry.can_edit && (
+        <button type="button" className="memorial-card__mine" onClick={onEdit} title="Modifier ma fiche">
+          <span aria-hidden="true">✎</span> Ma fiche
+        </button>
+      )}
       {conclave && (
         <div className="memorial-card__tools" aria-label={`Gérer ${entry.name}`}>
           <button type="button" className="icon-btn" onClick={() => onMove(-1)} disabled={index === 0} title="Déplacer avant" aria-label="Déplacer avant">
@@ -190,10 +196,10 @@ function Detail({ entry, conclave, onClose, onEdit }: { entry: MemorialEntry | n
               <p className="kicker">Son histoire</p>
               {entry.story_md.trim() ? <Markdown source={entry.story_md} /> : <p className="muted">Son histoire reste à écrire.</p>}
             </div>
-            {conclave && (
+            {(conclave || entry.can_edit) && (
               <div className="form-actions">
-                <button type="button" className="btn btn--ghost btn--sm" onClick={onEdit}>
-                  Modifier la fiche
+                <button type="button" className={`btn btn--sm ${conclave ? 'btn--ghost' : 'btn--red'}`} onClick={onEdit}>
+                  {conclave ? 'Modifier la fiche' : 'Modifier ma fiche'}
                 </button>
               </div>
             )}
@@ -209,17 +215,30 @@ function Detail({ entry, conclave, onClose, onEdit }: { entry: MemorialEntry | n
 // ---------------------------------------------------------------------------
 function EditForm({
   entry,
+  own,
   onClose,
   onSaved,
   onDelete,
 }: {
   entry: MemorialEntry | null;
+  /** le maître modifie sa propre fiche : nom, rang, statut et lien restent au Conclave */
+  own: boolean;
   onClose: () => void;
   onSaved: () => void;
   onDelete: (e: MemorialEntry) => void;
 }) {
   const toast = useToast();
   const [d, setD] = useState<MemorialEntry | null>(entry);
+  const [members, setMembers] = useState<AdminMember[] | null>(null);
+
+  // le Conclave choisit quel shinobi peut modifier cette fiche
+  useEffect(() => {
+    if (!entry || own || members) return;
+    api
+      .members()
+      .then(setMembers)
+      .catch(() => setMembers([]));
+  }, [entry, own, members]);
   const [busy, setBusy] = useState(false);
   const [preparing, setPreparing] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -252,8 +271,9 @@ function EditForm({
     if (!d) return;
     setBusy(true);
     try {
-      await api.memorialSave(d);
-      toast(d.id ? 'Fiche mise à jour' : `${d.name} rejoint le mémorial`);
+      if (own) await api.memorialOwnSave(d);
+      else await api.memorialSave({ ...d, member_id: d.member_id ?? null });
+      toast(own ? 'Ta fiche est à jour' : d.id ? 'Fiche mise à jour' : `${d.name} rejoint le mémorial`);
       onSaved();
     } catch (err) {
       toast(err instanceof Error ? err.message : String(err), 'error');
@@ -265,7 +285,13 @@ function EditForm({
   const isUrl = !!d?.image && d.image.startsWith('https://');
 
   return (
-    <Modal open={!!entry} onClose={onClose} title={entry?.id ? `Modifier ${entry.name}` : 'Nouvelle entrée du mémorial'} kicker="Mémorial des maîtres" wide>
+    <Modal
+      open={!!entry}
+      onClose={onClose}
+      title={own ? `Ma fiche · ${entry?.name ?? ''}` : entry?.id ? `Modifier ${entry.name}` : 'Nouvelle entrée du mémorial'}
+      kicker="Mémorial des maîtres"
+      wide
+    >
       {d && (
         <form className="memorial-form" onSubmit={save}>
           <div className="memorial-form__grid">
@@ -315,43 +341,76 @@ function EditForm({
             </div>
 
             <div className="memorial-form__fields">
-              <label className="field">
-                <span>Nom</span>
-                <input value={d.name} onChange={(e) => set('name', e.target.value)} maxLength={80} required autoFocus placeholder="Shiro Yara" />
-              </label>
-              <div className="field">
-                <span>Rang</span>
-                <div className="segmented" role="radiogroup" aria-label="Rang">
-                  {RANKS.map((r) => (
-                    <button
-                      key={r.key}
-                      type="button"
-                      role="radio"
-                      aria-checked={d.rank === r.key}
-                      className={d.rank === r.key ? 'is-on' : ''}
-                      onClick={() => set('rank', r.key)}
-                    >
-                      <i aria-hidden="true">{r.glyph}</i> {r.single}
-                    </button>
-                  ))}
+              {own ? (
+                <div className="memorial-form__locked">
+                  <b>{d.name}</b>
+                  <span>
+                    {rankInfo(d.rank).single}
+                    {d.status ? ` · ${MEMORIAL_STATUS[d.status].label}` : ''}
+                  </span>
+                  <small className="muted">Ton nom, ton rang et ton statut sont tenus par le Conclave. Le reste de la fiche est à toi.</small>
                 </div>
-              </div>
+              ) : (
+                <>
+                <label className="field">
+                  <span>Nom</span>
+                  <input value={d.name} onChange={(e) => set('name', e.target.value)} maxLength={80} required autoFocus placeholder="Shiro Yara" />
+                </label>
+                <div className="field">
+                  <span>Rang</span>
+                  <div className="segmented" role="radiogroup" aria-label="Rang">
+                    {RANKS.map((r) => (
+                      <button
+                        key={r.key}
+                        type="button"
+                        role="radio"
+                        aria-checked={d.rank === r.key}
+                        className={d.rank === r.key ? 'is-on' : ''}
+                        onClick={() => set('rank', r.key)}
+                      >
+                        <i aria-hidden="true">{r.glyph}</i> {r.single}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                  <label className="field">
+                    <span>Shinobi lié à la fiche</span>
+                    <select value={d.member_id ?? ''} onChange={(e) => set('member_id', e.target.value || null)} disabled={!members}>
+                      <option value="">{members ? 'Aucun : seul le Conclave modifie cette fiche' : 'Chargement des shinobi…'}</option>
+                      {d.member_id && members && !members.some((m) => m.id === d.member_id) && (
+                        <option value={d.member_id}>{d.member_name ?? 'Shinobi lié'}</option>
+                      )}
+                      {(members ?? [])
+                        .filter((m) => m.active || m.id === d.member_id)
+                        .sort((a, b) => a.display_name.localeCompare(b.display_name, 'fr'))
+                        .map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.display_name}
+                          </option>
+                        ))}
+                    </select>
+                    <small className="muted">Ce shinobi pourra modifier lui-même son portrait, son titre, son origine, sa spécialité et son histoire.</small>
+                  </label>
+                </>
+              )}
               <div className="memorial-form__row">
                 <label className="field">
                   <span>Titre ou surnom</span>
                   <input value={d.epithet} onChange={(e) => set('epithet', e.target.value)} maxLength={120} placeholder="Le Scelleur blanc" />
                 </label>
-                <label className="field">
-                  <span>Statut</span>
-                  <select value={d.status} onChange={(e) => set('status', e.target.value as MemorialStatus)}>
-                    <option value="">Non précisé</option>
-                    {(Object.keys(MEMORIAL_STATUS) as Exclude<MemorialStatus, ''>[]).map((k) => (
-                      <option key={k} value={k}>
-                        {MEMORIAL_STATUS[k].label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                {!own && (
+                  <label className="field">
+                    <span>Statut</span>
+                    <select value={d.status} onChange={(e) => set('status', e.target.value as MemorialStatus)}>
+                      <option value="">Non précisé</option>
+                      {(Object.keys(MEMORIAL_STATUS) as Exclude<MemorialStatus, ''>[]).map((k) => (
+                        <option key={k} value={k}>
+                          {MEMORIAL_STATUS[k].label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
               </div>
               <div className="memorial-form__row">
                 <label className="field">
@@ -381,7 +440,7 @@ function EditForm({
             </div>
           </div>
           <div className="form-actions">
-            {d.id && (
+            {d.id && !own && (
               <button type="button" className="btn btn--danger-text memorial-form__delete" onClick={() => onDelete(d)}>
                 Retirer du mémorial
               </button>
@@ -390,7 +449,7 @@ function EditForm({
               Annuler
             </button>
             <button type="submit" className="btn btn--red" disabled={busy || preparing || !d.name.trim()}>
-              {busy ? 'Enregistrement…' : d.id ? 'Enregistrer' : 'Ajouter au mémorial'}
+              {busy ? 'Enregistrement…' : own ? 'Enregistrer ma fiche' : d.id ? 'Enregistrer' : 'Ajouter au mémorial'}
             </button>
           </div>
         </form>
@@ -512,6 +571,7 @@ export default function Memorial() {
       />
       <EditForm
         entry={edit}
+        own={!conclave}
         onClose={() => setEdit(null)}
         onSaved={() => {
           setEdit(null);

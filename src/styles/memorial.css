@@ -664,3 +664,57 @@
     min-height: 160px;
   }
 }
+
+/* ---------- la fiche du maître connecté ---------- */
+.memorial-card__mine {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--line-red);
+  background: rgba(7, 6, 9, 0.85);
+  backdrop-filter: blur(4px);
+  color: var(--ink);
+  font: 700 11px/1 var(--sans);
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.memorial-card__mine span {
+  color: var(--red-soft);
+}
+
+.memorial-card__mine:hover,
+.memorial-card__mine:focus-visible {
+  border-color: var(--red-hot);
+  background: var(--red-ink);
+}
+
+.memorial-card.is-mine {
+  border-color: var(--line-red);
+}
+
+.memorial-form__locked {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--line-2);
+  background: var(--bg-2);
+}
+
+.memorial-form__locked b {
+  font: 600 18px/1.2 var(--display);
+  color: var(--ink);
+}
+
+.memorial-form__locked span {
+  color: var(--ink-2);
+  font-size: 13px;
+}

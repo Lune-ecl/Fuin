@@ -100,7 +100,7 @@ export default function ConclaveRequests() {
   }, [load]);
 
   const counts = useMemo(() => {
-    const c = { pending: 0, approved: 0, refused: 0, all: list?.length ?? 0 };
+    const c = { draft: 0, pending: 0, approved: 0, refused: 0, all: list?.length ?? 0 };
     list?.forEach((r) => (c[r.status] += 1));
     return c;
   }, [list]);
@@ -199,6 +199,9 @@ export default function ConclaveRequests() {
                     <b>{r.member?.name ?? 'Shinobi supprimé'}</b>
                     <small>
                       {r.member ? circleLabel(r.member.rank) : ''} · envoyée {timeAgo(r.created_at)}
+                      {r.status === 'pending' && new Date(r.updated_at).getTime() - new Date(r.created_at).getTime() > 60_000 && (
+                        <b className="request__edited"> · modifiée {timeAgo(r.updated_at)}</b>
+                      )}
                     </small>
                   </div>
                   <span className={`status status--${r.status}`}>{STATUS_LABEL[r.status]}</span>

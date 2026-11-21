@@ -15,7 +15,7 @@ export interface SealDesign {
   ornaments: string[];
   symbol: string | null;
   symbolScale: number;
-  /** kanjis du centre (jusqu'à 6), lus comme un sceau japonais : colonnes de droite à gauche */
+  /** kanjis du centre (jusqu'à 6), lus ligne par ligne de gauche à droite (par paires : 印結 / 魂雷 / 縛界) */
   glyph: string;
   glyphScale: number;
   glyphLayout?: GlyphLayout;
@@ -28,8 +28,8 @@ export type GlyphLayout = 'auto' | 'column' | 'row' | 'circle';
 
 export const GLYPH_LAYOUTS: { key: GlyphLayout; label: string; hint: string }[] = [
   { key: 'auto', label: 'Auto', hint: 'La disposition la plus équilibrée selon le nombre de kanjis' },
-  { key: 'column', label: 'Colonnes', hint: 'De haut en bas, colonnes de droite à gauche (lecture japonaise)' },
-  { key: 'row', label: 'Lignes', hint: 'De gauche à droite, lignes de haut en bas' },
+  { key: 'column', label: 'Par paires', hint: 'Deux kanjis par ligne, dans l’ordre : les 2 premiers en haut, les 2 suivants dessous…' },
+  { key: 'row', label: 'Lignes', hint: 'Jusqu’à trois kanjis par ligne, de gauche à droite, lignes de haut en bas' },
   { key: 'circle', label: 'En cercle', hint: 'Autour du centre, en partant du haut' },
 ];
 
@@ -512,7 +512,10 @@ function gridSlots(groups: number[], vertical: boolean): Slot[] {
   return out;
 }
 
+// lignes de trois au plus (« Lignes ») : 4 → 2+2, 5 → 3+2, 6 → 3+3
 const split = (count: number) => (count <= 3 ? [count] : [Math.ceil(count / 2), Math.floor(count / 2)]);
+// paires dans l'ordre de lecture : 6 → 2+2+2, 5 → 2+2+1 (le dernier centré)
+const pairs = (count: number) => Array.from({ length: Math.ceil(count / 2) }, (_, j) => Math.min(2, count - j * 2));
 
 function glyphSlots(count: number, layout: GlyphLayout): Slot[] {
   if (count <= 0) return [];
@@ -526,15 +529,17 @@ function glyphSlots(count: number, layout: GlyphLayout): Slot[] {
     });
   }
   if (layout === 'row') return gridSlots(split(count), false);
+  if (layout === 'auto' && count === 2) return gridSlots([2], true); // l'un sous l'autre
   if (layout === 'auto' && count === 3) {
-    // trois kanjis : un en haut, deux en bas (lus de droite à gauche)
+    // trois kanjis : un en haut, deux en bas, lus de gauche à droite
     return [
       { x: 0, y: -22, size: 38 },
-      { x: 23, y: 18, size: 38 },
       { x: -23, y: 18, size: 38 },
+      { x: 23, y: 18, size: 38 },
     ];
   }
-  return gridSlots(split(count), true);
+  // par paires, ligne par ligne de gauche à droite : 印結 / 魂雷 / 縛界
+  return gridSlots(pairs(count), false);
 }
 
 // ---------------------------------------------------------------------------

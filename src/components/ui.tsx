@@ -105,6 +105,8 @@ interface ConfirmOptions {
   title: string;
   text?: string;
   confirm?: string;
+  /** libellé du bouton qui renonce (« Annuler » par défaut) */
+  cancel?: string;
   danger?: boolean;
 }
 const ConfirmContext = createContext<(o: ConfirmOptions) => Promise<boolean>>(async () => false);
@@ -126,7 +128,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
         {state?.text && <p className="muted">{state.text}</p>}
         <div className="form-actions">
           <button type="button" className="btn btn--ghost" onClick={() => close(false)}>
-            Annuler
+            {state?.cancel ?? 'Annuler'}
           </button>
           <button
             type="button"

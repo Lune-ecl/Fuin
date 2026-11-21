@@ -43,6 +43,13 @@ export interface MemorialEntry {
   story_md: string;
   image: string | null;
   position?: number;
+  /** shinobi lié à la fiche (visible du Conclave seulement) */
+  member_id?: string | null;
+  member_name?: string | null;
+  /** la fiche du shinobi connecté */
+  mine?: boolean;
+  /** Conclave, ou maître qui modifie sa propre fiche */
+  can_edit?: boolean;
 }
 
 export interface NavPage {
@@ -194,7 +201,7 @@ export interface UnsealResult {
   broken: boolean;
 }
 
-export type RequestStatus = 'pending' | 'approved' | 'refused';
+export type RequestStatus = 'draft' | 'pending' | 'approved' | 'refused';
 
 export interface SealRequest {
   id: number;
@@ -206,7 +213,9 @@ export interface SealRequest {
   icon_svg: string | null;
   status: RequestStatus;
   review_note: string;
+  /** date d'envoi au Conclave (ou de création pour un brouillon) */
   created_at: string;
+  updated_at: string;
   reviewed_at: string | null;
   reviewed_by: string | null;
   member: { id: string; name: string; rank: number; is_conclave: boolean } | null;
@@ -219,6 +228,8 @@ export interface SealRequestInput {
   description: string;
   content_md: string;
   icon_svg: string | null;
+  /** true : la demande est gardée en brouillon au lieu d'être envoyée */
+  draft?: boolean;
 }
 
 export type RollTone = 'crit-fail' | 'fail' | 'neutral' | 'success' | 'crit-success';
@@ -486,6 +497,7 @@ export const api = {
   page: (slug: string) => rpc<PageData>('fuin_page', { p_slug: slug }),
   memorial: () => rpc<MemorialEntry[]>('fuin_memorial'),
   memorialSave: (entry: MemorialEntry) => rpc<{ id: number }>('fuin_admin_memorial_save', { p_entry: entry }),
+  memorialOwnSave: (entry: MemorialEntry) => rpc<{ id: number }>('fuin_memorial_own_save', { p_entry: entry }),
   memorialDelete: (id: number) => rpc<{ ok: boolean }>('fuin_admin_memorial_delete', { p_id: id }),
   memorialMove: (id: number, dir: -1 | 1) => rpc<{ ok: boolean }>('fuin_admin_memorial_move', { p_id: id, p_dir: dir }),
   changePassword: (oldPw: string, newPw: string) =>
@@ -545,6 +557,9 @@ export const api = {
   myRequests: () => rpc<SealRequest[]>('fuin_requests_mine'),
   requestSubmit: (req: SealRequestInput) => rpc<{ id: number }>('fuin_request_submit', { p_req: req }),
   requestWithdraw: (id: number) => rpc<{ ok: boolean }>('fuin_request_withdraw', { p_id: id }),
+  requestUpdate: (id: number, req: SealRequestInput) => rpc<{ ok: boolean; status: RequestStatus }>('fuin_request_update', { p_id: id, p_req: req }),
+  requestCancel: (id: number) => rpc<{ ok: boolean }>('fuin_request_cancel', { p_id: id }),
+  requestSend: (id: number) => rpc<{ ok: boolean }>('fuin_request_send', { p_id: id }),
   adminRequests: () => rpc<SealRequest[]>('fuin_admin_requests'),
   requestReview: (id: number, decision: 'approved' | 'refused', note: string) =>
     rpc<{ ok: boolean }>('fuin_admin_request_review', { p_id: id, p_decision: decision, p_note: note }),

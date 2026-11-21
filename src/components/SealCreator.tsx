@@ -359,7 +359,7 @@ export function SealWorkbench({
               </button>
             </div>
           </div>
-          <p className="creator__hint">Clique pour ajouter un kanji à la suite. Ils se lisent comme un sceau japonais : de haut en bas, colonnes de droite à gauche.</p>
+          <p className="creator__hint">Clique pour ajouter un kanji à la suite. Ils se placent dans l’ordre, ligne par ligne de gauche à droite : avec « 印結魂雷縛界 », 印結 en haut, 魂雷 au milieu, 縛界 en bas.</p>
           <div className="glyph-picks">
             {kanjiChars.map((k) => (
               <button
