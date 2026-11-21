@@ -543,7 +543,10 @@ function TrameList() {
   return (
     <>
       <div className="panel__row">
-        <p className="muted">Chaque trame est une suite d’étapes : énigme à déchiffrer, désenclavement, récit. Ouverte, elle apparaît dans le menu des joueurs.</p>
+        <p className="muted">
+          Chaque trame est une suite d’épreuves : inscriptions, énigmes, désenclavements, kanjis manquants, mises en situation, questions, associations,
+          épreuves validées par le Conclave… Ouverte, elle apparaît dans le menu des joueurs (ou du Conclave seul pour une trame de test).
+        </p>
         <Link to="/conclave/trames/nouvelle" className="btn btn--red">
           + Nouvelle trame
         </Link>
@@ -556,9 +559,15 @@ function TrameList() {
             <article key={r.id} className={`trame-card trame-card--${r.status}`}>
               <div className="trame-card__top">
                 <span className={`status status--trame-${r.status}`}>{TRAME_STATUS[r.status]}</span>
+                {r.test_only && <span className="tag tag--warn">試 Test · Conclave seul</span>}
+                {(r.pending_reviews ?? 0) > 0 && (
+                  <span className="tag tag--red">
+                    {r.pending_reviews} réponse{(r.pending_reviews ?? 0) > 1 ? 's' : ''} à valider
+                  </span>
+                )}
                 <small className="muted">
                   {r.steps} étape{r.steps > 1 ? 's' : ''} · {r.shared ? 'progression commune' : 'progression personnelle'} ·{' '}
-                  {r.restricted_names?.length ? `réservée à ${r.restricted_names.join(', ')}` : `dès le ${circleLabel(r.min_rank)}`}
+                  {r.test_only ? 'visible du Conclave seulement' : r.restricted_names?.length ? `réservée à ${r.restricted_names.join(', ')}` : `dès le ${circleLabel(r.min_rank)}`}
                 </small>
               </div>
               <h3>

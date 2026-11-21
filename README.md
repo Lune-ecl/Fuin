@@ -30,8 +30,9 @@ sceaux de son cercle**, et où **le Conclave** gère les comptes, les cercles, l
   attente ; le Conclave la valide ou la refuse avec une explication, et peut en faire une fiche brouillon.
 - **Mes sceaux maîtrisés** (`/mon-compte/sceaux`) : chaque shinobi coche les sceaux qu'il maîtrise, sur la
   fiche du sceau ou cercle par cercle ; le Conclave voit qui maîtrise quoi (fiche du sceau, page Membres).
-- **Trames** (Conclave → Trames) : le Conclave crée des trames faites d'étapes (énigme à déchiffrer avec
-  essais limités, désenclavement, récit). « Ouvrir la trame » fait apparaître une page temporaire dans le
+- **Trames** (Conclave → Trames) : le Conclave crée des trames faites d'épreuves (inscription à déchiffrer,
+  énigme, désenclavement, kanjis manquants, mise en situation, question à choix, ordre des kanjis,
+  associations, épreuve validée par le Conclave, récit), chacune avec ses propres essais. « Ouvrir la trame » fait apparaître une page temporaire dans le
   menu des joueurs ; « Terminer la trame » la retire. Une bonne traduction ouvre l'étape suivante ; le
   désenclavement est réservé aux cercles requis (3e par défaut), avec des rolls tirés par la base
   (réussites nécessaires = cercle du sceau, essais = cercle du joueur) lus dans les tables de roll.
@@ -129,6 +130,7 @@ fois, mais le relancer ne casse rien).
 - `008_trames_reservees.sql` : trames réservées à des shinobi choisis (eux seuls et le Conclave les voient) et réussite critique qui brise deux verrous au désenclavement.
 - `009_demandes_et_fiches_des_maitres.sql` : demandes de création de sceau modifiables, annulables (elles redeviennent des brouillons, invisibles du Conclave) et renvoyables ; au mémorial, chaque fiche peut être liée à un shinobi qui modifie lui-même son portrait, son titre et son histoire (liaison automatique par le nom).
 - `010_sceaux_maitrises.sql` : les demandes de création de sceau s'ouvrent au 3ème cercle ; chaque shinobi coche les sceaux qu'il maîtrise (sur la fiche ou dans « Mes sceaux maîtrisés »), le Conclave voit qui maîtrise quoi.
+- `011_trames_epreuves.sql` : trames plus complètes. Chaque étape a ses propres essais ; au désenclavement, le Conclave choisit le nombre de cercles à désenclaver (1 à 10) et le nombre d'essais (fixe ou selon le cercle). Nouvelles épreuves : kanjis manquants, mise en situation, énigme, question à choix, ordre des kanjis, associations et épreuve validée par le Conclave. Trames de test visibles du Conclave seulement.
 
 ### 5. Base toujours éveillée
 

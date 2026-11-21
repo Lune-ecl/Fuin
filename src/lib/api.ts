@@ -86,7 +86,7 @@ export interface Bootstrap {
 }
 
 export type TrameStatus = 'draft' | 'active' | 'ended';
-export type TrameStepKind = 'cipher' | 'unseal' | 'text';
+export type TrameStepKind = 'cipher' | 'riddle' | 'unseal' | 'missing' | 'situation' | 'choice' | 'order' | 'match' | 'review' | 'text';
 
 export interface TrameStepDef {
   kind: TrameStepKind;
@@ -94,12 +94,35 @@ export interface TrameStepDef {
   prompt_md: string;
   cipher_text?: string;
   answers?: string[];
+  /** essais par joueur pour cette étape seulement */
   max_attempts?: number;
+  /** ancien réglage du désenclavement (verrous = cercle du sceau) */
   seal_circle?: number;
+  /** désenclavement : verrous à briser (1 à 10) */
+  locks?: number;
+  /** désenclavement : essais selon le cercle du joueur, ou nombre fixe (max_attempts) */
+  attempts_mode?: 'rank' | 'fixed';
   min_rank?: number;
   roll_table?: string;
   seal_svg?: string;
   success_md?: string;
+  /** kanjis manquants et ordre des kanjis */
+  formula?: string;
+  /** kanjis manquants : positions cachées (à partir de 0) */
+  missing?: number[];
+  /** kanjis manquants : leurres proposés avec les bons kanjis */
+  decoys?: string;
+  /** montrer les cases justes après un essai raté */
+  reveal?: boolean;
+  /** associations */
+  pairs?: { left: string; right: string }[];
+  /** question à choix */
+  options?: string[];
+  correct?: number[];
+  /** mise en situation : le bon sceau (id de fiche) pour chaque situation */
+  situations?: { text: string; answers: number[] }[];
+  /** mise en situation : sceaux proposés (vide : tous ceux que le joueur peut lire) */
+  choices?: number[];
 }
 
 export interface TrameDef {
@@ -112,6 +135,8 @@ export interface TrameDef {
   /** vide : ouverte à tous à partir de min_rank ; sinon réservée à ces membres */
   restricted_to?: string[];
   restricted_names?: string[];
+  /** trame de test : visible du Conclave seulement */
+  test_only?: boolean;
   steps: TrameStepDef[];
   started_at?: string | null;
   ended_at?: string | null;
@@ -131,19 +156,24 @@ export interface TrameRow {
   participants: number;
   solves: number;
   restricted_names?: string[];
+  test_only?: boolean;
+  pending_reviews?: number;
 }
 
 export interface TrameAdmin {
   trame: TrameDef;
   progress: { index: number; attempts: number; participants: number; solvers: { name: string; at: string }[] }[];
+  /** réponses libres en attente de validation */
+  reviews?: { id: number; step_index: number; member: string; rank: number; text: string; created_at: string }[];
   log: {
     id: number;
     step_index: number;
-    kind: 'cipher' | 'unseal';
+    kind: TrameStepKind;
     answer: string | null;
     roll: number | null;
     label: string | null;
     tone: string | null;
+    effect?: string | null;
     success: boolean;
     created_at: string;
     member: string;
@@ -168,8 +198,41 @@ export interface TramePlayerStep {
   successes?: number;
   eligible?: boolean;
   rolls?: { roll: number; label: string; tone: string; effect: string }[];
+  locks?: number;
+  attempts_mode?: 'rank' | 'fixed';
   success_md?: string;
   solved_by?: string | null;
+  // nouvelles épreuves
+  reveal?: boolean;
+  /** dernière réponse du joueur (pour la retrouver après un essai raté) */
+  last?: { kanji?: string[]; order?: string[]; picks?: (string | number)[]; text?: string } | null;
+  last_correct?: boolean | null;
+  /** cases justes du dernier essai raté (si le Conclave l'autorise) */
+  feedback?: boolean[] | null;
+  slots?: (string | null)[];
+  pool?: string[] | null;
+  tiles?: string[];
+  formula?: string[];
+  lefts?: string[];
+  rights?: string[];
+  pairs?: { left: string; right: string }[];
+  options?: string[];
+  multiple?: boolean;
+  correct?: number[];
+  situations?: { text: string }[];
+  seals?: { id: number; title: string; kanji: string | null }[];
+  answers?: string[];
+  submissions?: { text: string; status: 'pending' | 'approved' | 'refused'; note: string | null; at: string }[];
+  pending?: boolean;
+}
+
+export interface TrameSubmitResult {
+  correct?: boolean;
+  pending?: boolean;
+  attempts_left: number;
+  right?: number | null;
+  total?: number | null;
+  feedback?: boolean[] | null;
 }
 
 export interface TrameView {
@@ -180,6 +243,7 @@ export interface TrameView {
     status: TrameStatus;
     shared: boolean;
     started_at: string | null;
+    test_only?: boolean;
     restricted_names?: string[];
   };
   steps: TramePlayerStep[];
@@ -613,6 +677,10 @@ export const api = {
   trameAnswer: (id: number, step: number, answer: string) =>
     rpc<{ correct: boolean; attempts_left: number }>('fuin_trame_answer', { p_id: id, p_step: step, p_answer: answer }),
   trameUnseal: (id: number, step: number) => rpc<UnsealResult>('fuin_trame_unseal', { p_id: id, p_step: step }),
+  trameSubmit: (id: number, step: number, payload: Record<string, unknown>) =>
+    rpc<TrameSubmitResult>('fuin_trame_submit', { p_id: id, p_step: step, p_payload: payload }),
+  trameReview: (attemptId: number, ok: boolean, note: string) =>
+    rpc<{ ok: boolean }>('fuin_admin_trame_review', { p_attempt: attemptId, p_ok: ok, p_note: note }),
   adminTrames: () => rpc<TrameRow[]>('fuin_admin_trames'),
   adminTrame: (id: number) => rpc<TrameAdmin>('fuin_admin_trame', { p_id: id }),
   trameSave: (t: TrameDef) => rpc<{ id: number }>('fuin_admin_trame_save', { p_trame: t }),

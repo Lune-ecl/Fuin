@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { api, type AdminMember, type RollTable, type TrameAdmin, type TrameDef, type TrameStepDef, type TrameStepKind } from '../../lib/api';
+import { api, type AdminMember, type AdminPageRow, type RollTable, type TrameAdmin, type TrameDef, type TrameStepDef, type TrameStepKind } from '../../lib/api';
+import { AttemptsField, ChoiceFields, MatchFields, MissingFields, OrderFields, ReviewFields, SituationFields, UnsealFields } from './TrameStepFields';
 import { useSession } from '../../lib/session';
 import { circleLabel, formatDate, timeAgo } from '../../lib/format';
 import Markdown from '../../components/Markdown';
@@ -66,40 +67,47 @@ function MemberPicker({ value, onChange }: { value: string[]; onChange: (ids: st
   );
 }
 
-/** Qui voit la trame : tous les shinobi d'un cercle, ou seulement ceux qu'on choisit. */
+export type AccessMode = 'rank' | 'only' | 'test';
+
+/** Qui voit la trame : tous les shinobi d'un cercle, ceux qu'on choisit, ou le Conclave seul (test). */
 function Access({
   trame,
   update,
-  only,
-  setOnly,
+  mode,
+  setMode,
 }: {
   trame: TrameDef;
   update: (p: Partial<TrameDef>) => void;
-  only: boolean;
-  setOnly: (v: boolean) => void;
+  mode: AccessMode;
+  setMode: (v: AccessMode) => void;
 }) {
+  const pick = (m: AccessMode) => {
+    setMode(m);
+    if (m === 'rank') update({ restricted_to: [], test_only: false });
+    if (m === 'only') update({ test_only: false });
+    if (m === 'test') update({ test_only: true });
+  };
   return (
     <div className="field">
       <span>Qui a accès à la trame</span>
       <div className="segmented" role="radiogroup" aria-label="Accès à la trame">
-        <button
-          type="button"
-          role="radio"
-          aria-checked={!only}
-          className={!only ? 'is-on' : ''}
-          onClick={() => {
-            setOnly(false);
-            update({ restricted_to: [] });
-          }}
-        >
+        <button type="button" role="radio" aria-checked={mode === 'rank'} className={mode === 'rank' ? 'is-on' : ''} onClick={() => pick('rank')}>
           Tous les shinobi d’un cercle
         </button>
-        <button type="button" role="radio" aria-checked={only} className={only ? 'is-on' : ''} onClick={() => setOnly(true)}>
+        <button type="button" role="radio" aria-checked={mode === 'only'} className={mode === 'only' ? 'is-on' : ''} onClick={() => pick('only')}>
           Shinobi choisis
         </button>
+        <button type="button" role="radio" aria-checked={mode === 'test'} className={mode === 'test' ? 'is-on' : ''} onClick={() => pick('test')}>
+          Conclave seulement (test)
+        </button>
       </div>
-      {only ? (
+      {mode === 'only' ? (
         <MemberPicker value={trame.restricted_to ?? []} onChange={(ids) => update({ restricted_to: ids })} />
+      ) : mode === 'test' ? (
+        <p className="muted small access-test">
+          <i aria-hidden="true">試</i> Trame de test : même ouverte, seuls les membres du Conclave la voient et peuvent la jouer. Remets la progression à zéro
+          après tes essais, puis choisis un autre accès pour la publier.
+        </p>
       ) : (
         <div className="access-rank">
           <small className="muted">Accessible à partir du</small>
@@ -111,21 +119,72 @@ function Access({
 }
 
 const KIND: Record<TrameStepKind, { label: string; glyph: string; hint: string }> = {
-  cipher: { label: 'Énigme à déchiffrer', glyph: '謎', hint: 'Un texte à traduire, avec un nombre d’essais limité.' },
-  unseal: { label: 'Désenclavement', glyph: '封', hint: 'Un sceau à briser par des rolls tirés par le site.' },
+  cipher: { label: 'Inscription à déchiffrer', glyph: '謎', hint: 'Un texte en kanjis à traduire, avec un nombre d’essais limité.' },
+  riddle: { label: 'Énigme', glyph: '問', hint: 'Une question ou une devinette, réponse libre vérifiée par le site.' },
+  unseal: { label: 'Désenclavement', glyph: '封', hint: 'Un sceau à briser par des rolls : verrous et essais au choix.' },
+  missing: { label: 'Kanjis manquants', glyph: '欠', hint: 'Un sceau incomplet : retrouver les kanjis qui manquent pour l’activer.' },
+  situation: { label: 'Mise en situation', glyph: '境', hint: 'Des situations : trouver le sceau à utiliser pour chacune.' },
+  order: { label: 'Ordre des kanjis', glyph: '順', hint: 'Les kanjis d’une formule mélangés : les remettre dans l’ordre.' },
+  match: { label: 'Associations', glyph: '合', hint: 'Relier chaque kanji (ou sceau) à son sens.' },
+  choice: { label: 'Question à choix', glyph: '択', hint: 'Une question avec une ou plusieurs bonnes réponses à cocher.' },
+  review: { label: 'Épreuve du Conclave', glyph: '議', hint: 'Une réponse libre que le Conclave valide ou refuse lui-même.' },
   text: { label: 'Récit ou récompense', glyph: '巻', hint: 'Un texte qui s’affiche quand les joueurs y arrivent.' },
 };
 
 function newStep(kind: TrameStepKind): TrameStepDef {
-  if (kind === 'cipher')
-    return { kind, title: 'L’inscription', prompt_md: 'Une inscription est gravée sur la pierre. Que dit-elle ?', cipher_text: '', answers: [], max_attempts: 2, success_md: '' };
-  if (kind === 'unseal')
-    return { kind, title: 'Le sceau', prompt_md: 'Un sceau verrouille le passage. Les shinobi qui maîtrisent le désenclavement peuvent tenter de le briser.', seal_circle: 3, min_rank: 3, roll_table: 'desenclavement', success_md: '' };
-  return { kind, title: '', prompt_md: '' };
+  const base = { kind, title: KIND[kind].label, prompt_md: '', success_md: '' };
+  switch (kind) {
+    case 'cipher':
+      return { ...base, title: 'L’inscription', prompt_md: 'Une inscription est gravée sur la pierre. Que dit-elle ?', cipher_text: '', answers: [], max_attempts: 2 };
+    case 'riddle':
+      return { ...base, title: 'L’énigme', prompt_md: 'Le gardien pose sa question…', answers: [], max_attempts: 2 };
+    case 'unseal':
+      return {
+        ...base,
+        title: 'Le sceau',
+        prompt_md: 'Un sceau verrouille le passage. Les shinobi qui maîtrisent le désenclavement peuvent tenter de le briser.',
+        locks: 3,
+        min_rank: 3,
+        attempts_mode: 'rank',
+        roll_table: 'desenclavement',
+      };
+    case 'missing':
+      return { ...base, title: 'Le sceau incomplet', prompt_md: 'Des kanjis ont été effacés du sceau. Retrouve-les pour le reconstruire et l’activer.', formula: '', missing: [], decoys: '', max_attempts: 3, reveal: true };
+    case 'situation':
+      return { ...base, title: 'Sur le terrain', prompt_md: 'Pour chaque situation, choisis le sceau qu’il faut adapter.', situations: [{ text: '', answers: [] }], choices: [], max_attempts: 3, reveal: true };
+    case 'order':
+      return { ...base, title: 'L’ordre de tracé', prompt_md: 'Les kanjis du sceau ont été mélangés. Remets-les dans l’ordre.', formula: '', max_attempts: 3, reveal: true };
+    case 'match':
+      return {
+        ...base,
+        title: 'Les sens cachés',
+        prompt_md: 'Relie chaque kanji à son sens.',
+        pairs: [
+          { left: '', right: '' },
+          { left: '', right: '' },
+          { left: '', right: '' },
+        ],
+        max_attempts: 3,
+        reveal: true,
+      };
+    case 'choice':
+      return { ...base, title: 'La question', prompt_md: '', options: ['', '', ''], correct: [], max_attempts: 2 };
+    case 'review':
+      return { ...base, title: 'Devant le Conclave', prompt_md: 'Explique comment ton shinobi s’y prend.', max_attempts: 3 };
+    default:
+      return { ...base, title: '', prompt_md: '' };
+  }
+}
+
+// anciennes étapes de désenclavement : verrous = cercle du sceau, cercle requis au moins égal
+function upgradeStep(s: TrameStepDef): TrameStepDef {
+  if (s.kind !== 'unseal' || s.locks !== undefined) return s;
+  const circle = s.seal_circle ?? 3;
+  return { ...s, locks: circle, min_rank: Math.max(s.min_rank ?? 3, circle), attempts_mode: 'rank' };
 }
 
 function emptyTrame(): TrameDef {
-  return { id: null, title: '', intro_md: '', shared: true, min_rank: 1, steps: [newStep('cipher'), newStep('unseal')] };
+  return { id: null, title: '', intro_md: '', shared: true, min_rank: 1, test_only: false, steps: [newStep('cipher'), newStep('unseal')] };
 }
 
 function StepEditor({
@@ -133,6 +192,7 @@ function StepEditor({
   index,
   count,
   tables,
+  seals,
   onChange,
   onMove,
   onRemove,
@@ -142,12 +202,15 @@ function StepEditor({
   index: number;
   count: number;
   tables: RollTable[];
+  /** sceaux du codex, pour les mises en situation */
+  seals: AdminPageRow[];
   draftKey: string;
   onChange: (s: TrameStepDef) => void;
   onMove: (dir: -1 | 1) => void;
   onRemove: () => void;
 }) {
   const set = <K extends keyof TrameStepDef>(k: K, v: TrameStepDef[K]) => onChange({ ...step, [k]: v });
+  const patch = (p: Partial<TrameStepDef>) => onChange({ ...step, ...p });
   const k = KIND[step.kind];
   const [creator, setCreator] = useState(false);
   return (
@@ -180,28 +243,27 @@ function StepEditor({
         <textarea rows={step.kind === 'text' ? 5 : 3} value={step.prompt_md} onChange={(e) => set('prompt_md', e.target.value)} />
       </label>
 
-      {step.kind === 'cipher' && (
+      {(step.kind === 'cipher' || step.kind === 'riddle') && (
         <>
+          {step.kind === 'cipher' && (
+            <label className="field">
+              <span>Texte à déchiffrer</span>
+              <textarea className="cipher-input" lang="ja" rows={2} value={step.cipher_text ?? ''} onChange={(e) => set('cipher_text', e.target.value)} placeholder="黙 封 口 秘" />
+            </label>
+          )}
           <label className="field">
-            <span>Texte à déchiffrer</span>
-            <textarea className="cipher-input" lang="ja" rows={2} value={step.cipher_text ?? ''} onChange={(e) => set('cipher_text', e.target.value)} placeholder="黙 封 口 秘" />
-          </label>
-          <label className="field">
-            <span>Traductions acceptées (une par ligne, cachées aux joueurs)</span>
+            <span>{step.kind === 'cipher' ? 'Traductions acceptées' : 'Réponses acceptées'} (une par ligne, cachées aux joueurs)</span>
             <textarea
               rows={3}
               value={(step.answers ?? []).join('\n')}
               onChange={(e) => set('answers', e.target.value.split('\n'))}
-              placeholder={'garder le silence et sceller la bouche\nsilence + bouche'}
+              placeholder={step.kind === 'cipher' ? 'garder le silence et sceller la bouche\nsilence + bouche' : 'le silence\nsilence'}
             />
             <small className="muted">
               Une phrase exacte (majuscules, accents et ponctuation ignorés), ou des mots-clés séparés par « + » qui doivent tous apparaître.
             </small>
           </label>
-          <label className="field field--narrow">
-            <span>Essais par joueur</span>
-            <input type="number" min={1} max={10} value={step.max_attempts ?? 2} onChange={(e) => set('max_attempts', Number(e.target.value) || 2)} />
-          </label>
+          <AttemptsField step={step} set={set} fallback={2} />
         </>
       )}
 
@@ -239,32 +301,13 @@ function StepEditor({
         </div>
       )}
 
-      {step.kind === 'unseal' && (
-        <div className="step-card__grid">
-          <div className="field">
-            <span>Cercle du sceau (verrous à briser)</span>
-            <RankPicker value={step.seal_circle ?? 3} onChange={(r) => set('seal_circle', r)} name={`seal-${index}`} />
-          </div>
-          <div className="field">
-            <span>Cercle minimum pour tenter</span>
-            <RankPicker value={step.min_rank ?? 3} onChange={(r) => set('min_rank', r)} name={`min-${index}`} />
-          </div>
-          <label className="field">
-            <span>Table de roll</span>
-            <select value={step.roll_table ?? 'desenclavement'} onChange={(e) => set('roll_table', e.target.value)}>
-              {tables.map((t) => (
-                <option key={t.slug} value={t.slug}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <p className="muted small step-card__note">
-            Peut tenter : à partir du {circleLabel(Math.max(step.min_rank ?? 3, step.seal_circle ?? 3))}. Chaque joueur a autant d’essais que son cercle ;
-            une réussite critique brise deux verrous.
-          </p>
-        </div>
-      )}
+      {step.kind === 'unseal' && <UnsealFields step={step} patch={patch} index={index} tables={tables} />}
+      {step.kind === 'missing' && <MissingFields step={step} patch={patch} />}
+      {step.kind === 'order' && <OrderFields step={step} patch={patch} />}
+      {step.kind === 'match' && <MatchFields step={step} patch={patch} />}
+      {step.kind === 'choice' && <ChoiceFields step={step} patch={patch} />}
+      {step.kind === 'situation' && <SituationFields step={step} patch={patch} seals={seals} />}
+      {step.kind === 'review' && <ReviewFields step={step} patch={patch} />}
 
       {step.kind !== 'text' && (
         <label className="field">
@@ -272,6 +315,92 @@ function StepEditor({
           <textarea rows={3} value={step.success_md ?? ''} onChange={(e) => set('success_md', e.target.value)} placeholder="La porte de pierre s’ouvre dans un grondement…" />
         </label>
       )}
+    </section>
+  );
+}
+
+/** Ce qu'a répondu un joueur, lisible quelle que soit l'épreuve. */
+function attemptText(l: TrameAdmin['log'][number], step: TrameStepDef | undefined): string {
+  if (l.kind === 'unseal') return '';
+  if (l.kind === 'cipher' || l.kind === 'riddle' || l.kind === 'review') return l.answer ? `« ${l.answer} »` : '';
+  let a: { kanji?: string[]; order?: string[]; picks?: (string | number)[] } = {};
+  try {
+    a = JSON.parse(l.answer ?? '{}');
+  } catch {
+    return l.answer ?? '';
+  }
+  if (l.kind === 'missing') return (a.kanji ?? []).join(' ');
+  if (l.kind === 'order') return (a.order ?? []).join(' ');
+  if (l.kind === 'match') return (a.picks ?? []).join(' · ');
+  if (l.kind === 'choice') return (a.picks ?? []).map((i) => step?.options?.[Number(i)] ?? `#${i}`).join(' · ');
+  if (l.kind === 'situation') return `${(a.picks ?? []).length} situation(s)`;
+  return '';
+}
+
+function attemptTone(l: TrameAdmin['log'][number]): string {
+  if (l.kind === 'unseal') return l.tone ?? 'neutral';
+  if (l.kind === 'review') return l.label === 'approved' ? 'success' : l.label === 'refused' ? 'fail' : 'neutral';
+  return l.success ? 'success' : 'fail';
+}
+
+function attemptLabel(l: TrameAdmin['log'][number]): string {
+  if (l.kind === 'unseal') return `roll ${l.roll} · ${l.label}`;
+  if (l.kind === 'review') return l.label === 'approved' ? 'validée' : l.label === 'refused' ? 'refusée' : 'à valider';
+  return `${l.success ? 'juste' : 'faux'}${l.label ? ` · ${l.label}` : ''}`;
+}
+
+/** Réponses libres à valider ou refuser. */
+function Reviews({ data, onDone }: { data: TrameAdmin; onDone: () => void }) {
+  const toast = useToast();
+  const [notes, setNotes] = useState<Record<number, string>>({});
+  const [busy, setBusy] = useState<number | null>(null);
+  const list = data.reviews ?? [];
+  if (!list.length) return null;
+  const decide = async (id: number, ok: boolean) => {
+    if (!ok && !(notes[id] ?? '').trim()) {
+      toast('Explique au shinobi pourquoi sa réponse est refusée.', 'error');
+      return;
+    }
+    setBusy(id);
+    try {
+      await api.trameReview(id, ok, notes[id] ?? '');
+      toast(ok ? 'Réponse validée : la suite s’ouvre' : 'Réponse refusée');
+      onDone();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e), 'error');
+    } finally {
+      setBusy(null);
+    }
+  };
+  return (
+    <section className="panel panel--accent">
+      <h2 className="panel__title">
+        Réponses à valider <span className="count-badge">{list.length}</span>
+      </h2>
+      <ul className="review-queue">
+        {list.map((r) => (
+          <li key={r.id} className="review-queue__item">
+            <p className="review-queue__head">
+              <b>{r.member}</b> <small>C{r.rank}</small> · étape {r.step_index + 1} · {data.trame.steps[r.step_index]?.title} · {timeAgo(r.created_at)}
+            </p>
+            <blockquote>{r.text}</blockquote>
+            <input
+              value={notes[r.id] ?? ''}
+              onChange={(e) => setNotes({ ...notes, [r.id]: e.target.value })}
+              placeholder="Commentaire pour le shinobi (obligatoire en cas de refus)"
+              maxLength={1000}
+            />
+            <div className="request__actions">
+              <button type="button" className="btn btn--red btn--sm" disabled={busy === r.id} onClick={() => void decide(r.id, true)}>
+                Valider
+              </button>
+              <button type="button" className="btn btn--ghost btn--sm btn--danger-text" disabled={busy === r.id} onClick={() => void decide(r.id, false)}>
+                Refuser
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -284,6 +413,7 @@ function Tracking({ data, onRefresh }: { data: TrameAdmin; onRefresh: () => void
   const steps = data.trame.steps;
   return (
     <>
+      <Reviews data={data} onDone={onRefresh} />
       <section className="panel">
         <h2 className="panel__title">Progression</h2>
         <p className="muted small">Actualisé toutes les 10 secondes.</p>
@@ -320,15 +450,15 @@ function Tracking({ data, onRefresh }: { data: TrameAdmin; onRefresh: () => void
         ) : (
           <ul className="roll-list">
             {data.log.map((l) => (
-              <li key={l.id} className={`roll roll--${l.kind === 'unseal' ? l.tone ?? 'neutral' : l.success ? 'success' : 'neutral'}`}>
+              <li key={l.id} className={`roll roll--${attemptTone(l) === 'fail' ? 'neutral' : attemptTone(l)}`}>
                 <span className="roll__index">{timeAgo(l.created_at)}</span>
                 <span className="roll__who">
                   {l.member} <small>C{l.rank}</small>
                 </span>
-                <span className={`tone tone--${l.kind === 'unseal' ? l.tone ?? 'neutral' : l.success ? 'success' : 'fail'}`}>
-                  Étape {l.step_index + 1} · {l.kind === 'unseal' ? `roll ${l.roll} · ${l.label}` : l.success ? 'juste' : 'faux'}
+                <span className={`tone tone--${attemptTone(l)}`}>
+                  Étape {l.step_index + 1} · {attemptLabel(l)}
                 </span>
-                <span className="roll__text">{l.kind === 'cipher' ? `« ${l.answer} »` : ''}</span>
+                <span className="roll__text">{attemptText(l, steps[l.step_index])}</span>
               </li>
             ))}
           </ul>
@@ -348,6 +478,7 @@ export default function TrameEditor() {
   const [trame, setTrame] = useState<TrameDef | null>(isNew ? emptyTrame() : null);
   const [admin, setAdmin] = useState<TrameAdmin | null>(null);
   const [tables, setTables] = useState<RollTable[]>([]);
+  const [seals, setSeals] = useState<AdminPageRow[]>([]);
   const [tab, setTab] = useState<'build' | 'track'>('build');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -355,11 +486,16 @@ export default function TrameEditor() {
 
   const load = useCallback(async () => {
     try {
-      const [t, a] = await Promise.all([api.rollTables(), isNew ? Promise.resolve(null) : api.adminTrame(Number(id))]);
+      const [t, a, pages] = await Promise.all([
+        api.rollTables(),
+        isNew ? Promise.resolve(null) : api.adminTrame(Number(id)),
+        api.pages().catch(() => [] as AdminPageRow[]),
+      ]);
       setTables(t);
+      setSeals(pages.filter((p) => p.kind === 'seal'));
       if (a) {
         setAdmin(a);
-        setTrame((cur) => (cur && dirty ? cur : a.trame));
+        setTrame((cur) => (cur && dirty ? cur : { ...a.trame, steps: a.trame.steps.map(upgradeStep) }));
       }
       setError(null);
     } catch (e) {
@@ -380,11 +516,12 @@ export default function TrameEditor() {
     }
   }, [id, isNew]);
 
-  // trame réservée à des shinobi choisis (sinon ouverte à un cercle)
-  const [only, setOnly] = useState(false);
+  // accès : un cercle, des shinobi choisis, ou le Conclave seul (trame de test)
+  const [mode, setMode] = useState<AccessMode>('rank');
   useEffect(() => {
-    if ((trame?.restricted_to?.length ?? 0) > 0) setOnly(true);
-  }, [trame?.restricted_to]);
+    if (trame?.test_only) setMode('test');
+    else if ((trame?.restricted_to?.length ?? 0) > 0) setMode('only');
+  }, [trame?.test_only, trame?.restricted_to]);
 
   if (error) return <ErrorState text={error} onRetry={load} />;
   if (!trame) return <Loader label="Ouverture de la trame…" />;
@@ -403,13 +540,23 @@ export default function TrameEditor() {
   };
 
   const save = async (): Promise<number | null> => {
-    if (only && !trame.restricted_to?.length) {
+    if (mode === 'only' && !trame.restricted_to?.length) {
       toast('Choisis au moins un shinobi pour cette trame réservée.', 'error');
       return null;
     }
     setBusy(true);
     try {
-      const clean = { ...trame, steps: trame.steps.map((s) => ({ ...s, answers: s.answers?.map((a) => a.trim()).filter(Boolean) })) };
+      const clean = {
+        ...trame,
+        test_only: mode === 'test',
+        restricted_to: mode === 'only' ? trame.restricted_to : [],
+        steps: trame.steps.map((s) => ({
+          ...s,
+          answers: s.answers?.map((a) => a.trim()).filter(Boolean),
+          options: s.options?.map((o) => o.trim()),
+          pairs: s.pairs?.map((p) => ({ left: p.left.trim(), right: p.right.trim() })),
+        })),
+      };
       const r = await api.trameSave(clean);
       toast('Trame enregistrée');
       setDirty(false);
@@ -426,7 +573,10 @@ export default function TrameEditor() {
 
   const status = async (action: 'start' | 'end' | 'reset') => {
     const texts = {
-      start: { title: 'Ouvrir la trame aux joueurs ?', text: 'Une page « Trame en cours » apparaîtra dans leur menu.', confirm: 'Ouvrir' },
+      start:
+        mode === 'test'
+          ? { title: 'Ouvrir la trame de test ?', text: 'Elle apparaîtra dans le menu des membres du Conclave seulement.', confirm: 'Ouvrir' }
+          : { title: 'Ouvrir la trame aux joueurs ?', text: 'Une page « Trame en cours » apparaîtra dans leur menu.', confirm: 'Ouvrir' },
       end: { title: 'Terminer la trame ?', text: 'La page disparaît pour les joueurs. Le suivi reste consultable ici.', confirm: 'Terminer' },
       reset: { title: 'Remettre la progression à zéro ?', text: 'Toutes les réponses, tous les rolls et toutes les résolutions seront effacés.', confirm: 'Tout effacer' },
     }[action];
@@ -436,7 +586,7 @@ export default function TrameEditor() {
     if (!tid) return;
     try {
       await api.trameStatus(tid, action);
-      toast(action === 'start' ? 'La trame est ouverte aux joueurs' : action === 'end' ? 'La trame est terminée' : 'Progression effacée');
+      toast(action === 'start' ? (mode === 'test' ? 'Trame de test ouverte au Conclave' : 'La trame est ouverte aux joueurs') : action === 'end' ? 'La trame est terminée' : 'Progression effacée');
       await load();
       await refresh();
     } catch (e) {
@@ -531,7 +681,7 @@ export default function TrameEditor() {
                 <Markdown source={trame.intro_md} />
               </details>
             )}
-            <Access trame={trame} update={update} only={only} setOnly={setOnly} />
+            <Access trame={trame} update={update} mode={mode} setMode={setMode} />
             <div className="step-card__grid">
               <Toggle
                 checked={trame.shared}
@@ -549,6 +699,7 @@ export default function TrameEditor() {
               index={i}
               count={trame.steps.length}
               tables={tables}
+              seals={seals}
               onChange={(n) => setStep(i, n)}
               onMove={(dir) => move(i, dir)}
               onRemove={() => update({ steps: trame.steps.filter((_, j) => j !== i) })}

@@ -91,6 +91,8 @@ export const AUDIT_LABELS: Record<string, string> = {
   'memorial.own_update': 'a modifié sa fiche du mémorial',
   'mastery.add': 'maîtrise désormais',
   'mastery.remove': 'ne coche plus',
+  'trame.approve': 'a validé une réponse de la trame',
+  'trame.refuse': 'a refusé une réponse de la trame',
 };
 
 export function canRequest(m: { rank: number; is_conclave: boolean } | null): boolean {

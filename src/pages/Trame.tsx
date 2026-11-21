@@ -5,12 +5,33 @@ import { useSession } from '../lib/session';
 import { circleLabel } from '../lib/format';
 import Markdown from '../components/Markdown';
 import TrameSeal from '../components/TrameSeal';
+import { ChoiceStep, MatchStep, MissingStep, OrderStep, ReviewStep, SituationStep, SolvedChallenge } from '../components/TrameChallenges';
 import { ErrorState, Loader, useToast } from '../components/ui';
 
 const KIND_LABEL: Record<TramePlayerStep['kind'], string> = {
-  cipher: 'Énigme',
+  cipher: 'Inscription à déchiffrer',
+  riddle: 'Énigme',
   unseal: 'Désenclavement',
+  missing: 'Kanjis manquants',
+  situation: 'Mise en situation',
+  choice: 'Question',
+  order: 'Ordre des kanjis',
+  match: 'Associations',
+  review: 'Épreuve du Conclave',
   text: 'Récit',
+};
+
+const KIND_MARK: Record<TramePlayerStep['kind'], string> = {
+  cipher: '謎',
+  riddle: '問',
+  unseal: '封',
+  missing: '欠',
+  situation: '境',
+  choice: '択',
+  order: '順',
+  match: '合',
+  review: '議',
+  text: '巻',
 };
 
 function CipherStep({ step, trameId, shared, onDone }: { step: TramePlayerStep; trameId: number; shared: boolean; onDone: () => void }) {
@@ -28,12 +49,13 @@ function CipherStep({ step, trameId, shared, onDone }: { step: TramePlayerStep; 
     setBusy(true);
     try {
       const r = await api.trameAnswer(trameId, step.index, answer);
+      const what = step.kind === 'riddle' ? 'la bonne réponse' : 'la bonne traduction';
       if (r.correct) {
-        toast('Traduction juste : l’étape suivante s’ouvre');
+        toast(step.kind === 'riddle' ? 'Bonne réponse : l’étape suivante s’ouvre' : 'Traduction juste : l’étape suivante s’ouvre');
         setAnswer('');
       } else {
         setWrong((w) => w + 1);
-        toast(r.attempts_left > 0 ? `Ce n’est pas la bonne traduction. ${r.attempts_left} essai restant.` : 'Ce n’est pas la bonne traduction. Plus aucun essai.', 'error');
+        toast(r.attempts_left > 0 ? `Ce n’est pas ${what}. ${r.attempts_left} essai${r.attempts_left > 1 ? 's' : ''} restant${r.attempts_left > 1 ? 's' : ''}.` : `Ce n’est pas ${what}. Plus aucun essai.`, 'error');
       }
       onDone();
     } catch (err) {
@@ -53,14 +75,21 @@ function CipherStep({ step, trameId, shared, onDone }: { step: TramePlayerStep; 
       )}
       {left > 0 ? (
         <form key={wrong} className={`cipher-form${wrong ? ' is-shaking' : ''}`} onSubmit={submit}>
-          <input value={answer} onChange={(e) => setAnswer(e.target.value)} placeholder="Ta traduction…" maxLength={500} aria-label="Ta traduction" autoComplete="off" />
+          <input
+            value={answer}
+            onChange={(e) => setAnswer(e.target.value)}
+            placeholder={step.kind === 'riddle' ? 'Ta réponse…' : 'Ta traduction…'}
+            maxLength={500}
+            aria-label={step.kind === 'riddle' ? 'Ta réponse' : 'Ta traduction'}
+            autoComplete="off"
+          />
           <button type="submit" className="btn btn--red" disabled={busy || !answer.trim()}>
             {busy ? 'Vérification…' : 'Proposer'}
           </button>
         </form>
       ) : (
         <p className="step-blocked">
-          Tu as utilisé tous tes essais.{shared ? ' Un autre shinobi peut encore trouver la traduction : la suite s’ouvrira alors pour tous.' : ''}
+          Tu as utilisé tous tes essais pour cette étape.{shared ? ' Un autre shinobi peut encore trouver : la suite s’ouvrira alors pour tous.' : ''}
         </p>
       )}
       <div className="attempt-dots" aria-label={`${left} essai(s) restant(s) sur ${max}`}>
@@ -68,7 +97,7 @@ function CipherStep({ step, trameId, shared, onDone }: { step: TramePlayerStep; 
           <i key={i} className={i < used ? 'is-used' : ''} />
         ))}
         <span>
-          {left} essai{left > 1 ? 's' : ''} restant{left > 1 ? 's' : ''}
+          {left} essai{left > 1 ? 's' : ''} restant{left > 1 ? 's' : ''} pour cette étape
         </span>
       </div>
     </>
@@ -82,7 +111,7 @@ function UnsealStep({ step, trameId, shared, onDone }: { step: TramePlayerStep; 
   const [display, setDisplay] = useState<number | null>(null);
   const [flash, setFlash] = useState<{ type: 'fail' | 'hit' | null; key: number }>({ type: null, key: 0 });
   const timer = useRef<number | null>(null);
-  const needed = step.seal_circle ?? 3;
+  const needed = step.locks ?? step.seal_circle ?? 3;
   const allowed = step.allowed ?? 0;
   const used = step.attempts_used ?? 0;
   const successes = step.successes ?? 0;
@@ -157,8 +186,11 @@ function UnsealStep({ step, trameId, shared, onDone }: { step: TramePlayerStep; 
         </div>
       </div>
       <p className="muted small">
-        Il faut briser {needed} verrou{needed > 1 ? 's' : ''} (sceau du {circleLabel(needed)}). Tu as autant d’essais que ton cercle. Une
-        réussite critique brise deux verrous d’un coup.
+        Il faut briser {needed} verrou{needed > 1 ? 's' : ''}.{' '}
+        {step.attempts_mode === 'fixed'
+          ? `Tu as ${allowed} essai${allowed > 1 ? 's' : ''} pour ce sceau.`
+          : 'Tu as autant d’essais que ton cercle.'}{' '}
+        Une réussite critique brise deux verrous d’un coup.
       </p>
 
       {(display !== null || busy) && (
@@ -266,7 +298,13 @@ export default function Trame() {
       <header className="trame__head">
         <p className="trame__live">
           <i />
-          {trame.status === 'active' ? 'Trame en cours' : trame.status === 'draft' ? 'Aperçu du Conclave · brouillon' : 'Aperçu du Conclave · terminée'}
+          {trame.test_only && trame.status === 'active'
+            ? 'Trame de test · visible du Conclave seulement'
+            : trame.status === 'active'
+              ? 'Trame en cours'
+              : trame.status === 'draft'
+                ? 'Aperçu du Conclave · brouillon'
+                : 'Aperçu du Conclave · terminée'}
         </p>
         <h1>{trame.title}</h1>
         {trame.intro_md && <Markdown source={trame.intro_md} className="trame__intro" />}
@@ -289,7 +327,7 @@ export default function Trame() {
         {steps.map((s) => (
           <li key={s.index} className={`tstep tstep--${s.kind} tstep--${s.kind === 'text' ? 'text' : s.state}`}>
             <span className="tstep__mark" aria-hidden="true">
-              {s.kind === 'text' ? '巻' : s.state === 'solved' ? '解' : s.kind === 'cipher' ? '謎' : '封'}
+              {s.kind !== 'text' && s.state === 'solved' ? '解' : KIND_MARK[s.kind]}
             </span>
             <div className="tstep__body">
               <p className="kicker">
@@ -298,13 +336,20 @@ export default function Trame() {
               </p>
               {s.title && <h2>{s.title}</h2>}
               {s.prompt_md && <Markdown source={s.prompt_md} />}
-              {s.state === 'current' && s.kind === 'cipher' && <CipherStep step={s} trameId={trame.id} shared={trame.shared} onDone={load} />}
+              {s.state === 'current' && (s.kind === 'cipher' || s.kind === 'riddle') && <CipherStep step={s} trameId={trame.id} shared={trame.shared} onDone={load} />}
               {s.state === 'current' && s.kind === 'unseal' && <UnsealStep step={s} trameId={trame.id} shared={trame.shared} onDone={load} />}
+              {s.state === 'current' && s.kind === 'missing' && <MissingStep key={s.attempts_used} step={s} trameId={trame.id} shared={trame.shared} onDone={load} />}
+              {s.state === 'current' && s.kind === 'order' && <OrderStep step={s} trameId={trame.id} shared={trame.shared} onDone={load} />}
+              {s.state === 'current' && s.kind === 'match' && <MatchStep key={s.attempts_used} step={s} trameId={trame.id} shared={trame.shared} onDone={load} />}
+              {s.state === 'current' && s.kind === 'choice' && <ChoiceStep step={s} trameId={trame.id} shared={trame.shared} onDone={load} />}
+              {s.state === 'current' && s.kind === 'situation' && <SituationStep key={s.attempts_used} step={s} trameId={trame.id} shared={trame.shared} onDone={load} />}
+              {s.state === 'current' && s.kind === 'review' && <ReviewStep step={s} trameId={trame.id} shared={trame.shared} onDone={load} />}
               {s.state === 'solved' && s.kind !== 'text' && (
                 <>
                   {s.kind === 'unseal' && (
-                    <TrameSeal svg={s.seal_svg} fails={s.fails_total ?? 0} successes={s.seal_circle ?? 3} needed={s.seal_circle ?? 3} broken compact />
+                    <TrameSeal svg={s.seal_svg} fails={s.fails_total ?? 0} successes={s.locks ?? s.seal_circle ?? 3} needed={s.locks ?? s.seal_circle ?? 3} broken compact />
                   )}
+                  <SolvedChallenge step={s} />
                   {s.kind === 'cipher' && s.cipher_text && (
                     <p className="cipher-text cipher-text--done" lang="ja">
                       {s.cipher_text}
