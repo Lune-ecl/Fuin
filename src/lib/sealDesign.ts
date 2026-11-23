@@ -32,6 +32,8 @@ export interface SealDesign {
   spinOrnaments?: boolean;
   /** le symbole central tourne avec eux (par défaut non : il reste droit) */
   spinSymbol?: boolean;
+  /** plusieurs ornements : rangés en couronnes sans se chevaucher (par défaut), ou superposés */
+  ornamentLayout?: 'layers' | 'stack';
   stroke: number;
   rotation: number;
 }
@@ -71,6 +73,34 @@ export const COLORS = [
 export const BRUSH_FONT = 'Yuji Syuku';
 
 const spin = (on: boolean, cls: string) => (on ? ` class="${cls}"` : '');
+
+// couronnes successives, de l'extérieur vers le centre
+const BAND_SCALES = [1, 0.66, 0.46, 0.32, 0.22];
+const FIGURE_SCALES = [1, 0.62, 0.4, 0.26];
+
+/**
+ * Dispose plusieurs ornements sans qu'ils se chevauchent : les traits du bord restent en place,
+ * chaque couronne de motifs prend son propre rayon, et les figures s'emboîtent à l'intérieur.
+ * Renvoie aussi le rayon resté libre au centre pour y ajuster le symbole et les kanjis.
+ */
+function layoutOrnaments(list: (typeof ORNAMENTS)[number][], sw: number, color: string): { svg: string; free: number; crowded: boolean } {
+  const scaled = (o: (typeof ORNAMENTS)[number], k: number) =>
+    k === 1 ? o.draw(sw, color) : `<g transform="translate(${C} ${C}) scale(${n(k)}) translate(${-C} ${-C})" stroke-width="${n(sw / k)}">${o.draw(sw / k, color)}</g>`;
+  const rings = list.filter((o) => ornamentKind(o.key) === 'ring');
+  const bands = list.filter((o) => ornamentKind(o.key) === 'band');
+  const figures = list.filter((o) => ornamentKind(o.key) === 'figure');
+  let svg = rings.map((o) => o.draw(sw, color)).join('');
+  bands.forEach((o, i) => {
+    svg += scaled(o, BAND_SCALES[Math.min(i, BAND_SCALES.length - 1)]);
+  });
+  // les figures tiennent à l'intérieur de la dernière couronne de motifs
+  const inside = bands.length ? BAND_SCALES[Math.min(bands.length - 1, BAND_SCALES.length - 1)] * 0.7 : 1;
+  figures.forEach((o, i) => {
+    svg += scaled(o, inside * FIGURE_SCALES[Math.min(i, FIGURE_SCALES.length - 1)]);
+  });
+  const free = bands.length ? 48 * BAND_SCALES[Math.min(bands.length - 1, BAND_SCALES.length - 1)] : 66;
+  return { svg, free, crowded: bands.length >= 2 };
+}
 
 /** Texte de l'anneau écrit en lettres (gardé tel quel) plutôt qu'en kanjis (espacés un à un). */
 export const isFreeText = (s: string) => /[A-Za-zÀ-ÖØ-öø-ÿ0-9]/.test(s);
@@ -255,6 +285,18 @@ export const FRAMES: { key: string; label: string; fixed?: boolean; draw: (sw: n
 // Ornements (intérieur du sceau, rayon ≤ 70)
 // ---------------------------------------------------------------------------
 const TRIGRAMS = ['111', '110', '101', '100', '011', '010', '001', '000'];
+
+/**
+ * Nature d'un ornement, pour les disposer sans chevauchement :
+ * - ring : un trait ou des points posés sur le cercle intérieur (r 66), compatibles avec tout ;
+ * - band : des motifs répartis dans une couronne (r 48 à 66) ;
+ * - figure : une figure qui part du centre (étoile, carré, croix…).
+ */
+export type OrnamentKind = 'ring' | 'band' | 'figure';
+
+const RING_ORNAMENTS = ['inner', 'dashes', 'dots', 'inner-double', 'beads-inner'];
+const BAND_ORNAMENTS = ['rays', 'trigrams', 'six-circles', 'diamonds', 'arcs', 'crescents', 'tomoe', 'eyes'];
+export const ornamentKind = (key: string): OrnamentKind => (RING_ORNAMENTS.includes(key) ? 'ring' : BAND_ORNAMENTS.includes(key) ? 'band' : 'figure');
 
 export const ORNAMENTS: { key: string; label: string; draw: (sw: number, color: string) => string }[] = [
   { key: 'inner', label: 'Cercle intérieur', draw: () => `<circle cx="${C}" cy="${C}" r="66"/>` },
@@ -628,22 +670,23 @@ export function buildSealSvg(d: SealDesign, { embed = true }: { embed?: boolean 
   };
   const ring = ringDef.draw({ sw, color, text });
 
-  const orn = d.ornaments
-    .map((k) => ORNAMENTS.find((o) => o.key === k))
-    .filter(Boolean)
-    .map((o) => o!.draw(sw, color))
-    .join('');
+  const chosen = d.ornaments.map((k) => ORNAMENTS.find((o) => o.key === k)).filter((o): o is (typeof ORNAMENTS)[number] => !!o);
+  const layered = (d.ornamentLayout ?? 'layers') === 'layers';
+  const placed = layered ? layoutOrnaments(chosen, sw, color) : { svg: chosen.map((o) => o.draw(sw, color)).join(''), free: 66, crowded: false };
+  const orn = placed.svg;
 
   let symbol = '';
   const sym = d.symbol ? SYMBOLS.find((s) => s.key === d.symbol) : null;
   if (sym) {
-    const s = 0.88 * Math.max(0.3, Math.min(1.6, d.symbolScale || 1));
+    let s = 0.88 * Math.max(0.3, Math.min(1.6, d.symbolScale || 1));
+    if (placed.crowded) s = Math.min(s, placed.free / 50);
     symbol = `<g transform="translate(${n(C - 50 * s)} ${n(C - 50 * s)}) scale(${n(s)})" stroke="${symbolColor}" stroke-width="${n(sw / s)}">${sym.svg(symbolColor)}</g>`;
   }
 
   // kanjis du centre : chacun est centré sur sa case d'après son encre réelle
   const chars = glyphChars(d.glyph);
-  const scale = Math.max(0.3, Math.min(1.8, d.glyphScale || 1));
+  let scale = Math.max(0.3, Math.min(1.8, d.glyphScale || 1));
+  if (placed.crowded) scale = Math.min(scale, placed.free / 58);
   const glyph = glyphSlots(chars.length, d.glyphLayout ?? 'auto')
     .map((slot, i) => {
       const size = slot.size * scale;

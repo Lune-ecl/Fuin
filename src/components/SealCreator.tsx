@@ -283,7 +283,37 @@ export function SealWorkbench({
           open={section === 'ornaments'}
           onToggle={() => toggle('ornaments')}
         >
-          <p className="creator__hint">Plusieurs ornements peuvent se superposer.</p>
+          {d.ornaments.length >= 2 ? (
+            <div className="field creator__field creator__field--top">
+              <span>Disposition des ornements</span>
+              <div className="segmented segmented--small" role="radiogroup" aria-label="Disposition des ornements">
+                {(
+                  [
+                    ['layers', 'En couronnes'],
+                    ['stack', 'Superposés'],
+                  ] as const
+                ).map(([k, label]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    role="radio"
+                    aria-checked={(d.ornamentLayout ?? 'layers') === k}
+                    className={(d.ornamentLayout ?? 'layers') === k ? 'is-on' : ''}
+                    onClick={() => set('ornamentLayout', k)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <small className="muted">
+                {(d.ornamentLayout ?? 'layers') === 'layers'
+                  ? 'Chaque ornement a sa place : les motifs forment des couronnes vers le centre, les figures s’emboîtent. L’ordre suit l’ordre de sélection.'
+                  : 'Les ornements sont dessinés les uns sur les autres, à la même taille.'}
+              </small>
+            </div>
+          ) : (
+            <p className="creator__hint">Plusieurs ornements peuvent se combiner : ils se rangent en couronnes sans se chevaucher.</p>
+          )}
           <div className="tiles">
             {ORNAMENTS.map((o) => (
               <Tile
