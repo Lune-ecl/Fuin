@@ -89,17 +89,22 @@ function layoutOrnaments(list: (typeof ORNAMENTS)[number][], sw: number, color: 
   const rings = list.filter((o) => ornamentKind(o.key) === 'ring');
   const bands = list.filter((o) => ornamentKind(o.key) === 'band');
   const figures = list.filter((o) => ornamentKind(o.key) === 'figure');
-  let svg = rings.map((o) => o.draw(sw, color)).join('');
+  const hasDots = rings.some((o) => o.key === 'dots');
+  // huit points et perles sur le même cercle : les perles se décalent d'un demi-pas pour tomber entre les points
+  let svg = rings.map((o) => (o.key === 'beads-inner' && hasDots ? `<g transform="rotate(7.5 ${C} ${C})">${o.draw(sw, color)}</g>` : o.draw(sw, color))).join('');
+  // avec des traits ou des points sur le bord, les couronnes de motifs commencent juste en dessous
+  const base = rings.length ? 0.84 : 1;
+  const bandScale = (i: number) => base * BAND_SCALES[Math.min(i, BAND_SCALES.length - 1)];
   bands.forEach((o, i) => {
-    svg += scaled(o, BAND_SCALES[Math.min(i, BAND_SCALES.length - 1)]);
+    svg += scaled(o, bandScale(i));
   });
-  // les figures tiennent à l'intérieur de la dernière couronne de motifs
-  const inside = bands.length ? BAND_SCALES[Math.min(bands.length - 1, BAND_SCALES.length - 1)] * 0.7 : 1;
+  // les figures tiennent à l'intérieur de la dernière couronne (ou laissent de la place aux points du bord)
+  const inside = bands.length ? bandScale(bands.length - 1) * 0.7 : hasDots || rings.some((o) => o.key === 'beads-inner') ? 0.9 : 1;
   figures.forEach((o, i) => {
     svg += scaled(o, inside * FIGURE_SCALES[Math.min(i, FIGURE_SCALES.length - 1)]);
   });
-  const free = bands.length ? 48 * BAND_SCALES[Math.min(bands.length - 1, BAND_SCALES.length - 1)] : 66;
-  return { svg, free, crowded: bands.length >= 2 };
+  const free = bands.length ? 48 * bandScale(bands.length - 1) : 66;
+  return { svg, free, crowded: bands.length >= 1 };
 }
 
 /** Texte de l'anneau écrit en lettres (gardé tel quel) plutôt qu'en kanjis (espacés un à un). */
@@ -686,7 +691,10 @@ export function buildSealSvg(d: SealDesign, { embed = true }: { embed?: boolean 
   // kanjis du centre : chacun est centré sur sa case d'après son encre réelle
   const chars = glyphChars(d.glyph);
   let scale = Math.max(0.3, Math.min(1.8, d.glyphScale || 1));
-  if (placed.crowded) scale = Math.min(scale, placed.free / 58);
+  if (placed.crowded && chars.length) {
+    const extent = Math.max(...glyphSlots(chars.length, d.glyphLayout ?? 'auto').map((sl) => Math.hypot(sl.x, sl.y) + sl.size * 0.5));
+    scale = Math.min(scale, placed.free / extent);
+  }
   const glyph = glyphSlots(chars.length, d.glyphLayout ?? 'auto')
     .map((slot, i) => {
       const size = slot.size * scale;
