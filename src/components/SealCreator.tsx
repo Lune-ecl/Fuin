@@ -21,7 +21,7 @@ import {
 } from '../lib/sealDesign';
 import { sanitizeSvg } from '../lib/markdown';
 import SealEmblem from './SealEmblem';
-import { Modal, useToast } from './ui';
+import { Modal, Toggle, useToast } from './ui';
 import { useBrushFont } from '../lib/useBrushFont';
 import { downloadSealPng } from '../lib/sealExport';
 import { slugify, timeAgo } from '../lib/format';
@@ -492,6 +492,17 @@ export function SealWorkbench({
             <span>Rotation · {Math.round(d.rotation)}°</span>
             <Range min={0} max={360} step={7.5} value={d.rotation} onChange={(v) => set('rotation', v)} />
           </label>
+          <div className="spin-options">
+            <span className="part-color__label">Mouvement une fois le sceau tracé</span>
+            <Toggle checked={d.spinRing ?? true} onChange={(v) => set('spinRing', v)} label="L’anneau tourne" />
+            <Toggle checked={d.spinOrnaments ?? true} onChange={(v) => set('spinOrnaments', v)} label="Les ornements tournent" />
+            <Toggle
+              checked={d.spinSymbol ?? false}
+              onChange={(v) => set('spinSymbol', v)}
+              label="Le symbole tourne"
+              hint={d.spinSymbol ? 'Il tourne lentement sur lui-même' : 'Il reste droit (conseillé pour les animaux, visages, objets…)'}
+            />
+          </div>
         </Section>
       </div>
     </div>

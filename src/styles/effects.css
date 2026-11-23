@@ -106,14 +106,14 @@
   fill-opacity: 0.55;
 }
 
-/* l'anneau extérieur tourne une fois le sceau tracé */
-.emblem__art.is-drawn .fs-outer {
+/* une fois le sceau tracé, les parties choisies dans le créateur tournent lentement */
+.emblem__art.is-drawn .fs-spin {
   transform-box: view-box;
   transform-origin: 100px 100px;
   animation: spin 140s linear infinite;
 }
 
-.emblem__art.is-drawn .fs-inner {
+.emblem__art.is-drawn .fs-spin-rev {
   transform-box: view-box;
   transform-origin: 100px 100px;
   animation: spin 220s linear infinite reverse;
@@ -941,4 +941,12 @@
 
 .part-color + .tiles {
   margin-top: 16px;
+}
+
+.spin-options {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
 }

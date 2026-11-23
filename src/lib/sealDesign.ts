@@ -26,6 +26,12 @@ export interface SealDesign {
   symbolColor?: string | null;
   /** couleur propre au texte de l'anneau (vide : celle de l'encre) */
   ringTextColor?: string | null;
+  /** mouvement une fois le sceau tracé : l'anneau tourne (par défaut oui) */
+  spinRing?: boolean;
+  /** les ornements tournent en sens inverse (par défaut oui) */
+  spinOrnaments?: boolean;
+  /** le symbole central tourne avec eux (par défaut non : il reste droit) */
+  spinSymbol?: boolean;
   stroke: number;
   rotation: number;
 }
@@ -63,6 +69,8 @@ export const COLORS = [
 ];
 
 export const BRUSH_FONT = 'Yuji Syuku';
+
+const spin = (on: boolean, cls: string) => (on ? ` class="${cls}"` : '');
 
 /** Texte de l'anneau écrit en lettres (gardé tel quel) plutôt qu'en kanjis (espacés un à un). */
 export const isFreeText = (s: string) => /[A-Za-zÀ-ÖØ-öø-ÿ0-9]/.test(s);
@@ -653,8 +661,9 @@ export function buildSealSvg(d: SealDesign, { embed = true }: { embed?: boolean 
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" class="fuin-seal"${attr}>` +
     `<g fill="none" stroke="${color}" stroke-width="${n(sw)}" stroke-linecap="round" stroke-linejoin="round">` +
     `<g class="fs-frame"${frameRot}>${frame.draw(sw, color)}</g>` +
-    `<g class="fs-outer"${rot}>${ring}</g>` +
-    `<g class="fs-inner"${rot}>${orn}${symbol}</g>` +
+    // la rotation fixe reste sur le groupe parent ; le mouvement (CSS) se fait sur le groupe enfant
+    `<g class="fs-outer"${rot}><g${spin(d.spinRing ?? true, 'fs-spin')}>${ring}</g></g>` +
+    `<g class="fs-inner"${rot}><g${spin(d.spinOrnaments ?? true, 'fs-spin-rev')}>${orn}</g><g${spin(d.spinSymbol ?? false, 'fs-spin-rev')}>${symbol}</g></g>` +
     `</g>${glyph}</svg>`
   );
 }
