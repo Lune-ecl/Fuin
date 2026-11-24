@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useSession } from '../lib/session';
 import SealRing from '../components/SealRing';
 import Embers from '../components/Embers';
@@ -99,6 +99,14 @@ export default function Login() {
           Pas d’accès ? Les identifiants sont remis par <b>le Conclave</b>.
         </p>
       </form>
+      <Link to="/traducteur" className="login__tool">
+        <span lang="ja" aria-hidden="true">訳</span>
+        <span>
+          <b>Traducteur de kanjis</b>
+          <small>Ouvert à tous, sans compte</small>
+        </span>
+        <i aria-hidden="true">→</i>
+      </Link>
     </div>
   );
 }

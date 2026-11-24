@@ -1,206 +1,232 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { api, type Glossary } from '../lib/api';
-import { fold, kanjiOf, loadKanjiDict, readingLabel, type KanjiInfo } from '../lib/kanjiDict';
+import { fold, loadKanjiDict, loadRareKanji, readingLabel, romaji, type KanjiInfo } from '../lib/kanjiDict';
+import { KANJI, prepareWords, segment, shortEnglish, shortFrench, type Token } from '../lib/japonais';
+import { LEXIQUE } from '../lib/lexique';
 import { copyToClipboard, ErrorState, Loader, useToast } from '../components/ui';
 
 type Mode = 'read' | 'search';
-type Entry = Glossary['entries'][number];
+type KanjiOf = (k: string) => KanjiInfo | undefined;
 
 const STORE = 'fuin.traducteur';
+const EXAMPLES = ['封印を解く', '火遁の術', '我が魂を封じる', '呪いが解けた', '魑魅魍魎'];
 
-function readStore(): { mode: Mode; text: string; query: string; formula: string } {
+function readStore(): { mode: Mode; text: string; query: string; mine: string } {
   try {
-    const v = JSON.parse(localStorage.getItem(STORE) ?? 'null') as Partial<{ mode: Mode; text: string; query: string; formula: string }> | null;
-    return { mode: v?.mode === 'search' ? 'search' : 'read', text: v?.text ?? '', query: v?.query ?? '', formula: v?.formula ?? '' };
+    const v = JSON.parse(localStorage.getItem(STORE) ?? 'null') as Partial<{ mode: Mode; text: string; query: string; mine: string }> | null;
+    return { mode: v?.mode === 'search' ? 'search' : 'read', text: v?.text ?? '', query: v?.query ?? '', mine: v?.mine ?? '' };
   } catch {
-    return { mode: 'read', text: '', query: '', formula: '' };
+    return { mode: 'read', text: '', query: '', mine: '' };
   }
 }
 
-/** Découpe une suite de kanjis : les mots expliqués dans les fiches d'abord (le plus long), sinon kanji par kanji. */
-function segment(chars: string[], words: Map<string, Entry>): string[] {
-  const max = Math.max(1, ...[...words.keys()].map((w) => [...w].length));
-  const out: string[] = [];
-  let i = 0;
-  while (i < chars.length) {
-    let taken = 1;
-    for (let len = Math.min(max, chars.length - i); len >= 2; len--) {
-      if (words.has(chars.slice(i, i + len).join(''))) {
-        taken = len;
-        break;
-      }
-    }
-    out.push(chars.slice(i, i + taken).join(''));
-    i += taken;
+const kanjiMeaning = (info: KanjiInfo | undefined, n = 2) => (info ? info.meanings.slice(0, n).join(', ') : '');
+
+/** Lecture du dictionnaire (mot de base) ou du kanji seul. */
+function readingOf(t: Token, kanjiOf: KanjiOf): string {
+  if (t.kind === 'word') return t.lex?.reading ?? t.items?.[0]?.reading ?? '';
+  if (t.kind === 'kanji') {
+    const info = kanjiOf(t.text);
+    return (info?.kun[0] ?? info?.on[0] ?? '').replace(/[.\-]/g, '');
   }
-  return out;
+  if (t.kind === 'particle' || t.kind === 'kana') return t.text;
+  return '';
 }
 
-const shortMeaning = (info?: KanjiInfo) => (info ? info.meanings.slice(0, 2).join(', ') : '');
+/** Lecture de la forme écrite dans le texte : 解いた → といた (lecture de 解く, terminaison du texte). */
+function surfaceReading(t: Token, kanjiOf: KanjiOf): string {
+  const r = readingOf(t, kanjiOf);
+  if (!t.base || t.base === t.text) return r;
+  let p = 0;
+  while (p < t.base.length && t.base[p] === t.text[p]) p++;
+  const tail = t.base.slice(p);
+  return r.endsWith(tail) ? r.slice(0, r.length - tail.length) + t.text.slice(p) : r;
+}
 
-function KanjiCard({ k, codex, info, seals }: { k: string; codex?: Entry; info?: KanjiInfo; seals: Glossary['seals'] }) {
-  const usedIn = seals.filter((s) => s.kanji.includes(k));
+interface Gloss {
+  fr?: string;
+  en?: string;
+  note?: string;
+}
+
+function glossOf(t: Token, kanjiOf: KanjiOf): Gloss {
+  if (t.kind === 'particle') return { fr: t.particle };
+  if (t.kind === 'kanji') {
+    const info = kanjiOf(t.text);
+    if (!info) return {};
+    return info.english ? { en: kanjiMeaning(info) } : { fr: kanjiMeaning(info) };
+  }
+  if (t.kind !== 'word') return {};
+  const base = t.base ?? t.text;
+  const note = t.form;
+  if (t.lex) return { fr: shortFrench(t.lex.fr), note };
+  // un kanji seul : le sens en français de KANJIDIC2 plutôt que l'anglais de JMdict
+  const single = [...base].length === 1 && KANJI.test(base) ? kanjiOf(base) : undefined;
+  if (single && !single.english) return { fr: kanjiMeaning(single), note };
+  if (t.items?.length) return { en: shortEnglish(t.items[0].meaning), note };
+  return { note };
+}
+
+function KanjiCard({ k, info, words }: { k: string; info?: KanjiInfo; words: string[] }) {
   return (
-    <article className={`tr-card${codex || info ? '' : ' is-unknown'}`}>
+    <article className={`tr-card${info ? '' : ' is-unknown'}`}>
       <div className="tr-card__head">
         <span className="tr-card__kanji" lang="ja">
           {k}
         </span>
         <div className="tr-card__read">
-          {codex?.r && <b>{codex.r}</b>}
           {info?.on.length ? <small>On : {info.on.slice(0, 3).map(readingLabel).join(' · ')}</small> : null}
           {info?.kun.length ? <small>Kun : {info.kun.slice(0, 3).map(readingLabel).join(' · ')}</small> : null}
         </div>
       </div>
-      {codex && (
-        <div className="tr-card__codex">
-          <span className="tr-tag tr-tag--codex">Archives du Conclave</span>
-          <p>{codex.m}</p>
-          <Link to={`/${codex.slug}`}>{codex.title} ↗</Link>
-        </div>
-      )}
-      {info && (
+      {info ? (
         <div className="tr-card__dict">
-          <span className="tr-tag">{info.english ? 'Dictionnaire (en anglais)' : 'Dictionnaire'}</span>
+          <span className="tr-tag">{info.english ? 'Sens (en anglais)' : 'Sens'}</span>
           <p>{info.meanings.slice(0, 8).join(', ')}</p>
           <small className="muted">
             {info.strokes} trait{info.strokes > 1 ? 's' : ''}
             {info.jlpt ? ` · JLPT N${info.jlpt}` : ''}
-            {info.grade && info.grade <= 6 ? ` · ${info.grade}e année d’école` : info.grade ? ' · jōyō' : ''}
+            {info.grade && info.grade <= 6 ? ` · ${info.grade}e année d’école` : info.grade === 8 ? ' · kanji usuel' : info.grade ? ' · kanji des noms' : ' · kanji rare'}
           </small>
         </div>
+      ) : (
+        <p className="muted">Ce kanji n’est pas dans le dictionnaire.</p>
       )}
-      {!codex && !info && <p className="muted">Ce kanji n’est ni dans les archives ni dans le dictionnaire.</p>}
-      {usedIn.length > 0 && (
-        <p className="tr-card__seals">
-          Dans : {usedIn.slice(0, 4).map((s, i) => (
-            <span key={s.slug}>
-              {i ? ', ' : ''}
-              <Link to={`/${s.slug}`}>{s.title}</Link>
-            </span>
-          ))}
-          {usedIn.length > 4 ? ` +${usedIn.length - 4}` : ''}
+      {words.length > 0 && (
+        <p className="tr-card__in">
+          Dans : <span lang="ja">{words.join('、')}</span>
         </p>
       )}
     </article>
   );
 }
 
-/** Traducteur de kanjis, ouvert à tous les membres. */
+/** Traducteur de kanjis, ouvert à tous (même sans compte). */
 export default function Translator() {
   const toast = useToast();
   const [initial] = useState(readStore);
   const [mode, setMode] = useState<Mode>(initial.mode);
   const [text, setText] = useState(initial.text);
   const [query, setQuery] = useState(initial.query);
-  const [formula, setFormula] = useState(initial.formula);
+  const [mine, setMine] = useState(initial.mine);
   const [dict, setDict] = useState<Map<string, KanjiInfo> | null>(null);
-  const [glossary, setGlossary] = useState<Glossary | null>(null);
+  const [rare, setRare] = useState<Map<string, KanjiInfo> | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // texte dont les pièces du dictionnaire de mots sont chargées (la traduction suit la frappe sans clignoter)
+  const [readyText, setReadyText] = useState<string | null>(null);
+  const [wordsFailed, setWordsFailed] = useState(false);
 
   const load = () => {
     setError(null);
-    Promise.all([loadKanjiDict(), api.glossary().catch(() => ({ entries: [], seals: [] }) as Glossary)])
-      .then(([d, g]) => {
-        setDict(d);
-        setGlossary(g);
-      })
+    loadKanjiDict()
+      .then(setDict)
       .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   };
   useEffect(load, []);
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORE, JSON.stringify({ mode, text, query, formula }));
+      localStorage.setItem(STORE, JSON.stringify({ mode, text, query, mine }));
     } catch {
       /* confort seulement */
     }
-  }, [mode, text, query, formula]);
+  }, [mode, text, query, mine]);
 
-  const codexChars = useMemo(() => new Map((glossary?.entries ?? []).filter((e) => [...e.t].length === 1).map((e) => [e.t, e])), [glossary]);
-  const codexWords = useMemo(() => new Map((glossary?.entries ?? []).filter((e) => [...e.t].length > 1).map((e) => [e.t, e])), [glossary]);
+  useEffect(() => {
+    let live = true;
+    const timer = window.setTimeout(() => {
+      prepareWords(text)
+        .then(() => live && setWordsFailed(false))
+        .catch(() => live && setWordsFailed(true))
+        .finally(() => live && setReadyText(text));
+    }, 150);
+    return () => {
+      live = false;
+      window.clearTimeout(timer);
+    };
+  }, [text]);
 
-  const chars = kanjiOf(text);
-  const segments = useMemo(() => segment(chars, codexWords), [chars.join(''), codexWords]); // eslint-disable-line react-hooks/exhaustive-deps
-  const unique = [...new Set(chars)];
+  useEffect(() => {
+    if (!dict || rare) return;
+    if ([...text].some((ch) => KANJI.test(ch) && !dict.has(ch))) loadRareKanji().then(setRare).catch(() => undefined);
+  }, [text, dict, rare]);
 
-  const translation = segments.map((seg) => {
-    const w = codexWords.get(seg);
-    if (w) return { seg, meaning: w.m, codex: true };
-    const c = codexChars.get(seg);
-    if (c) return { seg, meaning: c.m.split(/[/,;]/)[0].trim(), codex: true };
-    const info = dict?.get(seg);
-    return { seg, meaning: info ? shortMeaning(info) : '?', codex: false };
-  });
-  const translationText = translation.map((t) => `${t.seg} ${t.meaning}`).join(' · ');
+  const kanjiOf: KanjiOf = (k) => dict?.get(k) ?? rare?.get(k);
+  const shown = readyText ?? '';
+  const tokens = useMemo(() => segment(shown), [shown]);
+  const loadingWords = readyText !== text;
 
-  const seals = glossary?.seals ?? [];
-  const sealMatches = useMemo(() => {
-    const set = new Set(unique);
-    if (!set.size) return [];
-    return seals
-      .map((s) => {
-        const f = [...new Set(kanjiOf(s.kanji))];
-        const hit = f.filter((k) => set.has(k));
-        return { s, f, hit, score: f.length ? hit.length / f.length : 0 };
-      })
-      .filter((m) => m.hit.length > 0)
-      .sort((a, b) => b.score - a.score || b.hit.length - a.hit.length)
-      .slice(0, 6);
-  }, [unique.join(''), seals]); // eslint-disable-line react-hooks/exhaustive-deps
+  const words = useMemo(() => {
+    const seen = new Set<string>();
+    return tokens.filter((t) => {
+      if (t.kind !== 'word') return false;
+      const key = t.base ?? t.text;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [tokens]);
 
-  // recherche par le sens : archives d'abord, puis dictionnaire (mot exact, début de mot, puis contenu)
+  const kanjis = useMemo(() => [...new Set([...shown].filter((ch) => KANJI.test(ch)))], [shown]);
+
+  // recherche par le sens : lexique d'abord, puis kanjis (sens exact, mot entier, début de mot, puis contenu)
   const results = useMemo(() => {
     const q = fold(query.trim());
     if (q.length < 2 || !dict) return [];
-    // niveau de correspondance, un peu meilleur quand c'est le premier sens du kanji (魂 « âme » avant 神 « divinité, esprit, âme »)
     const rank = (meanings: string[]) => {
       let best = 9;
       meanings.forEach((m, i) => {
         const f = fold(m.trim());
-        const words = f.split(/[^a-z0-9]+/).filter(Boolean);
-        const level = f === q ? 0 : words.includes(q) ? 1 : words.some((w) => w.startsWith(q)) ? 2 : f.includes(q) ? 3 : 9;
+        const ws = f.split(/[^a-z0-9]+/).filter(Boolean);
+        // « contient » seulement pour une recherche assez longue (« âme » ne doit pas trouver « lame »)
+        const level = f === q ? 0 : ws.includes(q) ? 1 : ws.some((w) => w.startsWith(q)) ? 2 : q.length >= 4 && f.includes(q) ? 3 : 9;
         if (level < 9) best = Math.min(best, level + Math.min(i, 4) * 0.1);
       });
       return best;
     };
-    const fromCodex = (glossary?.entries ?? [])
-      .map((e) => ({ k: e.t, meaning: e.m, codex: e, info: [...e.t].length === 1 ? dict.get(e.t) : undefined, score: rank(e.m.split(/[/,;]/)) }))
+    const fromLex = [...LEXIQUE.values()]
+      .map((e) => ({ jp: e.written, fr: e.fr, reading: e.reading, word: true, score: rank(e.fr.split(/[,;]/)) }))
       .filter((r) => r.score < 9);
-    const seen = new Set(fromCodex.map((r) => r.k));
-    const fromDict = [...dict.values()]
-      .filter((i) => !seen.has(i.kanji))
-      .map((i) => ({ k: i.kanji, meaning: i.meanings.slice(0, 4).join(', '), codex: undefined as Entry | undefined, info: i, score: rank(i.meanings) + (i.english ? 0.5 : 0) }))
+    const seen = new Set(fromLex.map((r) => r.jp));
+    const fromKanji = [...dict.values()]
+      .filter((i) => !i.english && !seen.has(i.kanji))
+      .map((i) => ({ jp: i.kanji, fr: i.meanings.slice(0, 4).join(', '), reading: i.kun[0] ?? i.on[0] ?? '', word: false, score: rank(i.meanings), freq: i.freq || 9999 }))
       .filter((r) => r.score < 9)
-      .sort((a, b) => a.score - b.score || (a.info.freq || 9999) - (b.info.freq || 9999));
-    return [...fromCodex.sort((a, b) => a.score - b.score), ...fromDict].slice(0, 60);
-  }, [query, dict, glossary]);
+      .sort((a, b) => a.score - b.score || a.freq - b.freq);
+    return [...fromLex.sort((a, b) => a.score - b.score), ...fromKanji].slice(0, 60);
+  }, [query, dict]);
 
   if (error) return <ErrorState text={error} onRetry={load} />;
-  if (!dict || !glossary) return <Loader label="Ouverture du dictionnaire…" />;
+  if (!dict) return <Loader label="Ouverture du dictionnaire…" />;
 
   const copy = async (t: string) => {
     if (await copyToClipboard(t)) toast('Copié');
   };
 
+  const glosses = tokens.map((t) => ({ t, g: glossOf(t, kanjiOf), read: surfaceReading(t, kanjiOf) }));
+  const plain = glosses
+    .map(({ t, g }) => (t.kind === 'other' ? t.text.trim() : (g.fr ?? g.en ?? t.text) + (g.note ? ` (${g.note})` : '')))
+    .filter((s) => s && !/^\(.*\)$/.test(s))
+    .join(' · ');
+  const hasEnglish = glosses.some(({ g }) => !g.fr && g.en);
+  const hasJapanese = tokens.some((t) => t.kind !== 'other');
+
   return (
     <div className="console translator">
       <header className="page-head">
-        <p className="kicker">Archives du Conclave</p>
+        <p className="kicker">Outil</p>
         <h1>Traducteur de kanjis</h1>
         <p className="muted">
-          Colle des kanjis pour en lire le sens, ou cherche un mot français pour trouver ses kanjis. Les sens propres au Conclave (fiches que tu peux lire) passent
-          avant le dictionnaire général.
+          Colle un kanji, un mot ou une phrase en japonais vus sur le serveur : le traducteur les découpe en mots, donne le sens de chacun et le détail de chaque
+          kanji.
         </p>
       </header>
 
       <div className="segmented translator__modes" role="tablist" aria-label="Sens de la traduction">
         <button type="button" role="tab" aria-selected={mode === 'read'} className={mode === 'read' ? 'is-on' : ''} onClick={() => setMode('read')}>
-          Kanjis → français
+          Japonais → français
         </button>
         <button type="button" role="tab" aria-selected={mode === 'search'} className={mode === 'search' ? 'is-on' : ''} onClick={() => setMode('search')}>
-          Français → kanjis
+          Français → japonais
         </button>
       </div>
 
@@ -208,79 +234,133 @@ export default function Translator() {
         <>
           <section className="panel">
             <label className="field">
-              <span>Kanjis à traduire</span>
-              <textarea className="translator__input" lang="ja" rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder="封印結界" />
+              <span>Texte japonais</span>
+              <textarea className="translator__input" lang="ja" rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder="封印を解く" />
             </label>
-            {chars.length > 0 && (
-              <div className="translator__result">
-                <p className="kicker">Traduction</p>
-                <p className="translator__line">
-                  {translation.map((t, i) => (
-                    <span key={i} className={t.codex ? 'is-codex' : ''}>
-                      <b lang="ja">{t.seg}</b> {t.meaning}
-                    </span>
-                  ))}
-                </p>
-                <button type="button" className="btn btn--ghost btn--sm" onClick={() => void copy(translationText)}>
-                  Copier la traduction
-                </button>
+            {!text.trim() ? (
+              <p className="translator__examples">
+                <span className="muted">Exemples :</span>
+                {EXAMPLES.map((ex) => (
+                  <button key={ex} type="button" className="chip" lang="ja" onClick={() => setText(ex)}>
+                    {ex}
+                  </button>
+                ))}
+              </p>
+            ) : (
+              <button type="button" className="btn btn--ghost btn--sm translator__clear" onClick={() => setText('')}>
+                Effacer
+              </button>
+            )}
+
+            {hasJapanese && (
+              <div className={`translator__result${loadingWords ? ' is-loading' : ''}`}>
+                <p className="kicker">Traduction mot à mot</p>
+                <div className="tr-gloss">
+                  {glosses.map(({ t, g, read }, i) =>
+                    t.kind === 'other' ? (
+                      <span key={i} className="tr-tok tr-tok--sep">
+                        {t.text}
+                      </span>
+                    ) : (
+                      <span key={i} className={`tr-tok tr-tok--${t.kind}`}>
+                        <small className="tr-tok__read">{read ? romaji(read) : ' '}</small>
+                        <b className="tr-tok__jp" lang="ja">
+                          {t.text}
+                        </b>
+                        <span className="tr-tok__fr">{g.fr ?? (g.en ? <i>{g.en}</i> : '?')}</span>
+                        {g.note && <em className="tr-tok__note">{g.note}</em>}
+                      </span>
+                    ),
+                  )}
+                </div>
+                <p className="translator__plain">{plain}</p>
+                <div className="translator__actions">
+                  <button type="button" className="btn btn--ghost btn--sm" onClick={() => void copy(plain)}>
+                    Copier la traduction
+                  </button>
+                  {loadingWords && <span className="muted small">Recherche des mots…</span>}
+                  {wordsFailed && !loadingWords && <span className="muted small">Dictionnaire de mots injoignable : kanji par kanji seulement.</span>}
+                </div>
+                {hasEnglish && <p className="muted small translator__legend">En italique : sens en anglais (pas encore de traduction française pour ce mot).</p>}
               </div>
             )}
           </section>
 
-          {chars.length > 0 && (
-            <>
-              {segments.some((s) => codexWords.has(s)) && (
-                <section className="panel">
-                  <h2 className="panel__title">Mots reconnus</h2>
-                  <div className="tr-words">
-                    {segments
-                      .filter((s, i, a) => codexWords.has(s) && a.indexOf(s) === i)
-                      .map((s) => {
-                        const w = codexWords.get(s)!;
-                        return (
-                          <div key={s} className="tr-word">
-                            <span lang="ja">{s}</span>
-                            <div>
-                              <b>{w.m}</b>
-                              <small>
-                                {w.r} · <Link to={`/${w.slug}`}>{w.title}</Link>
-                              </small>
+          {words.length > 0 && (
+            <section className="panel">
+              <h2 className="panel__title">Mots</h2>
+              <div className="tr-words">
+                {words.map((t) => {
+                  const base = t.base ?? t.text;
+                  const reading = t.lex?.reading ?? t.items?.[0]?.reading ?? '';
+                  const parts = [...base].filter((ch) => KANJI.test(ch));
+                  return (
+                    <div key={base} className="tr-word">
+                      <span className="tr-word__jp" lang="ja">
+                        {base}
+                      </span>
+                      <div className="tr-word__body">
+                        <p className="tr-word__read">
+                          <span lang="ja">{reading}</span> · {romaji(reading)}
+                        </p>
+                        {t.form && (
+                          <p className="tr-word__form">
+                            Dans le texte : <span lang="ja">{t.text}</span> ({t.form})
+                          </p>
+                        )}
+                        {t.lex && <p className="tr-word__fr">{t.lex.fr}</p>}
+                        {t.items?.length ? (
+                          t.lex ? (
+                            <details className="tr-word__en">
+                              <summary>Sens détaillés (anglais)</summary>
+                              <ul>
+                                {t.items.map((it, i) => (
+                                  <li key={i}>
+                                    <span lang="ja">{it.reading}</span> : {it.meaning}
+                                  </li>
+                                ))}
+                              </ul>
+                            </details>
+                          ) : (
+                            <div className="tr-word__en">
+                              <span className="tr-tag">En anglais</span>
+                              <ul>
+                                {t.items.map((it, i) => (
+                                  <li key={i}>
+                                    {t.items!.length > 1 && <span lang="ja">{it.reading} : </span>}
+                                    {it.meaning}
+                                  </li>
+                                ))}
+                              </ul>
                             </div>
-                          </div>
-                        );
-                      })}
-                  </div>
-                </section>
-              )}
-              <section className="panel">
-                <h2 className="panel__title">Kanji par kanji</h2>
-                <div className="tr-grid">
-                  {unique.map((k) => (
-                    <KanjiCard key={k} k={k} codex={codexChars.get(k)} info={dict.get(k)} seals={seals} />
-                  ))}
-                </div>
-              </section>
-              {sealMatches.length > 0 && (
-                <section className="panel">
-                  <h2 className="panel__title">Sceaux qui utilisent ces kanjis</h2>
-                  <ul className="tr-seals">
-                    {sealMatches.map((m) => (
-                      <li key={m.s.slug}>
-                        <Link to={`/${m.s.slug}`}>{m.s.title}</Link>
-                        <span lang="ja">
-                          {m.f.map((k) => (
-                            <i key={k} className={m.hit.includes(k) ? 'is-hit' : ''}>
-                              {k}
-                            </i>
-                          ))}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-            </>
+                          )
+                        ) : null}
+                        {parts.length > 1 && (
+                          <p className="tr-word__parts">
+                            {parts.map((k, i) => (
+                              <span key={i}>
+                                <b lang="ja">{k}</b> {kanjiMeaning(kanjiOf(k), 1) || '?'}
+                              </span>
+                            ))}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {kanjis.length > 0 && (
+            <section className="panel">
+              <h2 className="panel__title">Kanji par kanji</h2>
+              <div className="tr-grid">
+                {kanjis.map((k) => (
+                  <KanjiCard key={k} k={k} info={kanjiOf(k)} words={words.map((w) => w.base ?? w.text).filter((w) => w !== k && w.includes(k))} />
+                ))}
+              </div>
+            </section>
           )}
         </>
       ) : (
@@ -288,30 +368,30 @@ export default function Translator() {
           <section className="panel">
             <label className="field">
               <span>Mot français</span>
-              <input className="input-search" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="sceller, âme, feu, protection…" />
+              <input className="input-search" type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="âme, feu, sceller, protéger…" />
             </label>
-            {formula && (
-              <div className="translator__formula">
-                <span className="kicker">Ma formule</span>
-                <b lang="ja">{formula}</b>
-                <div className="request__actions">
-                  <button type="button" className="btn btn--ghost btn--sm" onClick={() => void copy(formula)}>
+            {mine && (
+              <div className="translator__mine">
+                <span className="kicker">Mon texte</span>
+                <b lang="ja">{mine}</b>
+                <div className="translator__actions">
+                  <button type="button" className="btn btn--ghost btn--sm" onClick={() => void copy(mine)}>
                     Copier
                   </button>
                   <button
                     type="button"
                     className="btn btn--ghost btn--sm"
                     onClick={() => {
-                      setText(formula);
+                      setText(mine);
                       setMode('read');
                     }}
                   >
                     Traduire
                   </button>
-                  <button type="button" className="btn btn--ghost btn--sm" onClick={() => setFormula([...formula].slice(0, -1).join(''))}>
+                  <button type="button" className="btn btn--ghost btn--sm" onClick={() => setMine([...mine].slice(0, -1).join(''))} aria-label="Effacer le dernier caractère">
                     ⌫
                   </button>
-                  <button type="button" className="btn btn--ghost btn--sm btn--danger-text" onClick={() => setFormula('')}>
+                  <button type="button" className="btn btn--ghost btn--sm btn--danger-text" onClick={() => setMine('')}>
                     Vider
                   </button>
                 </div>
@@ -325,18 +405,18 @@ export default function Translator() {
                 {results.length === 60 ? ' (les plus courants)' : ''}
               </h2>
               {results.length === 0 ? (
-                <p className="muted">Aucun kanji ne porte ce sens. Essaie un synonyme ou un mot plus court.</p>
+                <p className="muted">Rien ne porte ce sens. Essaie un synonyme ou un mot plus court.</p>
               ) : (
                 <>
-                  <p className="muted small">Clique sur un kanji pour l’ajouter à ta formule.</p>
+                  <p className="muted small">Clique sur un résultat pour l’ajouter à ton texte.</p>
                   <div className="tr-results">
                     {results.map((r) => (
-                      <button key={r.k} type="button" className={`tr-result${r.codex ? ' is-codex' : ''}`} onClick={() => setFormula((f) => (f + r.k).slice(0, 24))} title="Ajouter à ma formule">
-                        <span lang="ja">{r.k}</span>
-                        <b>{r.meaning}</b>
+                      <button key={r.jp} type="button" className={`tr-result${r.word ? ' is-word' : ''}`} onClick={() => setMine((m) => (m + r.jp).slice(0, 40))} title="Ajouter à mon texte">
+                        <span lang="ja">{r.jp}</span>
+                        <b>{r.fr}</b>
                         <small>
-                          {r.codex ? `Archives · ${r.codex.title}` : r.info?.english ? 'Dictionnaire (en anglais)' : 'Dictionnaire'}
-                          {r.info?.on[0] ? ` · ${readingLabel(r.info.on[0])}` : r.codex?.r ? ` · ${r.codex.r}` : ''}
+                          {r.word ? 'Mot' : 'Kanji'}
+                          {r.reading ? ` · ${readingLabel(r.reading)}` : ''}
                         </small>
                       </button>
                     ))}
@@ -349,11 +429,15 @@ export default function Translator() {
       )}
 
       <p className="translator__credits muted small">
-        Dictionnaire général : extrait de KANJIDIC2, © Electronic Dictionary Research and Development Group, licence{' '}
+        Kanjis : KANJIDIC2 · mots : JMdict (sens en anglais), propriété de l’Electronic Dictionary Research and Development Group, utilisés selon{' '}
+        <a href="https://www.edrdg.org/edrdg/licence.html" target="_blank" rel="noreferrer">
+          sa licence
+        </a>{' '}
+        (
         <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.fr" target="_blank" rel="noreferrer">
           CC BY-SA 4.0
         </a>
-        . Sens propres au Conclave : fiches du site.
+        ) · lexique français : Fuinjutsu.
       </p>
     </div>
   );

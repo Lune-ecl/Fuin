@@ -16,11 +16,12 @@ export interface KanjiInfo {
 
 type Row = [string, string, string, string, number, number, number, number, 'f' | 'e'];
 
-let cache: Promise<Map<string, KanjiInfo>> | null = null;
+const caches: Record<string, Promise<Map<string, KanjiInfo>> | null> = {};
 
-export function loadKanjiDict(): Promise<Map<string, KanjiInfo>> {
-  if (!cache) {
-    cache = fetch(`${import.meta.env.BASE_URL}kanji/kanjidic.json`)
+function loadFile(file: string): Promise<Map<string, KanjiInfo>> {
+  let p = caches[file];
+  if (!p) {
+    p = fetch(`${import.meta.env.BASE_URL}kanji/${file}`)
       .then((r) => {
         if (!r.ok) throw new Error('Dictionnaire de kanjis introuvable.');
         return r.json() as Promise<{ data: Row[] }>;
@@ -43,12 +44,18 @@ export function loadKanjiDict(): Promise<Map<string, KanjiInfo>> {
         return map;
       })
       .catch((e) => {
-        cache = null;
+        caches[file] = null;
         throw e;
       });
+    caches[file] = p;
   }
-  return cache;
+  return p;
 }
+
+/** Kanjis courants, des noms, et tous ceux qui ont un sens en français (~3 100). */
+export const loadKanjiDict = () => loadFile('kanjidic.json');
+/** Kanjis rares (~9 500, sens en anglais), chargés seulement quand un texte en contient un. */
+export const loadRareKanji = () => loadFile('kanjidic-rares.json');
 
 /** Caractères CJK (kanjis) d'un texte, dans l'ordre. */
 export const CJK = /[㐀-鿿豈-﫿]/g;

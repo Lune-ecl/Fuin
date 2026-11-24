@@ -2,37 +2,15 @@
 --  訳  Migration 013 — Traducteur de kanjis
 -- ---------------------------------------------------------------------
 --  À exécuter UNE FOIS dans Supabase → SQL Editor (après la 012).
---  · Le traducteur de kanjis (/traducteur), ouvert à tous les membres,
---    reprend les kanjis expliqués dans les fiches que chacun peut lire.
---  · Les adresses « traducteur » et « kanji » sont réservées par le site.
+--  · Le traducteur de kanjis (/traducteur) est une page du site, ouverte
+--    à tous, même sans compte : ses dictionnaires sont servis par le site.
+--  · Les adresses « traducteur » et « kanji » sont réservées par le site,
+--    pour qu'aucune fiche ne prenne leur place.
 -- =====================================================================
 
-create or replace function public.fuin_glossary(p_token text)
-returns json language plpgsql volatile security definer set search_path = '' as $$
-declare m fuin.members;
-begin
-  m := fuin.session_member(p_token);
-  return json_build_object(
-    'entries', coalesce((
-      select json_agg(json_build_object('t', x.t, 'r', x.r, 'm', x.mn, 'slug', x.slug, 'title', x.title) order by x.pos, x.ord, x.t)
-        from (
-          select distinct on (g.parts[1])
-                 g.parts[1] as t, btrim(g.parts[2]) as r, btrim(regexp_replace(g.parts[3], '[\s:]+$', '')) as mn,
-                 p.slug, p.title, c.position as pos, p.position as ord
-            from fuin.pages p
-            join fuin.categories c on c.id = p.category_id
-            cross join lateral regexp_matches(fuin.strip_secret(m, p.content_md),
-                   '\*\*([㐀-鿿豈-﫿]{1,6})\*\*\s*\*\(([^)]+)\)\*\s*[—–-]+\s*([^\n]+)', 'g') as g(parts)
-           where fuin.can_view_page(m, c, p)
-           order by g.parts[1], c.position, p.position
-        ) x
-    ), '[]'::json),
-    'seals', coalesce((
-      select json_agg(json_build_object('slug', p.slug, 'title', p.title, 'kanji', p.kanji) order by c.position, p.position)
-        from fuin.pages p join fuin.categories c on c.id = p.category_id
-       where p.kind = 'seal' and btrim(coalesce(p.kanji, '')) <> '' and fuin.can_view_page(m, c, p)
-    ), '[]'::json));
-end $$;
+-- Le traducteur fonctionne entièrement dans le navigateur (dictionnaires servis par le site) :
+-- la fonction d'une première version, si elle a été installée, n'est plus utilisée.
+drop function if exists public.fuin_glossary(text);
 
 create or replace function public.fuin_admin_page_save(p_token text, p_page jsonb)
 returns json language plpgsql volatile security definer set search_path = '' as $$

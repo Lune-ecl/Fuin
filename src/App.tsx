@@ -4,6 +4,7 @@ import { isConfigured } from './lib/api';
 import { SessionProvider, useSession } from './lib/session';
 import { ConfirmProvider, ErrorState, Loader, ToastProvider } from './components/ui';
 import Layout from './components/Layout';
+import PublicShell from './components/PublicShell';
 import { Hanko } from './components/Brand';
 import Login from './pages/Login';
 import Home from './pages/Home';
@@ -68,6 +69,9 @@ export default function App() {
           <SessionProvider>
             <Routes>
               <Route path="/connexion" element={<Login />} />
+              <Route path="/traducteur" element={<PublicShell />}>
+                <Route index element={<Translator />} />
+              </Route>
               <Route
                 element={
                   <RequireAuth>
@@ -78,7 +82,6 @@ export default function App() {
                 <Route index element={<Home />} />
                 <Route path="mon-compte" element={<Account />} />
                 <Route path="mon-compte/sceaux" element={<MySeals />} />
-                <Route path="traducteur" element={<Translator />} />
                 <Route path="demandes" element={<Requests />} />
                 <Route path="trame/:id" element={<Trame />} />
                 <Route

@@ -1,9 +1,20 @@
-kanjidic.json — extrait de KANJIDIC2
+Données du traducteur de kanjis
 
-Ces données proviennent du fichier KANJIDIC2, propriété de l'Electronic Dictionary
-Research and Development Group (EDRDG), utilisé conformément à sa licence :
-Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0).
-https://www.edrdg.org/edrdg/licence.html
+kanjidic.json, kanjidic-rares.json — extrait de KANJIDIC2
+  Ces données proviennent du fichier KANJIDIC2, propriété de l'Electronic Dictionary
+  Research and Development Group (EDRDG), utilisé conformément à sa licence :
+  Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0).
+  https://www.edrdg.org/edrdg/licence.html
+  Cet extrait (lectures, sens en français ou en anglais, nombre de traits, niveau,
+  JLPT, fréquence) est redistribué sous la même licence CC BY-SA 4.0.
 
-Cet extrait (lectures, sens en français ou en anglais, nombre de traits, niveau,
-JLPT, fréquence) est redistribué sous la même licence CC BY-SA 4.0.
+mots/*.json — extrait de JMdict
+  Ces mots proviennent du dictionnaire JMdict (gloses anglaises), propriété de
+  l'Electronic Dictionary Research and Development Group (EDRDG), utilisé conformément
+  à sa licence : CC BY-SA 4.0 et conditions du groupe.
+  https://www.edrdg.org/edrdg/licence.html
+  Extrait (JMdict du 2026-11-04, via le paquet @johnmorrisdotca/jisho) : forme écrite,
+  lecture, premiers sens en anglais, rang de fréquence, type de mot. Redistribué sous
+  la même licence CC BY-SA 4.0.
+
+Le lexique français du site (src/lib/lexique.ts) est propre au site.

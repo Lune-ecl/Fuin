@@ -30,12 +30,13 @@ sceaux de son cercle**, et où **le Conclave** gère les comptes, les cercles, l
   attente ; le Conclave la valide ou la refuse avec une explication, et peut en faire une fiche brouillon.
 - **Mes sceaux maîtrisés** (`/mon-compte/sceaux`) : chaque shinobi coche les sceaux qu'il maîtrise, sur la
   fiche du sceau ou cercle par cercle ; le Conclave voit qui maîtrise quoi (fiche du sceau, page Membres).
-- **Traducteur de kanjis** (`/traducteur`, ouvert à tous les membres) : on colle des kanjis pour lire leur
-  sens, mot par mot puis kanji par kanji (lectures, nombre de traits, sceaux qui les utilisent), ou on cherche
-  un mot français pour trouver ses kanjis et composer une formule. Les sens écrits dans les fiches du site
-  passent en premier (chacun ne voit que ceux des fiches qu'il peut lire), puis le dictionnaire général
-  (`public/kanji/kanjidic.json`, extrait de KANJIDIC2 © EDRDG, licence CC BY-SA 4.0, voir
-  `public/kanji/LICENCE.txt`).
+- **Traducteur de kanjis** (`/traducteur`, ouvert à tous, même sans compte : lien sur la page de connexion) :
+  on colle un kanji, un mot ou une phrase japonaise et le traducteur la découpe en mots (verbes conjugués
+  compris), avec leur lecture en rōmaji et leur sens, puis donne le détail de chaque kanji ; dans l'autre
+  sens, on cherche un mot français pour trouver ses kanjis. Sens en français : lexique du site
+  (`src/lib/lexique.ts`, vocabulaire RP et mots courants) et kanjis de KANJIDIC2 ; les autres mots viennent
+  de JMdict, en anglais. Les dictionnaires sont servis par le site (`public/kanji/`, © EDRDG, licence
+  CC BY-SA 4.0, voir `public/kanji/LICENCE.txt`).
 - **Trames** (Conclave → Trames) : le Conclave crée des trames faites d'épreuves (inscription à déchiffrer,
   énigme, désenclavement, kanjis manquants, mise en situation, question à choix, ordre des kanjis,
   associations, épreuve validée par le Conclave, récit), chacune avec ses propres essais. « Ouvrir la trame » fait apparaître une page temporaire dans le
@@ -138,7 +139,7 @@ fois, mais le relancer ne casse rien).
 - `010_sceaux_maitrises.sql` : les demandes de création de sceau s'ouvrent au 3ème cercle ; chaque shinobi coche les sceaux qu'il maîtrise (sur la fiche ou dans « Mes sceaux maîtrisés »), le Conclave voit qui maîtrise quoi.
 - `011_trames_epreuves.sql` : trames plus complètes. Chaque étape a ses propres essais ; au désenclavement, le Conclave choisit le nombre de cercles à désenclaver (1 à 10) et le nombre d'essais (fixe ou selon le cercle). Nouvelles épreuves : kanjis manquants, mise en situation, énigme, question à choix, ordre des kanjis, associations et épreuve validée par le Conclave. Trames de test visibles du Conclave seulement.
 - `012_rolls_d_etude.sql` : rolls d'étude dans les trames. Le joueur lance un roll (table de déchiffrement) pour comprendre le sens d'un kanji (même d'un kanji manquant, sans le voir) ou découvrir l'indice suivant ; le Conclave écrit les sens et les indices, et choisit le nombre de rolls par étape.
-- `013_traducteur.sql` : traducteur de kanjis. Rassemble les sens écrits dans les fiches (lignes « **封** *(fū)* — sceller ») que chaque membre peut lire, pour qu'ils passent avant le dictionnaire général ; réserve l'adresse `/traducteur`. Sans cette migration, le traducteur marche avec le dictionnaire général seulement.
+- `013_traducteur.sql` : réserve l'adresse `/traducteur` (aucune fiche ne peut la prendre) et retire la fonction d'une première version du traducteur si elle a été installée. Le traducteur lui-même n'a pas besoin de la base.
 
 ### 5. Base toujours éveillée
 

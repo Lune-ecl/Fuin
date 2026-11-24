@@ -744,6 +744,62 @@
   color: var(--red-soft);
 }
 
+.login {
+  align-content: center;
+  row-gap: 14px;
+}
+
+/* lien vers le traducteur, ouvert sans compte */
+.login__tool {
+  width: min(470px, 100%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 18px;
+  border-radius: 16px;
+  border: 1px solid var(--line-2);
+  background: rgba(12, 10, 14, 0.82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  color: var(--ink);
+  text-decoration: none;
+  transition: border-color 0.2s, transform 0.2s var(--ease);
+  animation: login-in 0.9s var(--ease);
+}
+
+.login__tool:hover {
+  border-color: var(--red);
+  transform: translateY(-2px);
+}
+
+.login__tool > span:first-child {
+  font: 400 30px/1 var(--brush);
+  color: var(--red-hot);
+}
+
+.login__tool > span:nth-child(2) {
+  display: grid;
+  flex: 1;
+  text-align: left;
+}
+
+.login__tool small {
+  color: var(--mut);
+  font-size: 12px;
+}
+
+.login__tool i {
+  font-style: normal;
+  color: var(--red-soft);
+}
+
+/* pages ouvertes à tous, pour un visiteur sans compte */
+.main--public {
+  max-width: 1180px;
+  width: 100%;
+  margin: 0 auto;
+}
+
 .login__card.is-shaking {
   animation: shake 0.45s;
 }
