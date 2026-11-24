@@ -760,6 +760,37 @@ begin
   ), '[]'::json);
 end $$;
 
+-- =====================================================================
+--  Traducteur de kanjis : les kanjis expliqués dans les fiches que le membre peut lire
+-- =====================================================================
+-- Une explication s'écrit « **封** *(fū)* — sceller » (ou un mot de plusieurs kanjis).
+create or replace function public.fuin_glossary(p_token text)
+returns json language plpgsql volatile security definer set search_path = '' as $$
+declare m fuin.members;
+begin
+  m := fuin.session_member(p_token);
+  return json_build_object(
+    'entries', coalesce((
+      select json_agg(json_build_object('t', x.t, 'r', x.r, 'm', x.mn, 'slug', x.slug, 'title', x.title) order by x.pos, x.ord, x.t)
+        from (
+          select distinct on (g.parts[1])
+                 g.parts[1] as t, btrim(g.parts[2]) as r, btrim(regexp_replace(g.parts[3], '[\s:]+$', '')) as mn,
+                 p.slug, p.title, c.position as pos, p.position as ord
+            from fuin.pages p
+            join fuin.categories c on c.id = p.category_id
+            cross join lateral regexp_matches(fuin.strip_secret(m, p.content_md),
+                   '\*\*([㐀-鿿豈-﫿]{1,6})\*\*\s*\*\(([^)]+)\)\*\s*[—–-]+\s*([^\n]+)', 'g') as g(parts)
+           where fuin.can_view_page(m, c, p)
+           order by g.parts[1], c.position, p.position
+        ) x
+    ), '[]'::json),
+    'seals', coalesce((
+      select json_agg(json_build_object('slug', p.slug, 'title', p.title, 'kanji', p.kanji) order by c.position, p.position)
+        from fuin.pages p join fuin.categories c on c.id = p.category_id
+       where p.kind = 'seal' and btrim(coalesce(p.kanji, '')) <> '' and fuin.can_view_page(m, c, p)
+    ), '[]'::json));
+end $$;
+
 -- Changer son propre mot de passe
 create or replace function public.fuin_change_password(p_token text, p_old text, p_new text)
 returns json language plpgsql volatile security definer set search_path = '' as $$
@@ -1177,7 +1208,7 @@ begin
   if v_slug !~ '^[a-z0-9]+(-[a-z0-9]+)*(/[a-z0-9]+(-[a-z0-9]+)*)*$' then
     perform fuin.fail('FU422', 'Identifiant d''URL invalide : lettres minuscules, chiffres, tirets (ex. premier-cercle/mon-sceau).');
   end if;
-  if split_part(v_slug, '/', 1) in ('connexion', 'conclave', 'mon-compte', 'demandes', 'trame', 'assets') then
+  if split_part(v_slug, '/', 1) in ('connexion', 'conclave', 'mon-compte', 'demandes', 'trame', 'assets', 'traducteur', 'kanji') then
     perform fuin.fail('FU422', 'Cet identifiant d''URL est réservé par le site.');
   end if;
   if v_kind not in ('seal', 'index', 'doc', 'memorial') then perform fuin.fail('FU422', 'Type de fiche invalide.'); end if;

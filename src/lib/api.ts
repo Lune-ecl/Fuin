@@ -315,6 +315,12 @@ export interface SealRequest {
   member: { id: string; name: string; rank: number; is_conclave: boolean } | null;
 }
 
+/** Kanjis et mots expliqués dans les fiches que le membre peut lire. */
+export interface Glossary {
+  entries: { t: string; r: string; m: string; slug: string; title: string }[];
+  seals: { slug: string; title: string; kanji: string }[];
+}
+
 export interface MasteryPage {
   id: number;
   slug: string;
@@ -685,6 +691,7 @@ export const api = {
   // Demandes de création de sceau
   myRequests: () => rpc<SealRequest[]>('fuin_requests_mine'),
   masteries: () => rpc<MasteryGroup[]>('fuin_masteries_mine'),
+  glossary: () => rpc<Glossary>('fuin_glossary'),
   masterySet: (pageId: number, on: boolean) => rpc<{ ok: boolean; mastered: boolean; total: number }>('fuin_mastery_set', { p_page_id: pageId, p_on: on }),
   memberMasteries: (memberId: string) => rpc<MemberMastery[]>('fuin_admin_member_masteries', { p_member_id: memberId }),
   requestSubmit: (req: SealRequestInput) => rpc<{ id: number }>('fuin_request_submit', { p_req: req }),

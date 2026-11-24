@@ -57,6 +57,14 @@ function GrimoireNav() {
         </p>
       </div>
 
+      <NavLink to="/traducteur" className={({ isActive }) => `atelier-link atelier-link--mastery${isActive ? ' is-active' : ''}`}>
+        <span className="atelier-link__glyph">訳</span>
+        <span>
+          <b>Traducteur de kanjis</b>
+          <small>Lire un kanji, trouver un sens</small>
+        </span>
+      </NavLink>
+
       <NavLink to="/mon-compte/sceaux" className={({ isActive }) => `atelier-link atelier-link--mastery${isActive ? ' is-active' : ''}`}>
         <span className="atelier-link__glyph">修</span>
         <span>
@@ -206,6 +214,9 @@ function AccountMenu() {
               <span>願</span> Demande de création de sceau
             </Link>
           )}
+          <Link role="menuitem" to="/traducteur" onClick={() => setOpen(false)}>
+            <span>訳</span> Traducteur de kanjis
+          </Link>
           <Link role="menuitem" to="/mon-compte/sceaux" onClick={() => setOpen(false)}>
             <span>修</span> Mes sceaux maîtrisés
           </Link>

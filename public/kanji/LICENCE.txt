@@ -1,0 +1,9 @@
+kanjidic.json — extrait de KANJIDIC2
+
+Ces données proviennent du fichier KANJIDIC2, propriété de l'Electronic Dictionary
+Research and Development Group (EDRDG), utilisé conformément à sa licence :
+Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0).
+https://www.edrdg.org/edrdg/licence.html
+
+Cet extrait (lectures, sens en français ou en anglais, nombre de traits, niveau,
+JLPT, fréquence) est redistribué sous la même licence CC BY-SA 4.0.
