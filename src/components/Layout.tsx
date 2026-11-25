@@ -57,32 +57,6 @@ function GrimoireNav() {
         </p>
       </div>
 
-      <NavLink to="/traducteur" className={({ isActive }) => `atelier-link atelier-link--mastery${isActive ? ' is-active' : ''}`}>
-        <span className="atelier-link__glyph">訳</span>
-        <span>
-          <b>Traducteur de kanjis</b>
-          <small>Lire un kanji, trouver un sens</small>
-        </span>
-      </NavLink>
-
-      <NavLink to="/mon-compte/sceaux" className={({ isActive }) => `atelier-link atelier-link--mastery${isActive ? ' is-active' : ''}`}>
-        <span className="atelier-link__glyph">修</span>
-        <span>
-          <b>Mes sceaux maîtrisés</b>
-          <small>Cocher les sceaux que je connais</small>
-        </span>
-      </NavLink>
-
-      {canRequest(member) && (
-        <NavLink to="/demandes" className={({ isActive }) => `atelier-link${isActive ? ' is-active' : ''}`}>
-          <span className="atelier-link__glyph">願</span>
-          <span>
-            <b>Demande de création de sceau</b>
-            <small>Proposer un sceau au Conclave</small>
-          </span>
-        </NavLink>
-      )}
-
       {categories.map((c) => (
         <section key={c.id} className={`nav-group${c.accessible ? '' : ' is-locked'}`}>
           <p className="nav-group__head">
@@ -116,7 +90,41 @@ function GrimoireNav() {
           )}
         </section>
       ))}
+
+      <OtherNav />
     </nav>
+  );
+}
+
+/** Catégorie « Autre » : les outils des membres, rangés en bas du sommaire. */
+function OtherNav() {
+  const { member } = useSession();
+  if (!member) return null;
+  const links = [
+    ...(canRequest(member) ? [{ to: '/demandes', glyph: '願', label: 'Demande de création de sceau' }] : []),
+    { to: '/traducteur', glyph: '訳', label: 'Traducteur de kanjis' },
+    { to: '/mon-compte/sceaux', glyph: '修', label: 'Mes sceaux maîtrisés' },
+    { to: '/suggestions', glyph: '案', label: 'Suggestions pour le site' },
+  ];
+  return (
+    <section className="nav-group nav-group--other">
+      <p className="nav-group__head">
+        <span className="nav-group__glyph">他</span>
+        <span className="nav-group__name">Autre</span>
+      </p>
+      <ul>
+        {links.map((l) => (
+          <li key={l.to}>
+            <NavLink to={l.to} end className={({ isActive }) => `nav-link nav-link--tool${isActive ? ' is-active' : ''}`}>
+              <span className="nav-link__glyph" aria-hidden="true">
+                {l.glyph}
+              </span>
+              <span className="nav-link__label">{l.label}</span>
+            </NavLink>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -127,12 +135,13 @@ const CONCLAVE_LINKS = [
   { to: '/conclave/sceaux', glyph: '巻', label: 'Éditeur de sceaux', hint: 'Fiches & kanjis' },
   { to: '/conclave/demandes', glyph: '願', label: 'Demandes', hint: 'Sceaux proposés' },
   { to: '/conclave/trames', glyph: '謎', label: 'Trames', hint: 'Énigmes et défis' },
+  { to: '/suggestions', glyph: '案', label: 'Suggestions', hint: 'Idées des membres' },
   { to: '/conclave/categories', glyph: '門', label: 'Catégories', hint: 'Cercles & droits' },
   { to: '/conclave/journal', glyph: '録', label: 'Journal', hint: 'Historique des actions' },
 ];
 
 function ConclaveNav() {
-  const { requestsPending, activeTrames } = useSession();
+  const { requestsPending, suggestionsNew, activeTrames } = useSession();
   return (
     <nav className="nav nav--conclave" aria-label="Console du Conclave">
       <div className="nav__path">
@@ -149,6 +158,7 @@ function ConclaveNav() {
                 <small>{l.hint}</small>
               </span>
               {l.to === '/conclave/demandes' && requestsPending > 0 && <span className="count-badge">{requestsPending}</span>}
+              {l.to === '/suggestions' && suggestionsNew > 0 && <span className="count-badge">{suggestionsNew}</span>}
               {l.to === '/conclave/trames' && activeTrames.length > 0 && <span className="count-badge count-badge--live">{activeTrames.length}</span>}
             </NavLink>
           </li>
@@ -219,6 +229,9 @@ function AccountMenu() {
           </Link>
           <Link role="menuitem" to="/mon-compte/sceaux" onClick={() => setOpen(false)}>
             <span>修</span> Mes sceaux maîtrisés
+          </Link>
+          <Link role="menuitem" to="/suggestions" onClick={() => setOpen(false)}>
+            <span>案</span> Suggestions pour le site
           </Link>
           <Link role="menuitem" to="/mon-compte" onClick={() => setOpen(false)}>
             <span>鍵</span> Mon compte

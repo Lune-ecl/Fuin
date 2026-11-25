@@ -9,6 +9,8 @@ interface SessionValue {
   member: Member | null;
   categories: NavCategory[];
   requestsPending: number;
+  /** suggestions sans réponse (Conclave) */
+  suggestionsNew: number;
   activeTrames: { id: number; title: string }[];
   login: (prenom: string, nom: string, password: string) => Promise<string | null>;
   logout: () => Promise<void>;
@@ -86,6 +88,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       member: data?.member ?? null,
       categories: data?.categories ?? [],
       requestsPending: data?.requests_pending ?? 0,
+      suggestionsNew: data?.suggestions_new ?? 0,
       activeTrames: data?.active_trames ?? [],
       login,
       logout,

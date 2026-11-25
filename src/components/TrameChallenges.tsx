@@ -6,6 +6,7 @@ import { useBrushFont } from '../lib/useBrushFont';
 import { formatDate } from '../lib/format';
 import Markdown from './Markdown';
 import { useToast } from './ui';
+import { SolvedGame } from './TrameGames';
 
 // ---------------------------------------------------------------------------
 // Pièces communes
@@ -24,7 +25,7 @@ export function AttemptDots({ used, max }: { used: number; max: number }) {
   );
 }
 
-function Blocked({ shared }: { shared: boolean }) {
+export function Blocked({ shared }: { shared: boolean }) {
   return (
     <p className="step-blocked">
       Tu as utilisé tous tes essais pour cette étape.{shared ? ' Un autre shinobi peut encore la résoudre : la suite s’ouvrira alors pour tous.' : ''}
@@ -32,7 +33,7 @@ function Blocked({ shared }: { shared: boolean }) {
   );
 }
 
-interface StepProps {
+export interface StepProps {
   step: TramePlayerStep;
   trameId: number;
   shared: boolean;
@@ -40,7 +41,7 @@ interface StepProps {
 }
 
 /** Envoi d'une réponse, avec les messages communs à toutes les épreuves. */
-function useSubmit({ step, trameId, onDone }: StepProps) {
+export function useSubmit({ step, trameId, onDone }: StepProps) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [shake, setShake] = useState(0);
@@ -53,7 +54,12 @@ function useSubmit({ step, trameId, onDone }: StepProps) {
       else if (r.correct) toast('Juste ! L’étape suivante s’ouvre');
       else {
         setShake((x) => x + 1);
-        const score = r.total ? ` ${r.right} sur ${r.total} juste${(r.right ?? 0) > 1 ? 's' : ''}.` : '';
+        const score =
+          r.exact != null
+            ? ` ${r.exact} lueur${r.exact > 1 ? 's' : ''} rouge${r.exact > 1 ? 's' : ''}, ${r.present ?? 0} blanche${(r.present ?? 0) > 1 ? 's' : ''}.`
+            : r.total
+              ? ` ${r.right} sur ${r.total} juste${(r.right ?? 0) > 1 ? 's' : ''}.`
+              : '';
         toast(`Ce n’est pas ça.${score} ${r.attempts_left > 0 ? `${r.attempts_left} essai${r.attempts_left > 1 ? 's' : ''} restant${r.attempts_left > 1 ? 's' : ''}.` : 'Plus aucun essai.'}`, 'error');
       }
     } catch (err) {
@@ -66,7 +72,7 @@ function useSubmit({ step, trameId, onDone }: StepProps) {
   return { busy, shake, send };
 }
 
-const mark = (feedback: boolean[] | null | undefined, i: number) => (feedback ? (feedback[i] ? ' is-right' : ' is-wrong') : '');
+export const mark = (feedback: boolean[] | null | undefined, i: number) => (feedback ? (feedback[i] ? ' is-right' : ' is-wrong') : '');
 
 // ---------------------------------------------------------------------------
 // Kanjis manquants
@@ -475,7 +481,7 @@ export function SolvedChallenge({ step }: { step: TramePlayerStep }): ReactNode 
       </ol>
     );
   if (step.kind === 'review' && step.submissions) return <ReviewHistory subs={step.submissions.filter((s) => s.status === 'approved')} />;
-  return null;
+  return <SolvedGame step={step} />;
 }
 
 // ---------------------------------------------------------------------------

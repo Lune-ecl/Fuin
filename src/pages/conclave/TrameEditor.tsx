@@ -2,13 +2,16 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { api, type AdminMember, type AdminPageRow, type RollTable, type TrameAdmin, type TrameDef, type TrameStepDef, type TrameStepKind } from '../../lib/api';
 import { AttemptsField, ChoiceFields, MatchFields, MissingFields, OrderFields, ReviewFields, SituationFields, StudyFields, UnsealFields } from './TrameStepFields';
+import { DialFields, IntruderFields, MastermindFields, MemoryFields, PathFields, SequenceFields, SubstitutionFields } from './TrameGameFields';
+import { FAMILIES, KINDS, type KindFamily } from '../../lib/trameKinds';
+import { PRESETS, presetStep, type Level, type Preset } from '../../lib/trameLibrary';
 import { useSession } from '../../lib/session';
 import { circleLabel, formatDate, timeAgo } from '../../lib/format';
 import Markdown from '../../components/Markdown';
 import SealCreator from '../../components/SealCreator';
 import { displaySealSvg } from '../../lib/sealDesign';
 import { sanitizeSvg } from '../../lib/markdown';
-import { Empty, ErrorState, Loader, RankPicker, Toggle, useConfirm, useToast } from '../../components/ui';
+import { Empty, ErrorState, Loader, Modal, RankPicker, Toggle, useConfirm, useToast } from '../../components/ui';
 import { TRAME_STATUS } from './Trames';
 
 const norm = (s: string) =>
@@ -118,18 +121,7 @@ function Access({
   );
 }
 
-const KIND: Record<TrameStepKind, { label: string; glyph: string; hint: string }> = {
-  cipher: { label: 'Inscription à déchiffrer', glyph: '謎', hint: 'Un texte en kanjis à traduire, avec un nombre d’essais limité.' },
-  riddle: { label: 'Énigme', glyph: '問', hint: 'Une question ou une devinette, réponse libre vérifiée par le site.' },
-  unseal: { label: 'Désenclavement', glyph: '封', hint: 'Un sceau à briser par des rolls : verrous et essais au choix.' },
-  missing: { label: 'Kanjis manquants', glyph: '欠', hint: 'Un sceau incomplet : retrouver les kanjis qui manquent pour l’activer.' },
-  situation: { label: 'Mise en situation', glyph: '境', hint: 'Des situations : trouver le sceau à utiliser pour chacune.' },
-  order: { label: 'Ordre des kanjis', glyph: '順', hint: 'Les kanjis d’une formule mélangés : les remettre dans l’ordre.' },
-  match: { label: 'Associations', glyph: '合', hint: 'Relier chaque kanji (ou sceau) à son sens.' },
-  choice: { label: 'Question à choix', glyph: '択', hint: 'Une question avec une ou plusieurs bonnes réponses à cocher.' },
-  review: { label: 'Épreuve du Conclave', glyph: '議', hint: 'Une réponse libre que le Conclave valide ou refuse lui-même.' },
-  text: { label: 'Récit ou récompense', glyph: '巻', hint: 'Un texte qui s’affiche quand les joueurs y arrivent.' },
-};
+const KIND = KINDS;
 
 function newStep(kind: TrameStepKind): TrameStepDef {
   const base = { kind, title: KIND[kind].label, prompt_md: '', success_md: '' };
@@ -171,6 +163,31 @@ function newStep(kind: TrameStepKind): TrameStepDef {
       return { ...base, title: 'La question', prompt_md: '', options: ['', '', ''], correct: [], max_attempts: 2 };
     case 'review':
       return { ...base, title: 'Devant le Conclave', prompt_md: 'Explique comment ton shinobi s’y prend.', max_attempts: 3 };
+    case 'dial':
+      return {
+        ...base,
+        title: 'Le verrou à cercles',
+        prompt_md: 'Le verrou ne s’ouvre que si chaque cercle porte le bon kanji.',
+        rings: [
+          { answer: '', decoys: '' },
+          { answer: '', decoys: '' },
+          { answer: '', decoys: '' },
+        ],
+        max_attempts: 3,
+        reveal: true,
+      };
+    case 'mastermind':
+      return { ...base, title: 'La résonance du sceau', prompt_md: 'Le sceau vibre quand on approche de sa formule.', formula: '', palette: '', max_attempts: 8 };
+    case 'path':
+      return { ...base, title: 'Le flux de chakra', prompt_md: 'Fais circuler ton chakra à travers le sceau, case voisine après case voisine.', grid: ['', '', ''], path: [], show_start: true, max_attempts: 3, reveal: true };
+    case 'sequence':
+      return { ...base, title: 'La suite logique', prompt_md: 'Quelle est la suite ?', items: ['', '', '', '?'], answers: [], options: [], max_attempts: 2 };
+    case 'memory':
+      return { ...base, title: 'La mémoire du sceau', prompt_md: 'Le sceau ne se montre qu’un instant. Retiens-le.', formula: '', decoys: '', signs: false, show_seconds: 5, max_attempts: 3, reveal: true };
+    case 'intruder':
+      return { ...base, title: 'L’intrus', prompt_md: 'Lequel n’a rien à faire là ?', options: ['', '', '', ''], correct: [], max_attempts: 2 };
+    case 'substitution':
+      return { ...base, title: 'Le code du Conclave', prompt_md: 'Chaque kanji remplace une lettre. Décode le message.', answers: [], key: [], cipher_text: '', max_attempts: 2 };
     default:
       return { ...base, title: '', prompt_md: '' };
   }
@@ -181,6 +198,125 @@ function upgradeStep(s: TrameStepDef): TrameStepDef {
   if (s.kind !== 'unseal' || s.locks !== undefined) return s;
   const circle = s.seal_circle ?? 3;
   return { ...s, locks: circle, min_rank: Math.max(s.min_rank ?? 3, circle), attempts_mode: 'rank' };
+}
+
+const LEVELS: Record<Level, string> = { facile: 'Facile', moyen: 'Moyen', difficile: 'Difficile' };
+const FAMILY_ORDER: KindFamily[] = ['savoir', 'kanji', 'jeu', 'sceau', 'recit'];
+
+/** Bibliothèque d'épreuves toutes prêtes, à ajouter en un clic puis à adapter. */
+function Library({ open, onClose, onAdd }: { open: boolean; onClose: () => void; onAdd: (s: TrameStepDef) => void }) {
+  const toast = useToast();
+  const [q, setQ] = useState('');
+  const [family, setFamily] = useState<'all' | KindFamily>('all');
+  const [level, setLevel] = useState<'all' | Level>('all');
+  const [added, setAdded] = useState<string[]>([]);
+  const list = PRESETS.filter(
+    (p) =>
+      (family === 'all' || KIND[p.kind].family === family) &&
+      (level === 'all' || p.level === level) &&
+      (!q.trim() || norm(`${p.step.title} ${p.summary} ${KIND[p.kind].label}`).includes(norm(q.trim()))),
+  );
+  const add = (p: Preset) => {
+    onAdd(presetStep(p));
+    setAdded((a) => [...a, p.id]);
+    toast(`« ${p.step.title} » ajoutée à la fin de la trame`);
+  };
+  return (
+    <Modal open={open} onClose={onClose} title="Bibliothèque d’épreuves" kicker="Trames" wide>
+      <p className="muted small">
+        {PRESETS.length} épreuves toutes prêtes autour des kanjis et des sceaux. Ajoute celles qui te plaisent, puis adapte le texte, les réponses et les essais
+        dans la trame.
+      </p>
+      <div className="library__filters">
+        <input className="input-search" type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Chercher : signe, élément, porte…" />
+        <div className="library__chips">
+          <button type="button" className={`chip${family === 'all' ? ' is-on' : ''}`} onClick={() => setFamily('all')}>
+            Toutes
+          </button>
+          {FAMILY_ORDER.map((f) => (
+            <button key={f} type="button" className={`chip${family === f ? ' is-on' : ''}`} onClick={() => setFamily(f)}>
+              {FAMILIES[f].glyph} {FAMILIES[f].label}
+            </button>
+          ))}
+        </div>
+        <div className="library__chips">
+          {(['all', 'facile', 'moyen', 'difficile'] as const).map((l) => (
+            <button key={l} type="button" className={`chip${level === l ? ' is-on' : ''}`} onClick={() => setLevel(l)}>
+              {l === 'all' ? 'Tous niveaux' : LEVELS[l]}
+            </button>
+          ))}
+        </div>
+      </div>
+      {list.length === 0 ? (
+        <Empty glyph="無">Aucune épreuve ne correspond.</Empty>
+      ) : (
+        <div className="library__grid">
+          {list.map((p) => (
+            <article key={p.id} className="library__card">
+              <header>
+                <span className="library__glyph" aria-hidden="true">
+                  {KIND[p.kind].glyph}
+                </span>
+                <span>
+                  <small>{KIND[p.kind].label}</small>
+                  <b>{p.step.title}</b>
+                </span>
+                <span className={`level level--${p.level}`}>{LEVELS[p.level]}</span>
+              </header>
+              <p>{p.summary}</p>
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => add(p)}>
+                {added.includes(p.id) ? '✓ Ajoutée · encore' : '+ Ajouter à la trame'}
+              </button>
+            </article>
+          ))}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+/** Catalogue des épreuves, rangé par famille, avec l'explication de chacune. */
+function StepCatalog({ onAdd }: { onAdd: (s: TrameStepDef) => void }) {
+  const [info, setInfo] = useState<TrameStepKind | null>(null);
+  const [lib, setLib] = useState(false);
+  return (
+    <section className="panel add-steps">
+      <div className="add-steps__head">
+        <div>
+          <p className="kicker">Ajouter une étape</p>
+          <p className="muted small">Choisis un type d’épreuve à remplir toi-même (« ? » explique comment il se joue), ou pioche une épreuve toute prête.</p>
+        </div>
+        <button type="button" className="btn btn--red" onClick={() => setLib(true)}>
+          <span aria-hidden="true">庫</span> Bibliothèque d’épreuves ({PRESETS.length})
+        </button>
+      </div>
+      {FAMILY_ORDER.map((f) => (
+        <div key={f} className="add-steps__family">
+          <h3>
+            <span aria-hidden="true">{FAMILIES[f].glyph}</span> {FAMILIES[f].label} <small>{FAMILIES[f].hint}</small>
+          </h3>
+          <div className="add-steps__grid">
+            {(Object.keys(KIND) as TrameStepKind[])
+              .filter((k) => KIND[k].family === f)
+              .map((k) => (
+                <div key={k} className={`add-step-card${info === k ? ' is-open' : ''}`}>
+                  <button type="button" className="add-step" onClick={() => onAdd(newStep(k))}>
+                    <span>{KIND[k].glyph}</span>
+                    <b>{KIND[k].label}</b>
+                    <small>{KIND[k].hint}</small>
+                  </button>
+                  <button type="button" className="add-step__info" aria-expanded={info === k} aria-label={`Comment se joue « ${KIND[k].label} »`} onClick={() => setInfo(info === k ? null : k)}>
+                    ?
+                  </button>
+                  {info === k && <p className="add-step__how">{KIND[k].how}</p>}
+                </div>
+              ))}
+          </div>
+        </div>
+      ))}
+      <Library open={lib} onClose={() => setLib(false)} onAdd={onAdd} />
+    </section>
+  );
 }
 
 function emptyTrame(): TrameDef {
@@ -234,6 +370,10 @@ function StepEditor({
         </div>
       </header>
 
+      <details className="step-card__how">
+        <summary>Comment ça marche ?</summary>
+        <p>{k.how}</p>
+      </details>
       <label className="field">
         <span>Titre</span>
         <input value={step.title} onChange={(e) => set('title', e.target.value)} />
@@ -308,7 +448,14 @@ function StepEditor({
       {step.kind === 'choice' && <ChoiceFields step={step} patch={patch} />}
       {step.kind === 'situation' && <SituationFields step={step} patch={patch} seals={seals} />}
       {step.kind === 'review' && <ReviewFields step={step} patch={patch} />}
-      {['cipher', 'riddle', 'missing', 'situation', 'choice', 'order', 'match'].includes(step.kind) && <StudyFields step={step} patch={patch} tables={tables} />}
+      {step.kind === 'dial' && <DialFields step={step} patch={patch} />}
+      {step.kind === 'mastermind' && <MastermindFields step={step} patch={patch} />}
+      {step.kind === 'path' && <PathFields step={step} patch={patch} />}
+      {step.kind === 'sequence' && <SequenceFields step={step} patch={patch} />}
+      {step.kind === 'memory' && <MemoryFields step={step} patch={patch} />}
+      {step.kind === 'intruder' && <IntruderFields step={step} patch={patch} />}
+      {step.kind === 'substitution' && <SubstitutionFields step={step} patch={patch} />}
+      {!['unseal', 'review', 'text'].includes(step.kind) && <StudyFields step={step} patch={patch} tables={tables} />}
 
       {step.kind !== 'text' && (
         <label className="field">
@@ -323,8 +470,8 @@ function StepEditor({
 /** Ce qu'a répondu un joueur, lisible quelle que soit l'épreuve. */
 function attemptText(l: TrameAdmin['log'][number], step: TrameStepDef | undefined): string {
   if (l.kind === 'unseal') return '';
-  if (l.kind === 'cipher' || l.kind === 'riddle' || l.kind === 'review') return l.answer ? `« ${l.answer} »` : '';
-  let a: { kanji?: string[]; order?: string[]; picks?: (string | number)[] } = {};
+  if (['cipher', 'riddle', 'review', 'sequence', 'substitution'].includes(l.kind)) return l.answer ? `« ${l.answer} »` : '';
+  let a: { kanji?: string[]; order?: string[]; picks?: (string | number)[]; guess?: string[]; cells?: number[] } = {};
   try {
     a = JSON.parse(l.answer ?? '{}');
   } catch {
@@ -335,6 +482,14 @@ function attemptText(l: TrameAdmin['log'][number], step: TrameStepDef | undefine
   if (l.kind === 'match') return (a.picks ?? []).join(' · ');
   if (l.kind === 'choice') return (a.picks ?? []).map((i) => step?.options?.[Number(i)] ?? `#${i}`).join(' · ');
   if (l.kind === 'situation') return `${(a.picks ?? []).length} situation(s)`;
+  if (l.kind === 'memory') return (a.order ?? []).join(' ');
+  if (l.kind === 'dial') return (a.picks ?? []).join(' ');
+  if (l.kind === 'mastermind') return (a.guess ?? []).join('');
+  if (l.kind === 'intruder') return (a.picks ?? []).map((i) => step?.options?.[Number(i)] ?? `#${i}`).join(' · ');
+  if (l.kind === 'path') {
+    const flat = (step?.grid ?? []).flatMap((r) => [...r.replace(/\s+/g, '')]);
+    return (a.cells ?? []).map((i) => flat[i] ?? '?').join(' ');
+  }
   return '';
 }
 
@@ -729,18 +884,7 @@ export default function TrameEditor() {
             />
           ))}
 
-          <section className="panel add-steps">
-            <p className="kicker">Ajouter une étape</p>
-            <div className="add-steps__grid">
-              {(Object.keys(KIND) as TrameStepKind[]).map((k) => (
-                <button key={k} type="button" className="add-step" onClick={() => update({ steps: [...trame.steps, newStep(k)] })}>
-                  <span>{KIND[k].glyph}</span>
-                  <b>{KIND[k].label}</b>
-                  <small>{KIND[k].hint}</small>
-                </button>
-              ))}
-            </div>
-          </section>
+          <StepCatalog onAdd={(step) => update({ steps: [...trame.steps, step] })} />
 
           {!isNew && (
             <div className="form-actions">

@@ -6,33 +6,13 @@ import { circleLabel } from '../lib/format';
 import Markdown from '../components/Markdown';
 import TrameSeal from '../components/TrameSeal';
 import { ChoiceStep, MatchStep, MissingStep, OrderStep, ReviewStep, SituationStep, SolvedChallenge, StudyPanel } from '../components/TrameChallenges';
+import { DialStep, IntruderStep, MastermindStep, MemoryStep, PathStep, SequenceStep, SubstitutionStep } from '../components/TrameGames';
+import { KINDS } from '../lib/trameKinds';
 import { ErrorState, Loader, useToast } from '../components/ui';
 
-const KIND_LABEL: Record<TramePlayerStep['kind'], string> = {
-  cipher: 'Inscription à déchiffrer',
-  riddle: 'Énigme',
-  unseal: 'Désenclavement',
-  missing: 'Kanjis manquants',
-  situation: 'Mise en situation',
-  choice: 'Question',
-  order: 'Ordre des kanjis',
-  match: 'Associations',
-  review: 'Épreuve du Conclave',
-  text: 'Récit',
-};
-
-const KIND_MARK: Record<TramePlayerStep['kind'], string> = {
-  cipher: '謎',
-  riddle: '問',
-  unseal: '封',
-  missing: '欠',
-  situation: '境',
-  choice: '択',
-  order: '順',
-  match: '合',
-  review: '議',
-  text: '巻',
-};
+// nom court de l'épreuve pour le joueur (la question à choix s'appelle simplement « Question »)
+const KIND_LABEL = (k: TramePlayerStep['kind']) => (k === 'choice' ? 'Question' : k === 'text' ? 'Récit' : KINDS[k].label);
+const KIND_MARK = (k: TramePlayerStep['kind']) => KINDS[k].glyph;
 
 function CipherStep({ step, trameId, shared, onDone }: { step: TramePlayerStep; trameId: number; shared: boolean; onDone: () => void }) {
   const toast = useToast();
@@ -327,15 +307,21 @@ export default function Trame() {
         {steps.map((s) => (
           <li key={s.index} className={`tstep tstep--${s.kind} tstep--${s.kind === 'text' ? 'text' : s.state}`}>
             <span className="tstep__mark" aria-hidden="true">
-              {s.kind !== 'text' && s.state === 'solved' ? '解' : KIND_MARK[s.kind]}
+              {s.kind !== 'text' && s.state === 'solved' ? '解' : KIND_MARK(s.kind)}
             </span>
             <div className="tstep__body">
               <p className="kicker">
-                {KIND_LABEL[s.kind]}
+                {KIND_LABEL(s.kind)}
                 {s.state === 'solved' && s.kind !== 'text' && ' · résolu'}
               </p>
               {s.title && <h2>{s.title}</h2>}
               {s.prompt_md && <Markdown source={s.prompt_md} />}
+              {s.state === 'current' && KINDS[s.kind].play && (
+                <p className="tstep__how">
+                  <i aria-hidden="true">?</i>
+                  {KINDS[s.kind].play}
+                </p>
+              )}
               {s.state === 'current' && (s.kind === 'cipher' || s.kind === 'riddle') && <CipherStep step={s} trameId={trame.id} shared={trame.shared} onDone={load} />}
               {s.state === 'current' && s.kind === 'unseal' && <UnsealStep step={s} trameId={trame.id} shared={trame.shared} onDone={load} />}
               {s.state === 'current' && s.kind === 'missing' && <MissingStep key={s.attempts_used} step={s} trameId={trame.id} shared={trame.shared} onDone={load} />}
@@ -344,6 +330,13 @@ export default function Trame() {
               {s.state === 'current' && s.kind === 'choice' && <ChoiceStep step={s} trameId={trame.id} shared={trame.shared} onDone={load} />}
               {s.state === 'current' && s.kind === 'situation' && <SituationStep key={s.attempts_used} step={s} trameId={trame.id} shared={trame.shared} onDone={load} />}
               {s.state === 'current' && s.kind === 'review' && <ReviewStep step={s} trameId={trame.id} shared={trame.shared} onDone={load} />}
+              {s.state === 'current' && s.kind === 'dial' && <DialStep key={s.attempts_used} step={s} trameId={trame.id} shared={trame.shared} onDone={load} />}
+              {s.state === 'current' && s.kind === 'mastermind' && <MastermindStep step={s} trameId={trame.id} shared={trame.shared} onDone={load} />}
+              {s.state === 'current' && s.kind === 'path' && <PathStep step={s} trameId={trame.id} shared={trame.shared} onDone={load} />}
+              {s.state === 'current' && s.kind === 'sequence' && <SequenceStep step={s} trameId={trame.id} shared={trame.shared} onDone={load} />}
+              {s.state === 'current' && s.kind === 'memory' && <MemoryStep key={s.attempts_used} step={s} trameId={trame.id} shared={trame.shared} onDone={load} />}
+              {s.state === 'current' && s.kind === 'intruder' && <IntruderStep step={s} trameId={trame.id} shared={trame.shared} onDone={load} />}
+              {s.state === 'current' && s.kind === 'substitution' && <SubstitutionStep step={s} trameId={trame.id} shared={trame.shared} onDone={load} />}
               {s.state === 'current' && s.study && <StudyPanel step={s} trameId={trame.id} onDone={load} />}
               {s.state === 'solved' && s.kind !== 'text' && (
                 <>

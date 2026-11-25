@@ -374,6 +374,21 @@
   min-width: 0;
 }
 
+/* catégorie « Autre » : outils des membres */
+.nav-group--other {
+  margin-top: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.nav-link__glyph {
+  flex: none;
+  width: 18px;
+  text-align: center;
+  font: 400 15px/1 var(--brush);
+  color: var(--red-soft);
+}
+
 .nav-link:hover {
   color: var(--ink);
   background: rgba(255, 255, 255, 0.03);

@@ -37,14 +37,27 @@ sceaux de son cercle**, et où **le Conclave** gère les comptes, les cercles, l
   (`src/lib/lexique.ts`, vocabulaire RP et mots courants) et kanjis de KANJIDIC2 ; les autres mots viennent
   de JMdict, en anglais. Les dictionnaires sont servis par le site (`public/kanji/`, © EDRDG, licence
   CC BY-SA 4.0, voir `public/kanji/LICENCE.txt`).
-- **Trames** (Conclave → Trames) : le Conclave crée des trames faites d'épreuves (inscription à déchiffrer,
-  énigme, désenclavement, kanjis manquants, mise en situation, question à choix, ordre des kanjis,
-  associations, épreuve validée par le Conclave, récit), chacune avec ses propres essais. « Ouvrir la trame » fait apparaître une page temporaire dans le
-  menu des joueurs ; « Terminer la trame » la retire. Une bonne traduction ouvre l'étape suivante ; le
-  désenclavement est réservé aux cercles requis (3e par défaut), avec des rolls tirés par la base
-  (réussites nécessaires = cercle du sceau, essais = cercle du joueur) lus dans les tables de roll.
-  Suivi en direct des réponses, des rolls et des résolutions. Aides : tables de roll modifiables et
-  déchiffreur de kanjis.
+- **Trames** (Conclave → Trames) : le Conclave crée des trames faites d'épreuves, chacune avec ses propres
+  essais. Le catalogue range les 17 types d'épreuves en familles, avec pour chacune une explication (ce que
+  fait le joueur, ce qu'il faut régler) :
+  - énigmes et savoir : énigme, question à choix, l'intrus, suite logique, mise en situation ;
+  - kanjis et formules : inscription à déchiffrer, kanjis manquants, ordre des kanjis, associations,
+    code du Conclave (message codé lettre par lettre en kanjis) ;
+  - mini-jeux : verrou à cercles (tourner les cercles d'un sceau), résonance du sceau (deviner une
+    formule grâce aux lueurs), flux de chakra (tracer un chemin dans une grille de kanjis), mémoire du
+    sceau (retenir une séquence de kanjis ou de signes des mains) ;
+  - sceaux et rolls : désenclavement ; récit et Conclave : épreuve validée par le Conclave, récit.
+
+  La **bibliothèque d'épreuves** propose une cinquantaine d'épreuves toutes prêtes autour des kanjis et des
+  sceaux, à ajouter en un clic puis à adapter. Côté joueur, chaque étape rappelle comment elle se joue.
+  « Ouvrir la trame » fait apparaître une page temporaire dans le menu des joueurs ; « Terminer la trame »
+  la retire. Toutes les réponses sont vérifiées par la base, et les rolls y sont tirés. Suivi en direct
+  des réponses, des rolls et des résolutions. Aides : tables de roll modifiables et déchiffreur de kanjis.
+- **Catégorie « Autre »** (en bas du sommaire) : demande de création de sceau, traducteur de kanjis,
+  sceaux maîtrisés et suggestions.
+- **Suggestions pour le site** (`/suggestions`) : chaque membre propose une fonctionnalité, une fiche, une
+  idée de trame ou signale un problème. Les autres peuvent la soutenir ; le Conclave lui donne un statut
+  (nouvelle, prévue, faite, refusée) et répond. Un compteur signale au Conclave les suggestions sans réponse.
 
 ---
 
@@ -140,6 +153,7 @@ fois, mais le relancer ne casse rien).
 - `011_trames_epreuves.sql` : trames plus complètes. Chaque étape a ses propres essais ; au désenclavement, le Conclave choisit le nombre de cercles à désenclaver (1 à 10) et le nombre d'essais (fixe ou selon le cercle). Nouvelles épreuves : kanjis manquants, mise en situation, énigme, question à choix, ordre des kanjis, associations et épreuve validée par le Conclave. Trames de test visibles du Conclave seulement.
 - `012_rolls_d_etude.sql` : rolls d'étude dans les trames. Le joueur lance un roll (table de déchiffrement) pour comprendre le sens d'un kanji (même d'un kanji manquant, sans le voir) ou découvrir l'indice suivant ; le Conclave écrit les sens et les indices, et choisit le nombre de rolls par étape.
 - `013_traducteur.sql` : réserve l'adresse `/traducteur` (aucune fiche ne peut la prendre) et retire la fonction d'une première version du traducteur si elle a été installée. Le traducteur lui-même n'a pas besoin de la base.
+- `014_suggestions_et_mini_jeux.sql` : page Suggestions (proposer, soutenir, réponse et statut du Conclave) et sept mini-jeux de plus dans les trames, vérifiés par la base : verrou à cercles, résonance du sceau, flux de chakra, suite logique, mémoire du sceau, l'intrus et code du Conclave. Réserve aussi les adresses `/suggestions` et `/autre`.
 
 ### 5. Base toujours éveillée
 

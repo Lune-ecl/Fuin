@@ -81,12 +81,30 @@ export interface NavCategory {
 export interface Bootstrap {
   member: Member;
   requests_pending: number | null;
+  suggestions_new?: number | null;
   active_trames: { id: number; title: string }[];
   categories: NavCategory[];
 }
 
 export type TrameStatus = 'draft' | 'active' | 'ended';
-export type TrameStepKind = 'cipher' | 'riddle' | 'unseal' | 'missing' | 'situation' | 'choice' | 'order' | 'match' | 'review' | 'text';
+export type TrameStepKind =
+  | 'cipher'
+  | 'riddle'
+  | 'unseal'
+  | 'missing'
+  | 'situation'
+  | 'choice'
+  | 'order'
+  | 'match'
+  | 'review'
+  | 'text'
+  | 'dial'
+  | 'mastermind'
+  | 'path'
+  | 'sequence'
+  | 'memory'
+  | 'intruder'
+  | 'substitution';
 
 export interface TrameStepDef {
   kind: TrameStepKind;
@@ -130,6 +148,22 @@ export interface TrameStepDef {
   /** nombre de rolls d'étude par joueur (0 : désactivé) */
   study_rolls?: number;
   study_table?: string;
+  /** verrou à cercles : le bon kanji de chaque cercle et ses leurres */
+  rings?: { answer: string; decoys: string }[];
+  /** résonance du sceau : kanjis proposés (la formule secrète est dans formula) */
+  palette?: string;
+  /** flux de chakra : lignes de la grille et tracé (cases numérotées ligne après ligne, à partir de 0) */
+  grid?: string[];
+  path?: number[];
+  /** flux de chakra : montrer la case de départ */
+  show_start?: boolean;
+  /** suite logique : éléments affichés (« ? » pour la case à trouver) */
+  items?: string[];
+  /** mémoire du sceau : séquence en signes des mains, durée d'affichage */
+  signs?: boolean;
+  show_seconds?: number;
+  /** code du Conclave : table lettre → kanji, et lettres cachées au joueur */
+  key?: { l: string; k: string; hidden?: boolean }[];
 }
 
 export interface TrameStudy {
@@ -254,6 +288,20 @@ export interface TramePlayerStep {
   pending?: boolean;
   /** rolls d'étude de l'étape */
   study?: TrameStudy;
+  // mini-jeux
+  rings?: { options: string[] }[];
+  palette?: string[];
+  length?: number;
+  history?: { guess: string[]; exact: number; present: number }[];
+  grid?: string[][];
+  start?: number | null;
+  path?: number[];
+  items?: string[];
+  sequence?: string[];
+  signs?: boolean;
+  show_seconds?: number;
+  key?: { k: string; l: string | null }[];
+  solution?: string;
 }
 
 export interface TrameSubmitResult {
@@ -263,6 +311,9 @@ export interface TrameSubmitResult {
   right?: number | null;
   total?: number | null;
   feedback?: boolean[] | null;
+  /** résonance du sceau : bien placés, mal placés */
+  exact?: number | null;
+  present?: number | null;
 }
 
 export interface TrameView {
@@ -313,6 +364,26 @@ export interface SealRequest {
   reviewed_at: string | null;
   reviewed_by: string | null;
   member: { id: string; name: string; rank: number; is_conclave: boolean } | null;
+}
+
+export type SuggestionKind = 'feature' | 'content' | 'trame' | 'bug' | 'other';
+export type SuggestionStatus = 'new' | 'planned' | 'done' | 'refused';
+
+export interface Suggestion {
+  id: number;
+  kind: SuggestionKind;
+  title: string;
+  body: string;
+  status: SuggestionStatus;
+  reply: string;
+  replied_at: string | null;
+  replied_by: string | null;
+  author: string;
+  mine: boolean;
+  votes: number;
+  voted: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface MasteryPage {
@@ -685,6 +756,13 @@ export const api = {
   // Demandes de création de sceau
   myRequests: () => rpc<SealRequest[]>('fuin_requests_mine'),
   masteries: () => rpc<MasteryGroup[]>('fuin_masteries_mine'),
+  // Suggestions pour le site
+  suggestions: () => rpc<Suggestion[]>('fuin_suggestions'),
+  suggestionSave: (s: { id?: number; kind: SuggestionKind; title: string; body: string }) => rpc<Suggestion>('fuin_suggestion_save', { p_s: s }),
+  suggestionDelete: (id: number) => rpc<{ ok: boolean }>('fuin_suggestion_delete', { p_id: id }),
+  suggestionVote: (id: number, on: boolean) => rpc<{ votes: number; voted: boolean }>('fuin_suggestion_vote', { p_id: id, p_on: on }),
+  suggestionAnswer: (id: number, status: SuggestionStatus, reply: string) =>
+    rpc<Suggestion>('fuin_admin_suggestion_answer', { p_id: id, p_status: status, p_reply: reply }),
   masterySet: (pageId: number, on: boolean) => rpc<{ ok: boolean; mastered: boolean; total: number }>('fuin_mastery_set', { p_page_id: pageId, p_on: on }),
   memberMasteries: (memberId: string) => rpc<MemberMastery[]>('fuin_admin_member_masteries', { p_member_id: memberId }),
   requestSubmit: (req: SealRequestInput) => rpc<{ id: number }>('fuin_request_submit', { p_req: req }),

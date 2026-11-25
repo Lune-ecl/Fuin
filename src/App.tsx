@@ -12,6 +12,7 @@ import PageView from './pages/PageView';
 import Account from './pages/Account';
 import MySeals from './pages/MySeals';
 import Translator from './pages/Translator';
+import Suggestions from './pages/Suggestions';
 import Dashboard from './pages/conclave/Dashboard';
 import Members from './pages/conclave/Members';
 import Slots from './pages/conclave/Slots';
@@ -83,6 +84,7 @@ export default function App() {
                 <Route path="mon-compte" element={<Account />} />
                 <Route path="mon-compte/sceaux" element={<MySeals />} />
                 <Route path="demandes" element={<Requests />} />
+                <Route path="suggestions" element={<Suggestions />} />
                 <Route path="trame/:id" element={<Trame />} />
                 <Route
                   path="conclave"
