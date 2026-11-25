@@ -42,6 +42,7 @@ function GrimoireNav() {
   if (!member) return null;
   return (
     <nav className="nav" aria-label="Sommaire du Conclave">
+      <OtherNav />
       <ActiveTrames />
       <div className="nav__path">
         <p className="kicker">Ta voie</p>
@@ -91,39 +92,78 @@ function GrimoireNav() {
         </section>
       ))}
 
-      <OtherNav />
     </nav>
   );
 }
 
-/** Catégorie « Autre » : les outils des membres, rangés en bas du sommaire. */
+const OTHER_OPEN = 'fuin.menu.autre';
+
+/** Catégorie « Autre », tout en haut du sommaire : un bloc rouge qui s'ouvre sur les outils des membres. */
 function OtherNav() {
   const { member } = useSession();
+  const location = useLocation();
+  const links = member
+    ? [
+        ...(canRequest(member) ? [{ to: '/demandes', glyph: '願', label: 'Demande de création de sceau', hint: 'Proposer un sceau au Conclave' }] : []),
+        { to: '/traducteur', glyph: '訳', label: 'Traducteur de kanjis', hint: 'Lire un kanji, trouver un sens' },
+        { to: '/mon-compte/sceaux', glyph: '修', label: 'Mes sceaux maîtrisés', hint: 'Cocher les sceaux que je connais' },
+        { to: '/suggestions', glyph: '案', label: 'Suggestions pour le site', hint: 'Proposer une idée, signaler un problème' },
+      ]
+    : [];
+  const here = links.some((l) => location.pathname === l.to);
+  const [open, setOpen] = useState(() => {
+    try {
+      return localStorage.getItem(OTHER_OPEN) === '1';
+    } catch {
+      return false;
+    }
+  });
+  // ouverte d'office quand on est sur une de ses pages
+  useEffect(() => {
+    if (here) setOpen(true);
+  }, [here]);
+  const toggle = () => {
+    setOpen((o) => {
+      try {
+        localStorage.setItem(OTHER_OPEN, o ? '0' : '1');
+      } catch {
+        /* confort seulement */
+      }
+      return !o;
+    });
+  };
   if (!member) return null;
-  const links = [
-    ...(canRequest(member) ? [{ to: '/demandes', glyph: '願', label: 'Demande de création de sceau' }] : []),
-    { to: '/traducteur', glyph: '訳', label: 'Traducteur de kanjis' },
-    { to: '/mon-compte/sceaux', glyph: '修', label: 'Mes sceaux maîtrisés' },
-    { to: '/suggestions', glyph: '案', label: 'Suggestions pour le site' },
-  ];
   return (
-    <section className="nav-group nav-group--other">
-      <p className="nav-group__head">
-        <span className="nav-group__glyph">他</span>
-        <span className="nav-group__name">Autre</span>
-      </p>
-      <ul>
-        {links.map((l) => (
-          <li key={l.to}>
-            <NavLink to={l.to} end className={({ isActive }) => `nav-link nav-link--tool${isActive ? ' is-active' : ''}`}>
-              <span className="nav-link__glyph" aria-hidden="true">
-                {l.glyph}
-              </span>
-              <span className="nav-link__label">{l.label}</span>
-            </NavLink>
-          </li>
-        ))}
-      </ul>
+    <section className={`other-nav${open ? ' is-open' : ''}${here ? ' is-here' : ''}`}>
+      <button type="button" className="other-nav__head" aria-expanded={open} aria-controls="menu-autre" onClick={toggle}>
+        <span className="other-nav__glyph" aria-hidden="true">
+          他
+        </span>
+        <span className="other-nav__title">
+          <b>Autre</b>
+          <small>{open ? 'Outils et pages du site' : `${links.length} pages : demande de sceau, traducteur…`}</small>
+        </span>
+        <span className="other-nav__chevron" aria-hidden="true">
+          ▾
+        </span>
+      </button>
+      {open && (
+        <ul className="other-nav__list" id="menu-autre">
+          {links.map((l) => (
+            <li key={l.to}>
+              <NavLink to={l.to} end className={({ isActive }) => `other-nav__link${isActive ? ' is-active' : ''}`}>
+                <span className="other-nav__link-glyph" aria-hidden="true">
+                  {l.glyph}
+                </span>
+                <span>
+                  <b>{l.label}</b>
+                  <small>{l.hint}</small>
+                </span>
+              </NavLink>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

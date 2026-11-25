@@ -53,8 +53,9 @@ sceaux de son cercle**, et où **le Conclave** gère les comptes, les cercles, l
   « Ouvrir la trame » fait apparaître une page temporaire dans le menu des joueurs ; « Terminer la trame »
   la retire. Toutes les réponses sont vérifiées par la base, et les rolls y sont tirés. Suivi en direct
   des réponses, des rolls et des résolutions. Aides : tables de roll modifiables et déchiffreur de kanjis.
-- **Catégorie « Autre »** (en bas du sommaire) : demande de création de sceau, traducteur de kanjis,
-  sceaux maîtrisés et suggestions.
+- **Catégorie « Autre »** (tout en haut du sommaire, bloc rouge qui s'ouvre au clic) : demande de création
+  de sceau, traducteur de kanjis, sceaux maîtrisés et suggestions. Elle reste ouverte ou fermée d'une visite à
+  l'autre, et s'ouvre d'office quand on est sur une de ses pages.
 - **Suggestions pour le site** (`/suggestions`) : chaque membre propose une fonctionnalité, une fiche, une
   idée de trame ou signale un problème. Les autres peuvent la soutenir ; le Conclave lui donne un statut
   (nouvelle, prévue, faite, refusée) et répond. Un compteur signale au Conclave les suggestions sans réponse.
