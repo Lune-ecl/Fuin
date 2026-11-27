@@ -143,7 +143,7 @@ export default function ConclaveRequests() {
         }
       }
       if (!saved) throw new Error('Impossible de trouver une adresse libre pour la fiche.');
-      toast('Fiche brouillon créée : relis-la puis retire le mode brouillon pour la publier');
+      toast('Fiche brouillon créée : relis-la puis appuie sur « Publier sur le site »');
       await refresh();
       navigate(`/conclave/sceaux/${saved.id}`);
     } catch (e) {

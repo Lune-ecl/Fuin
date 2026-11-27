@@ -1341,3 +1341,89 @@
     grid-row: auto;
   }
 }
+
+/* État de publication d'une fiche dans l'éditeur */
+.publish-state {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: -6px 0 18px;
+  padding: 10px 14px;
+  border: 1px dashed var(--line-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.publish-state > i {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid currentColor;
+  font: 700 17px var(--display);
+  font-style: normal;
+}
+
+.publish-state p {
+  flex: 1;
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.publish-state b {
+  margin-right: 6px;
+  color: var(--ink);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.publish-state em {
+  color: var(--mut);
+}
+
+.publish-state.is-draft > i {
+  color: var(--mut);
+  border-style: dashed;
+}
+
+.publish-state.is-live {
+  border-style: solid;
+  border-color: var(--line-red);
+  background: var(--red-wash);
+}
+
+.publish-state.is-live > i,
+.publish-state.is-live b {
+  color: var(--red-soft);
+}
+
+.publish-state .link-btn {
+  flex: none;
+  margin: 0;
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .editor__actions {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .editor__actions > * {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .publish-state {
+    flex-wrap: wrap;
+  }
+
+  .publish-state .link-btn {
+    margin-left: 46px;
+  }
+}

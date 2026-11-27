@@ -7,7 +7,7 @@ import { sanitizeSvg } from '../../lib/markdown';
 import Markdown from '../../components/Markdown';
 import SealCreator from '../../components/SealCreator';
 import { displaySealSvg, parseDesign } from '../../lib/sealDesign';
-import { Empty, ErrorState, Loader, SealBadge, Toggle, useConfirm, useToast } from '../../components/ui';
+import { Empty, ErrorState, Loader, SealBadge, useConfirm, useToast } from '../../components/ui';
 
 const KIND_LABEL: Record<EditablePage['kind'], string> = {
   seal: 'Sceau',
@@ -342,13 +342,14 @@ export function PageEditor() {
   const [cats, setCats] = useState<AdminCategory[] | null>(null);
   const [page, setPage] = useState<EditablePage | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState<null | 'save' | 'publish' | 'draft'>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [slugTouched, setSlugTouched] = useState(!isNew);
   const [view, setView] = useState<'edit' | 'preview'>('edit');
   const [dirty, setDirty] = useState(false);
   const [creatorOpen, setCreatorOpen] = useState(false);
   const textarea = useRef<HTMLTextAreaElement>(null);
+  const form = useRef<HTMLFormElement>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -421,21 +422,35 @@ export function PageEditor() {
     });
   };
 
-  const save = async (e?: FormEvent) => {
+  /** Enregistre la fiche ; « hidden » change son état : false = publier, true = repasser en brouillon. */
+  const save = async (e?: FormEvent, hidden?: boolean) => {
     e?.preventDefault();
-    setSaving(true);
+    if (hidden !== undefined && form.current && !form.current.reportValidity()) return;
+    const next = hidden === undefined ? page : { ...page, hidden };
+    const what = page.kind === 'seal' ? 'Sceau' : 'Fiche';
+    setSaving(hidden === false ? 'publish' : hidden === true ? 'draft' : 'save');
     setFormError(null);
     try {
-      const r = await api.pageSave(page);
-      toast(isNew ? 'Fiche créée' : 'Fiche enregistrée');
+      const r = await api.pageSave(next);
+      toast(
+        hidden === false
+          ? `${what} publié${what === 'Fiche' ? 'e' : ''} : les joueurs peuvent ${what === 'Sceau' ? 'le' : 'la'} voir`
+          : hidden === true
+            ? 'Repassé en brouillon : invisible des joueurs'
+            : next.hidden
+              ? 'Brouillon enregistré · pas encore visible des joueurs'
+              : isNew
+                ? 'Fiche créée'
+                : 'Fiche enregistrée',
+      );
       setDirty(false);
       await refresh();
       if (isNew) navigate(`/conclave/sceaux/${r.id}`, { replace: true });
-      else setPage((p) => (p ? { ...p, slug: r.slug } : p));
+      setPage((p) => (p ? { ...p, slug: r.slug, hidden: next.hidden } : p));
     } catch (err) {
       setFormError(err instanceof Error ? err.message : String(err));
     } finally {
-      setSaving(false);
+      setSaving(null);
     }
   };
 
@@ -459,7 +474,7 @@ export function PageEditor() {
   };
 
   return (
-    <form className="console editor" onSubmit={save} onKeyDown={(e) => {
+    <form ref={form} className="console editor" onSubmit={save} onKeyDown={(e) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
         e.preventDefault();
         void save();
@@ -479,11 +494,46 @@ export function PageEditor() {
               Voir la page
             </Link>
           )}
-          <button type="submit" className="btn btn--red" disabled={saving}>
-            {saving ? 'Enregistrement…' : dirty ? 'Enregistrer •' : 'Enregistrer'}
-          </button>
+          {page.hidden ? (
+            <>
+              <button type="submit" className="btn btn--ghost" disabled={!!saving}>
+                {saving === 'save' ? 'Enregistrement…' : `Enregistrer le brouillon${dirty ? ' •' : ''}`}
+              </button>
+              <button type="button" className="btn btn--red" disabled={!!saving} onClick={() => void save(undefined, false)}>
+                {saving === 'publish' ? 'Publication…' : 'Publier sur le site'}
+              </button>
+            </>
+          ) : (
+            <button type="submit" className="btn btn--red" disabled={!!saving}>
+              {saving === 'save' ? 'Enregistrement…' : dirty ? 'Enregistrer •' : 'Enregistrer'}
+            </button>
+          )}
         </div>
       </header>
+      <div className={`publish-state ${page.hidden ? 'is-draft' : 'is-live'}`}>
+        <i aria-hidden="true">{page.hidden ? '稿' : '公'}</i>
+        <p>
+          {page.hidden ? (
+            <>
+              <b>Brouillon</b> Seul le Conclave voit cette fiche. Appuie sur « Publier sur le site » pour l’envoyer aux joueurs.
+            </>
+          ) : isNew ? (
+            <>
+              <b>Publiée dès l’enregistrement</b> Les joueurs la verront selon le cercle de la catégorie.
+            </>
+          ) : (
+            <>
+              <b>Publiée</b> Visible des joueurs, selon le cercle de la catégorie.
+            </>
+          )}
+          {page.badge === 'mj' && <em> Badge MJ : même publiée, elle reste réservée au Conclave.</em>}
+        </p>
+        {!page.hidden && (
+          <button type="button" className="link-btn" disabled={!!saving} onClick={() => (isNew ? set('hidden', true) : void save(undefined, true))}>
+            {saving === 'draft' ? 'En cours…' : 'Repasser en brouillon'}
+          </button>
+        )}
+      </div>
       {formError && <p className="form-error">{formError}</p>}
 
       <div className="editor__grid">
@@ -574,12 +624,6 @@ export function PageEditor() {
             <span>Ordre dans le sommaire</span>
             <input type="number" value={page.position ?? ''} onChange={(e) => set('position', e.target.value === '' ? null : Number(e.target.value))} placeholder="auto" />
           </label>
-          <Toggle
-            checked={page.hidden}
-            onChange={(v) => set('hidden', v)}
-            label="Brouillon"
-            hint="Invisible des joueurs, visible du Conclave"
-          />
           <div className="field">
             <span>Visuel du sceau</span>
             <div className="icon-field">

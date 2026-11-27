@@ -11,6 +11,31 @@ import { displaySealSvg, sealGlyphs } from '../lib/sealDesign';
 import { useBrushFont } from '../lib/useBrushFont';
 import { copyToClipboard, ErrorState, Loader, SealBadge, useToast } from '../components/ui';
 
+/** Bouton du Conclave : envoie aux joueurs une fiche encore en brouillon. */
+function PublishButton({ pageId, kind, onDone }: { pageId: number; kind: string; onDone: () => Promise<void> }) {
+  const toast = useToast();
+  const { refresh } = useSession();
+  const [busy, setBusy] = useState(false);
+  const publish = async () => {
+    setBusy(true);
+    try {
+      const full = await api.pageGet(pageId);
+      await api.pageSave({ ...full, hidden: false });
+      toast(kind === 'seal' ? 'Sceau publié : les joueurs peuvent le voir' : 'Fiche publiée : les joueurs peuvent la voir');
+      await Promise.all([refresh(), onDone()]);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e), 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <button type="button" className="btn btn--red btn--sm" disabled={busy} onClick={() => void publish()}>
+      {busy ? 'Publication…' : 'Publier sur le site'}
+    </button>
+  );
+}
+
 /** Case « Je maîtrise ce sceau » : le shinobi coche lui-même les sceaux qu'il connaît. */
 function MasteryToggle({ pageId, initial }: { pageId: number; initial: boolean }) {
   const toast = useToast();
@@ -203,6 +228,15 @@ export default function PageView() {
     }
   }, [slug]);
 
+  /** Relit la page sans repasser par l'écran de chargement (après une publication). */
+  const reload = useCallback(async () => {
+    try {
+      setData(await api.page(slug));
+    } catch {
+      /* la page reste affichée telle quelle */
+    }
+  }, [slug]);
+
   useEffect(() => {
     void load();
   }, [load]);
@@ -258,6 +292,7 @@ export default function PageView() {
         {member?.is_conclave && (
           <div className="conclave-bar">
             <span className="conclave-bar__label">議 Conclave</span>
+            {page.hidden && <PublishButton pageId={page.id} kind={page.kind} onDone={reload} />}
             <Link to={`/conclave/sceaux/${page.id}`} className="btn btn--ghost btn--sm">
               Modifier la fiche
             </Link>

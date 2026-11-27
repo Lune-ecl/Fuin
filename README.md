@@ -195,7 +195,9 @@ Encadré rouge. Types disponibles : note, tip, caution, danger.
 ````
 
 La **formule de kanjis** (champ dédié) s'affiche en grand en haut de la fiche avec un bouton « Copier ».
-Une fiche en **brouillon** n'est visible que du Conclave.
+Une nouvelle fiche commence en **brouillon** : seul le Conclave la voit. Pour l'envoyer aux joueurs, appuyer sur
+« Publier sur le site », en haut de l'éditeur ou dans la barre du Conclave sur la page du sceau. Une fiche publiée
+peut repasser en brouillon depuis l'éditeur.
 
 ---
 
