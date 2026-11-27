@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api, ApiError, type PageData, type SlotInfo } from '../lib/api';
 import { useSession } from '../lib/session';
 import { circleLabel, formatDate } from '../lib/format';
@@ -9,7 +9,7 @@ import SealEmblem from '../components/SealEmblem';
 import Memorial from '../components/Memorial';
 import { displaySealSvg, sealGlyphs } from '../lib/sealDesign';
 import { useBrushFont } from '../lib/useBrushFont';
-import { copyToClipboard, ErrorState, Loader, SealBadge, useToast } from '../components/ui';
+import { copyToClipboard, ErrorState, Loader, SealBadge, useConfirm, useToast } from '../components/ui';
 
 /** Bouton du Conclave : envoie aux joueurs une fiche encore en brouillon. */
 function PublishButton({ pageId, kind, onDone }: { pageId: number; kind: string; onDone: () => Promise<void> }) {
@@ -32,6 +32,42 @@ function PublishButton({ pageId, kind, onDone }: { pageId: number; kind: string;
   return (
     <button type="button" className="btn btn--red btn--sm" disabled={busy} onClick={() => void publish()}>
       {busy ? 'Publication…' : 'Publier sur le site'}
+    </button>
+  );
+}
+
+/** Bouton du Conclave : efface la fiche après confirmation, puis revient au cercle. */
+function DeleteButton({ pageId, title, kind, back }: { pageId: number; title: string; kind: string; back: string }) {
+  const toast = useToast();
+  const confirm = useConfirm();
+  const navigate = useNavigate();
+  const { refresh } = useSession();
+  const [busy, setBusy] = useState(false);
+  const remove = async () => {
+    const ok = await confirm({
+      title: `Supprimer « ${title} » ?`,
+      text:
+        kind === 'seal'
+          ? 'Le sceau, ses slots et la liste de ceux qui le maîtrisent seront définitivement effacés.'
+          : 'La fiche sera définitivement effacée.',
+      confirm: 'Supprimer',
+      danger: true,
+    });
+    if (!ok) return;
+    setBusy(true);
+    try {
+      await api.pageDelete(pageId);
+      toast(kind === 'seal' ? 'Sceau supprimé' : 'Fiche supprimée');
+      await refresh();
+      navigate(back, { replace: true });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e), 'error');
+      setBusy(false);
+    }
+  };
+  return (
+    <button type="button" className="btn btn--ghost btn--sm btn--danger-text" disabled={busy} onClick={() => void remove()}>
+      {busy ? 'Suppression…' : 'Supprimer'}
     </button>
   );
 }
@@ -301,6 +337,7 @@ export default function PageView() {
                 {slot ? 'Gérer les slots' : 'Sloter ce sceau'}
               </Link>
             )}
+            <DeleteButton pageId={page.id} title={page.title} kind={page.kind} back={crumbHref} />
             {masters && (
               <p className="conclave-bar__masters">
                 <b>Maîtrisé par</b>{' '}

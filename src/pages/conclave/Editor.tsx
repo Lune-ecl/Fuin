@@ -458,14 +458,17 @@ export function PageEditor() {
     if (!page.id) return;
     const ok = await confirm({
       title: `Supprimer « ${page.title} » ?`,
-      text: 'La fiche et ses slots éventuels seront définitivement effacés.',
+      text:
+        page.kind === 'seal'
+          ? 'Le sceau, ses slots et la liste de ceux qui le maîtrisent seront définitivement effacés.'
+          : 'La fiche sera définitivement effacée.',
       confirm: 'Supprimer',
       danger: true,
     });
     if (!ok) return;
     try {
       await api.pageDelete(page.id);
-      toast('Fiche supprimée');
+      toast(page.kind === 'seal' ? 'Sceau supprimé' : 'Fiche supprimée');
       await refresh();
       navigate('/conclave/sceaux');
     } catch (err) {
@@ -490,9 +493,14 @@ export function PageEditor() {
         </div>
         <div className="editor__actions">
           {!isNew && (
-            <Link to={'/' + page.slug} className="btn btn--ghost">
-              Voir la page
-            </Link>
+            <>
+              <button type="button" className="btn btn--ghost btn--danger-text" disabled={!!saving} onClick={() => void remove()}>
+                Supprimer
+              </button>
+              <Link to={'/' + page.slug} className="btn btn--ghost">
+                Voir la page
+              </Link>
+            </>
           )}
           {page.hidden ? (
             <>
@@ -655,11 +663,6 @@ export function PageEditor() {
               )}
             </details>
           </div>
-          {!isNew && (
-            <button type="button" className="btn btn--ghost btn--danger-text btn--block" onClick={remove}>
-              Supprimer cette fiche
-            </button>
-          )}
         </section>
 
         <section className="panel editor__body">
